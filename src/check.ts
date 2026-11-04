@@ -65,8 +65,9 @@ export async function check(root: string, run: string, skipVerification = false)
       const current = await clones(after);
       baselineClones = previous.length;
       currentClones = current.length;
-      for (const clone of newClones(previous, current)) {
-        add('NEW_DUPLICATION', 'A new or expanded token clone needs a reuse decision; similarity alone does not prove these responsibilities should be merged.', clone.locations, before.config.duplicatePolicy === 'fail' ? 'fail' : 'review');
+      for (const clone of newClones(before, after, current)) {
+        findings.push({ rule: 'NEW_DUPLICATION', message: `Token occurrences increased from ${clone.attribution.baselineOccurrences} to ${clone.attribution.currentOccurrences}; review reuse before retaining these implementations.`,
+          locations: clone.locations, attribution: clone.attribution, severity: before.config.duplicatePolicy === 'fail' ? 'fail' : 'review' });
       }
     } catch (error) { errors.push(`Duplicate detector failed: ${error instanceof Error ? error.message : String(error)}`); }
   }
@@ -91,11 +92,11 @@ export async function check(root: string, run: string, skipVerification = false)
   if (snapshot(root).hash !== after.hash) errors.push('Project changed during check; results are stale. Run check again on a stable workspace.');
   const status: Status = errors.length ? 'incomplete' : findings.some(f => f.severity === 'fail') ? 'fail' : findings.length ? 'needs-review' : 'pass';
   const report = { command: 'check', run, task: baseline.task, status, analyzer: ANALYZER, checkedAt: new Date().toISOString(),
-    baselineHash: before.hash, snapshotHash: after.hash, scannedFiles: Object.keys(after.files).length,
+    baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', scannedFiles: Object.keys(after.files).length,
     baselineFiles: Object.keys(before.files).length, changes, baselineClones, currentClones,
     newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length, findings, errors, verification, skipped: after.skipped,
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
-      'Clone fingerprints and counts suppress unchanged/moved matches; edited clone boundaries can require manual review.',
+      'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
       'Removal checks cover declared file/symbol locations only, not external consumers or all stale references.',
       'This report applies only to the recorded snapshot. Local evidence is not a tamper-proof CI attestation.'],
   };
