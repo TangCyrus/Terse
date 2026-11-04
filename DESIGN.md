@@ -4,6 +4,8 @@ Terse 帮助 coding agent 在完成项目需求时，先定位和评估已有实
 
 当前已实现本地 CLI 原型：`begin`、`context`、`check`，支持 JavaScript/TypeScript 的任务基线、词法及语法结构检索、新增 token 重复检测、显式清理目标和配置的验证命令。使用方式及实际能力边界见 [README.md](README.md)。下文保留整体设计方向；语义职责判断、完整引用清理、强制宿主接入及 CI 等尚待后续实现。
 
+当前实现的模块归属、接口说明和开发顺序见 [DEVELOPMENT.md](DEVELOPMENT.md)。
+
 **1. 产品定位与边界**
 
 Terse 提供任务相关的代码证据、变更决策记录和验收检查。现有 agent 继续负责理解需求、编辑代码和修复问题；项目原有测试、类型检查和构建继续负责验证行为。

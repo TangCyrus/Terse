@@ -4,6 +4,8 @@ Terse 为 coding agent 提供任务相关的代码检索、修改前基线和修
 
 当前版本为本地 CLI 原型，支持 JavaScript、TypeScript、JSX、TSX，以及 `.mjs`、`.cjs`、`.mts`、`.cts`。设计背景见 [DESIGN.md](DESIGN.md)。
 
+参与开发请阅读 [开发文档](DEVELOPMENT.md)，其中包含模块职责、接口、验证方式和分模块 PR 的开发顺序。
+
 ## 安装与验证
 
 需要 Node.js 24 或更新版本，以及 PATH 中可用的 Git。在仓库目录运行：
