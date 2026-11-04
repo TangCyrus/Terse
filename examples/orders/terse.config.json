@@ -1,0 +1,8 @@
+{
+  "minTokens": 50,
+  "minLines": 5,
+  "duplicatePolicy": "review",
+  "verification": [
+    { "command": "node", "args": ["--test", "test/orders.test.mjs"], "timeoutMs": 30000 }
+  ]
+}
