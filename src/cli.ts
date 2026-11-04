@@ -21,7 +21,8 @@ function render(result: any): string {
   if (result.command === 'context') {
     const rows = result.candidates.map((c: any) => `${c.path}:${c.line}  ${c.symbol}\nMatched: ${c.matched.join(', ')}\n${c.snippet}\nImported by: ${c.importedBy.map((i: any) => i.from).join(', ') || '(none resolved)'}\nTests: ${c.relatedTests.join(', ') || '(none matched)'}`);
     return [`Scanned: ${result.scannedFiles} files`, rows.length ? rows.join('\n\n') : 'No symbol candidates found. Expand the query; this does not prove no reusable code exists.',
-      `File matches: ${result.fileMatches.map((f: any) => f.path).join(', ') || '(none)'}`, ...result.errors, ...result.limitations].join('\n');
+      `File matches: ${result.fileMatches.map((f: any) => f.path).join(', ') || '(none)'}`,
+      ...result.unresolvedImports.map((i: any) => `Unresolved: ${i.from}:${i.line} ${i.specifier} (${i.reason})`), ...result.errors, ...result.limitations].join('\n');
   }
   if (result.command === 'check') return [
     `Status: ${result.status}`, `Scanned: ${result.scannedFiles} files; baseline: ${result.baselineFiles}`,
