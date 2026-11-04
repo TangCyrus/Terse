@@ -8,6 +8,19 @@ export const digest = (value: string) => createHash('sha256').update(value).dige
 const slash = (value: string) => value.replaceAll('\\', '/');
 const sourcePattern = /\.(?:[cm]?[jt]s|[jt]sx)$/i;
 const defaultExcluded = new Set(['.git', '.terse', 'node_modules', 'dist', 'build', 'coverage', 'vendor', '.next']);
+const runIdPattern = /^\d{13}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const hashPattern = /^[0-9a-f]{64}$/;
+const skipReasons = new Set(['excluded', 'unsupported-or-declaration', 'symlink', 'not-a-file', 'over-1MiB', 'non-utf8', 'binary']);
+const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+const relativePath = (value: string) => !/[\\\0]/.test(value) && !path.posix.isAbsolute(value) && !path.win32.isAbsolute(value)
+  && !/^[a-z]:/i.test(value) && value.split('/').every(part => part !== '' && part !== '.' && part !== '..');
+const ordered = <T>(value: Record<string, T>): Record<string, T> => Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]));
+
+// Keep the schema-1 serialization used by existing runs; JSON object order is not data.
+function snapshotHash(state: Omit<Snapshot, 'hash'>): string {
+  return digest(JSON.stringify({ files: Object.entries(ordered(state.files)).map(([p, s]) => [p, s.hash]),
+    metadata: ordered(state.metadata), config: state.config, skipped: state.skipped.map(({ path, reason }) => ({ path, reason })) }));
+}
 
 export function rootOf(cwd: string): string {
   return fs.realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], {
@@ -16,35 +29,51 @@ export function rootOf(cwd: string): string {
 }
 
 export function readJson(file: string): any {
-  return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+  let content: string;
+  try {
+    if (!fs.lstatSync(file).isFile()) throw new Error('expected a regular file; symlinks are not followed');
+    content = new TextDecoder('utf-8', { fatal: true }).decode(fs.readFileSync(file));
+  } catch (error) {
+    const detail = error instanceof Error ? ((error as NodeJS.ErrnoException).code ?? error.message) : 'unreadable file';
+    throw new Error(`[JSON_READ_FAILED] ${file}: ${detail}`);
+  }
+  try { return JSON.parse(content.replace(/^\uFEFF/, '')); }
+  catch { throw new Error(`[INVALID_JSON] ${file}: expected valid JSON; file contents are omitted`); }
+}
+
+function parseConfig(raw: unknown, complete = false): Config {
+  if (!isRecord(raw)) throw new Error('config must be an object');
+  const allowed = new Set(['exclude', 'minTokens', 'minLines', 'duplicatePolicy', 'verification']);
+  for (const key of Object.keys(raw)) if (!allowed.has(key)) throw new Error(`Unknown config option: ${key}`);
+  if (complete) for (const key of allowed) if (!Object.hasOwn(raw, key) || raw[key] === null) throw new Error(`config.${key} is required`);
+  const exclude = raw.exclude ?? [];
+  const minTokens = raw.minTokens ?? 50;
+  const minLines = raw.minLines ?? 5;
+  const duplicatePolicy = raw.duplicatePolicy ?? 'review';
+  const commands = raw.verification ?? [];
+  if (!Array.isArray(exclude) || exclude.some(p => typeof p !== 'string' || !p.trim() || /[*?]/.test(p) || !relativePath(p.replace(/\/$/, '')))) {
+    throw new Error('exclude must contain relative file/directory prefixes using forward slashes (no globs)');
+  }
+  if (typeof minTokens !== 'number' || !Number.isInteger(minTokens) || minTokens < 10 || typeof minLines !== 'number' || !Number.isInteger(minLines) || minLines < 1) {
+    throw new Error('minTokens must be >= 10 and minLines >= 1');
+  }
+  if (duplicatePolicy !== 'review' && duplicatePolicy !== 'fail') throw new Error('Invalid duplicatePolicy');
+  if (!Array.isArray(commands)) throw new Error('verification must be an array');
+  const verification = commands.map((v: unknown, i) => {
+    if (!isRecord(v) || typeof v.command !== 'string' || !v.command.trim() || !Array.isArray(v.args) || v.args.some(a => typeof a !== 'string')) {
+      throw new Error(`verification[${i}] needs a command and an array of string args`);
+    }
+    if (complete && (!Object.hasOwn(v, 'timeoutMs') || v.timeoutMs === null)) throw new Error(`verification[${i}].timeoutMs is required`);
+    const timeoutMs = v.timeoutMs ?? 30_000;
+    if (typeof timeoutMs !== 'number' || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 300_000) throw new Error(`verification[${i}].timeoutMs must be 100..300000`);
+    return { command: v.command, args: v.args, timeoutMs };
+  });
+  return { exclude, minTokens, minLines, duplicatePolicy, verification };
 }
 
 export function configOf(root: string): Config {
   const file = path.join(root, 'terse.config.json');
-  const raw = fs.existsSync(file) ? readJson(file) : {};
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('terse.config.json must be an object');
-  const allowed = new Set(['exclude', 'minTokens', 'minLines', 'duplicatePolicy', 'verification']);
-  for (const key of Object.keys(raw)) if (!allowed.has(key)) throw new Error(`Unknown config option: ${key}`);
-  const config: Config = {
-    exclude: raw.exclude ?? [], minTokens: raw.minTokens ?? 50, minLines: raw.minLines ?? 5,
-    duplicatePolicy: raw.duplicatePolicy ?? 'review', verification: raw.verification ?? [],
-  };
-  if (!Array.isArray(config.exclude) || config.exclude.some(p => typeof p !== 'string' || !p.trim() || p.includes('..') || /[\\*?]/.test(p) || path.isAbsolute(p))) {
-    throw new Error('exclude must contain relative file/directory prefixes using forward slashes (no globs)');
-  }
-  if (!Number.isInteger(config.minTokens) || config.minTokens < 10 || !Number.isInteger(config.minLines) || config.minLines < 1) {
-    throw new Error('minTokens must be >= 10 and minLines >= 1');
-  }
-  if (!['review', 'fail'].includes(config.duplicatePolicy) || !Array.isArray(config.verification)) throw new Error('Invalid policy or verification list');
-  config.verification = config.verification.map(v => {
-    if (!v || typeof v.command !== 'string' || !v.command.trim() || !Array.isArray(v.args) || v.args.some(a => typeof a !== 'string')) {
-      throw new Error('Each verification needs a command and an array of string args');
-    }
-    const timeoutMs = v.timeoutMs ?? 30_000;
-    if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 300_000) throw new Error('verification timeoutMs must be 100..300000');
-    return { command: v.command, args: v.args, timeoutMs };
-  });
-  return config;
+  return parseConfig(fs.existsSync(file) ? readJson(file) : {});
 }
 
 export function snapshot(root: string): Snapshot {
@@ -86,12 +115,11 @@ export function snapshot(root: string): Snapshot {
     if (isMetadata) metadata[relative] = digest(content);
     else files[relative] = { content, hash: digest(content) };
   }
-  const hash = digest(JSON.stringify({ files: Object.entries(files).map(([p, s]) => [p, s.hash]), metadata, config, skipped }));
-  return { files, metadata, hash, skipped, config };
+  return { files, metadata, hash: snapshotHash({ files, metadata, config, skipped }), skipped, config };
 }
 
 export function runDir(root: string, run: string, create = false): string {
-  if (!/^\d{13}-[0-9a-f-]{36}$/.test(run)) throw new Error('Invalid run id');
+  if (!runIdPattern.test(run)) throw new Error('[INVALID_RUN_ID] Expected the run ID returned by terse begin');
   let current = root;
   for (const part of ['.terse', 'runs', run]) {
     current = path.join(current, part);
@@ -99,7 +127,7 @@ export function runDir(root: string, run: string, create = false): string {
       const stat = fs.lstatSync(current);
       if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`Unsafe run directory: ${current}`);
     } else if (create) fs.mkdirSync(current);
-    else throw new Error(`Run not found: ${run}`);
+    else throw new Error(`[RUN_NOT_FOUND] ${current}: restore the run or use terse begin`);
   }
   return current;
 }
@@ -113,6 +141,7 @@ export function writeJson(dir: string, name: string, value: unknown): void {
 }
 
 export function begin(root: string, task: string) {
+  if (typeof task !== 'string' || !task.trim()) throw new Error('A non-empty task is required');
   const state = snapshot(root);
   const run = `${Date.now()}-${randomUUID()}`;
   const dir = runDir(root, run, true);
@@ -128,14 +157,58 @@ export function begin(root: string, task: string) {
 
 export function loadRun(root: string, run: string): { dir: string; baseline: Baseline } {
   const dir = runDir(root, run);
-  const baseline = readJson(path.join(dir, 'baseline.json')) as Baseline;
-  if (baseline.schema !== 1 || baseline.analyzer !== ANALYZER || baseline.run !== run || baseline.root !== root || !baseline.snapshot?.files) {
-    throw new Error('Run schema, analyzer or repository mismatch; start a new run');
+  const file = path.join(dir, 'baseline.json');
+  const recover = 'Restore the original record or start a new run with terse begin; do not regenerate hashes to hide corruption.';
+  function fail(code: string, field: string, detail: string): never { throw new Error(`[${code}] ${file} ${field}: ${detail}. ${recover}`); }
+  function require(ok: unknown, field: string, detail: string): asserts ok { if (!ok) fail('BASELINE_INVALID', field, detail); }
+  let raw: unknown;
+  try { raw = readJson(file); }
+  catch (error) { throw new Error(`${error instanceof Error ? error.message : String(error)}. ${recover}`); }
+  require(isRecord(raw), 'document', 'expected an object');
+  for (const [field, expected] of Object.entries({ schema: 1, analyzer: ANALYZER, run, root })) {
+    if (raw[field] !== expected) fail('BASELINE_INCOMPATIBLE', field, 'does not match this run, repository or supported version');
   }
-  for (const [file, source] of Object.entries(baseline.snapshot.files)) {
-    if (path.isAbsolute(file) || file.includes('..') || file.includes('\\') || typeof source.content !== 'string' || digest(source.content) !== source.hash) {
-      throw new Error('Invalid or corrupted baseline source');
-    }
+  require(typeof raw.task === 'string' && raw.task.trim(), 'task', 'expected a non-empty string');
+  require(typeof raw.createdAt === 'string' && Number.isFinite(Date.parse(raw.createdAt)), 'createdAt', 'expected an ISO timestamp');
+  require(new Date(raw.createdAt).toISOString() === raw.createdAt, 'createdAt', 'expected an ISO timestamp');
+  require(raw.head === null || (typeof raw.head === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(raw.head)), 'head', 'expected a Git object ID or null');
+  const state = raw.snapshot;
+  require(isRecord(state), 'snapshot', 'expected an object');
+  require(isRecord(state.files), 'snapshot.files', 'expected a path-to-source object');
+  require(isRecord(state.metadata), 'snapshot.metadata', 'expected a path-to-hash object');
+  require(Array.isArray(state.skipped), 'snapshot.skipped', 'expected an array');
+  require(typeof state.hash === 'string' && hashPattern.test(state.hash), 'snapshot.hash', 'expected a SHA-256 hash');
+  const seen = new Set<string>();
+  function validatePath(value: unknown, field: string): asserts value is string {
+    require(typeof value === 'string' && relativePath(value), field, 'expected a normalized repository-relative path');
+    require(!seen.has(value), field, 'path appears in multiple snapshot entries');
+    seen.add(value);
+  }
+  for (const [name, source] of Object.entries(state.files)) {
+    const field = `snapshot.files[${JSON.stringify(name)}]`;
+    validatePath(name, field);
+    require(isRecord(source) && typeof source.content === 'string' && typeof source.hash === 'string' && hashPattern.test(source.hash), field, 'expected content and SHA-256 hash');
+    if (digest(source.content) !== source.hash) fail('BASELINE_INTEGRITY', field, 'source content does not match its hash');
+  }
+  for (const [name, hash] of Object.entries(state.metadata)) {
+    const field = `snapshot.metadata[${JSON.stringify(name)}]`;
+    validatePath(name, field);
+    require(typeof hash === 'string' && hashPattern.test(hash), field, 'expected a SHA-256 hash');
+  }
+  for (const [i, entry] of state.skipped.entries()) {
+    const field = `snapshot.skipped[${i}]`;
+    require(isRecord(entry), field, 'expected an object');
+    validatePath(entry.path, `${field}.path`);
+    require(typeof entry.reason === 'string' && skipReasons.has(entry.reason), `${field}.reason`, 'unknown skip reason');
+  }
+  let config: Config;
+  try { config = parseConfig(state.config, true); }
+  catch (error) { fail('BASELINE_INVALID', 'snapshot.config', error instanceof Error ? error.message : 'invalid config'); }
+  const baseline = raw as unknown as Baseline;
+  // Normalize object key order before downstream policy comparisons and token scanning.
+  baseline.snapshot = { ...baseline.snapshot, files: ordered(baseline.snapshot.files), metadata: ordered(baseline.snapshot.metadata), config };
+  if (snapshotHash(baseline.snapshot) !== baseline.snapshot.hash) {
+    fail('BASELINE_INTEGRITY', 'snapshot.hash', 'snapshot contents do not match the saved aggregate hash');
   }
   return { dir, baseline };
 }

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { begin, snapshot } from '../dist/project.js';
+import { begin, snapshot, loadRun } from '../dist/project.js';
 import { context } from '../dist/analyze.js';
 import { check } from '../dist/check.js';
 
@@ -233,4 +233,123 @@ test('example comparison runs all three commands and identical acceptance tests'
   assert.equal(reuse.newDuplications, 0);
   assert.deepEqual(copy.verification, ['passed']);
   assert.deepEqual(reuse.verification, ['passed']);
+});
+
+test('M1 rejects corrupted baseline fields with actionable diagnostics', async t => {
+  const p = project(t);
+  const run = ready(p.root);
+  const file = path.join(p.root, '.terse/runs', run, 'baseline.json');
+  const original = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const cases = [
+    ['null document', () => null, /BASELINE_INVALID.*document/],
+    ['array snapshot', b => { b.snapshot = []; }, /BASELINE_INVALID.*snapshot/],
+    ['array sources', b => { b.snapshot.files = []; }, /BASELINE_INVALID.*snapshot.files/],
+    ['null source', b => { b.snapshot.files['src/calculate.js'] = null; }, /BASELINE_INVALID.*src\/calculate.js/],
+    ['missing metadata', b => { delete b.snapshot.metadata; }, /BASELINE_INVALID.*snapshot.metadata/],
+    ['invalid metadata hash', b => { b.snapshot.metadata['package.json'] = 'invalid'; }, /BASELINE_INVALID.*package.json/],
+    ['invalid skipped entry', b => { b.snapshot.skipped = [null]; }, /BASELINE_INVALID.*snapshot.skipped/],
+    ['unknown skip reason', b => { b.snapshot.skipped = [{ path: 'src/missing.js', reason: 'pretend-scanned' }]; }, /BASELINE_INVALID.*reason/],
+    ['overlapping snapshot entries', b => { b.snapshot.skipped.push({ path: 'src/calculate.js', reason: 'excluded' }); }, /BASELINE_INVALID.*multiple snapshot entries/],
+    ['missing config field', b => { delete b.snapshot.config.minTokens; }, /BASELINE_INVALID.*minTokens/],
+    ['invalid config value', b => { b.snapshot.config.minTokens = 0; }, /BASELINE_INVALID.*minTokens/],
+    ['missing verification timeout', b => { delete b.snapshot.config.verification[0].timeoutMs; }, /BASELINE_INVALID.*timeoutMs/],
+    ['invalid verification args', b => { b.snapshot.config.verification[0].args = 'not-an-array'; }, /BASELINE_INVALID.*args/],
+    ['invalid timestamp', b => { b.createdAt = 'yesterday'; }, /BASELINE_INVALID.*createdAt/],
+    ['invalid head', b => { b.head = 42; }, /BASELINE_INVALID.*head/],
+    ['source mismatch', b => { b.snapshot.files['src/calculate.js'].content += '\n// altered'; }, /BASELINE_INTEGRITY.*src\/calculate.js/],
+    ['removed source with stale hash', b => { delete b.snapshot.files['src/calculate.js']; }, /BASELINE_INTEGRITY.*snapshot.hash/],
+    ['metadata changed with stale hash', b => { b.snapshot.metadata['package.json'] = 'a'.repeat(64); }, /BASELINE_INTEGRITY.*snapshot.hash/],
+    ['config changed with stale hash', b => { b.snapshot.config.minTokens += 1; }, /BASELINE_INTEGRITY.*snapshot.hash/],
+    ['skipped changed with stale hash', b => { b.snapshot.skipped.push({ path: 'extra.txt', reason: 'excluded' }); }, /BASELINE_INTEGRITY.*snapshot.hash/],
+    ['incompatible schema', b => { b.schema = 2; }, /BASELINE_INCOMPATIBLE.*schema/],
+    ['incompatible analyzer', b => { b.analyzer = 'another-version'; }, /BASELINE_INCOMPATIBLE.*analyzer/],
+    ['wrong run', b => { b.run = `1234567890123-${run.slice(14)}`; }, /BASELINE_INCOMPATIBLE.*run/],
+    ['wrong repository', b => { b.root = path.join(p.root, 'another'); }, /BASELINE_INCOMPATIBLE.*root/],
+  ];
+  for (const [name, mutate, expected] of cases) await t.test(name, () => {
+    const baseline = structuredClone(original);
+    const value = mutate(baseline);
+    fs.writeFileSync(file, JSON.stringify(value === undefined ? baseline : value));
+    assert.throws(() => loadRun(p.root, run), error => {
+      assert.match(error.message, expected);
+      assert(error.message.includes(file));
+      assert.match(error.message, /terse begin/);
+      return true;
+    });
+  });
+});
+
+test('M1 validates relative paths consistently on Windows and Linux', async t => {
+  const p = project(t);
+  const run = ready(p.root);
+  const file = path.join(p.root, '.terse/runs', run, 'baseline.json');
+  const original = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const invalid of ['../outside.js', 'src/../outside.js', 'C:/outside.js', 'C:outside.js', '/outside.js', 'src\\outside.js', 'src//outside.js', './src/calculate.js']) {
+    const changed = structuredClone(original);
+    changed.snapshot.files[invalid] = changed.snapshot.files['src/calculate.js'];
+    fs.writeFileSync(file, JSON.stringify(changed));
+    assert.throws(() => loadRun(p.root, run), /BASELINE_INVALID.*path/);
+  }
+  p.write('src/version..backup.js', 'export const backup = 1;');
+  const valid = ready(p.root);
+  assert(loadRun(p.root, valid).baseline.snapshot.files['src/version..backup.js']);
+  assert.equal((await check(p.root, valid)).status, 'pass');
+});
+
+test('M1 CLI reports invalid or missing baseline JSON without disclosing file contents', t => {
+  const p = project(t);
+  const run = ready(p.root);
+  const file = path.join(p.root, '.terse/runs', run, 'baseline.json');
+  for (const command of ['context', 'check']) {
+    for (const missing of [false, true]) {
+      fs.writeFileSync(file, '{"secret": "do-not-print-this');
+      if (missing) fs.unlinkSync(file);
+      const args = [cli, command, '--run', run, '--cwd', p.root, '--json', ...(command === 'context' ? ['--query', 'calculate'] : [])];
+      const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
+      assert.equal(result.status, 3);
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.status, 'incomplete');
+      assert.match(report.errors[0], missing ? /JSON_READ_FAILED/ : /INVALID_JSON/);
+      assert(report.errors[0].includes(file));
+      assert.match(report.errors[0], /terse begin/);
+      assert(!result.stdout.includes('do-not-print-this'));
+    }
+  }
+});
+
+test('M1 keeps schema-1 runs usable after JSON key reordering and before any Git commit', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/other.ts': 'export const other = 1;', 'package.json': '{"private": true}' });
+  const run = ready(p.root);
+  const file = path.join(p.root, '.terse/runs', run, 'baseline.json');
+  const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(saved.schema, 1);
+  assert.equal(saved.head, null);
+  const reverse = value => Array.isArray(value) ? value.map(reverse) : value && typeof value === 'object'
+    ? Object.fromEntries(Object.entries(value).reverse().map(([key, item]) => [key, reverse(item)])) : value;
+  fs.writeFileSync(file, '\uFEFF' + JSON.stringify(reverse(saved), null, 4));
+  assert.equal(loadRun(p.root, run).baseline.snapshot.hash, saved.snapshot.hash);
+  assert.equal((await check(p.root, run)).status, 'pass');
+});
+
+test('M1 refuses invalid baseline before verification executes', async t => {
+  const p = project(t, undefined, { verification: [{ command: 'node', args: ['-e', "require('node:fs').writeFileSync('executed.txt', 'yes')"] }] });
+  const run = ready(p.root);
+  const file = path.join(p.root, '.terse/runs', run, 'baseline.json');
+  const baseline = JSON.parse(fs.readFileSync(file, 'utf8'));
+  baseline.snapshot.hash = '0'.repeat(64);
+  fs.writeFileSync(file, JSON.stringify(baseline));
+  await assert.rejects(check(p.root, run), /BASELINE_INTEGRITY.*snapshot.hash/);
+  assert(!fs.existsSync(path.join(p.root, 'executed.txt')));
+  assert(!fs.existsSync(path.join(p.root, '.terse/runs', run, 'report.json')));
+});
+
+test('M1 distinguishes missing runs, invalid IDs and non-file baseline records', t => {
+  const p = project(t);
+  const run = ready(p.root);
+  assert.throws(() => loadRun(p.root, `1234567890123-${'-'.repeat(36)}`), /INVALID_RUN_ID/);
+  assert.throws(() => loadRun(p.root, `1234567890123-${run.slice(14)}`), /RUN_NOT_FOUND.*terse begin/);
+  const file = path.join(p.root, '.terse/runs', run, 'baseline.json');
+  fs.unlinkSync(file);
+  fs.mkdirSync(file);
+  assert.throws(() => loadRun(p.root, run), /JSON_READ_FAILED.*regular file/);
 });
