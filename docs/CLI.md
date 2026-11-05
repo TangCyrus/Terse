@@ -70,7 +70,11 @@ M1 基线读取失败沿用 `COMMAND_ERROR` 和 `stage: "command"`，通过 `cau
 
 1. `begin --task <需求> --query <关键词> --json`。同一调用中建立基线并执行既有 `context`；返回 `context` 嵌套载荷、`decisionGuide` 和建议的下一步。嵌套 context 是核心检索载荷，不额外套 CLI 公共字段。失败检索返回 `incomplete`、`CONTEXT_INCOMPLETE` 和已建立的 run；不能把它当作成功证据。`--limit` 可与 query 配合，未给 query 时禁止单独使用 limit。
 2. 阅读候选并明确选择，用 `decide --run <id> --strategy <策略> --rationale <理由> --candidate <candidateId> --json` 记录。`candidateId` 来自检索返回，绑定路径、符号、行号和源文件哈希，不随排序或关键词变化；编辑后产生的新 ID 不能当作旧基线候选。`decisionGuide` 保留简单记录的 argvTemplate，另提供可直接使用的 inputArgvTemplate、inputCandidateRole: assertion、inputExclusiveFlags 及已打包的形状 schema 路径。复杂记录应使用 input 模板，不在简单模板上叠加 input。
-3. 修改后执行 `check --run <id> --summary --json`。省略验证日志正文以控制上下文体积，执行完整检查和验证；处理所有非零退出码。
+3. 修改后执行 `verificationGuide.argvTemplate`，等价于 `check --cwd <root> --run <id> --summary --json`。执行完整检查和验证，省略完整验证日志并保留失败摘要；处理所有非零退出码。
+
+`begin/context/decide` 的 CLI 结果均附顶层 `verificationGuide`（不写入基线或决策文件）。`argvTemplate` 为可直接追加到 `node <terse>/dist/cli.js` 后的参数数组，已填充规范化 root/run，无占位符；`verificationOwner: "check"` 表明由 check 执行 begin 固定的全部验证。`notes` 提供调用提示，不应作为机器状态解析。已有 begin --query 结果可直接用于决策，只有需要更多候选时才再次 context。
+
+以 check 作为最终验证入口，默认不在它前后手动重跑同一组配置命令。先看失败摘要、errors 和 findings；确需定位时可运行单项诊断或未配置的额外检查，修复后仍须重新执行完整 check。验证均通过但存在 review 发现时，应评估该发现，重复执行未变化的测试不能消除它。任何相关源码、非源码输入、依赖或环境发生变化后均应重新检查。每次 check 都重新分析并执行验证，不缓存成功结果或增加跳过入口。
 
 `decide` 是显式写操作，替换完整 decision，不隐式合并旧候选或删除列表。`--candidate` 可重复传入，重复 ID 去重；所有候选默认使用同一 disposition 和 reason：strategy reuse→reuse，modify/refactor→modify，new→reject；reason 默认等于实际填入的 rationale。可分别用 `--disposition`、`--reason` 覆盖。它们需要 candidate；未选候选时只有 new 策略可保存。`--remove <repo-relative-path>` 可重复，用于整文件删除声明。
 
@@ -82,7 +86,9 @@ input 不能与 `--strategy`、`--rationale`、`--disposition`、`--reason`、`-
 
 保存成功返回 `run`、`decisionPath`、`decision` 和 `next`，不自动选择第一个候选，不生成理由，也不消除重复发现。候选 ID 和本地证据是定位辅助，不是防篡改凭据。
 
-`--summary` 是 check 的选择性呈现方式：返回 `detail: "summary"`、`reportPath`，每个 verification 保留命令、状态、退出码和执行错误，省去 `output` 并设 `outputOmitted: true`。全部 findings、errors 和 diagnostics 保留；完整的原有报告仍写入 report.json（验证输出仍受原有长度上限约束）。不使用结果缓存，不跳过验证，也不把无日志正文解释为没有输出。默认未指定 summary 时，既有完整 JSON 输出不变。
+`--summary` 是 check 的选择性呈现方式：返回 `detail: "summary"`、`reportPath`，每个 verification 保留命令、状态、退出码和执行错误，省去 `output` 并设 `outputOmitted: true`。仅 failed/error 项增补 `failureOutput` 与 `failureOutputTruncated`：每项最多 2,048 个 JS 字符单位，按命令顺序共享 4,096 的总预算，长日志保留开头和结尾，中间加省略标记。预算不足时后续摘要可能为空；Truncated 表示相对持久化 output 发生删节，不能据此推断原始进程输出是否超过原有 12,000 上限。passed 项不含这两个字段。
+
+全部 findings、errors 和 diagnostics 保留；启动错误或超时仍在 error/errors 中，即使摘要预算耗尽也不会被隐藏。摘要不足以诊断时可读取 reportPath，原有报告及其日志长度上限不变，不包含 failureOutput。默认未指定 summary 时，既有完整 JSON 输出不变。不使用结果缓存，不跳过验证，也不把无日志正文解释为没有输出。
 
 ## Agent 调用顺序
 

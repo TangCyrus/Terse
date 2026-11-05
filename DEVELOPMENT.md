@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本文以 `main` 的 `1320bcb` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12 和 M5 复杂决策优化 #13 均已合并；起点的 Windows/Linux Node 24 CI 各通过 124 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本文以 `main` 的 `4ad831a` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12、M5 复杂决策优化 #13 和 p-queue 优化后复测 #14 均已合并；起点的 Windows/Linux Node 24 CI 各通过 129 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -13,7 +13,7 @@
 | M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
 | M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
-已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 的首轮包含三个任务、12 次会话。M4/M5 优化切片已合并；本次 M6 使用同一固定输入重新运行实际 agent 对照，比较正确性、重复、耗时和决策重试，合并状态以对应 PR 为准。
+已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 的首轮与优化后复测各包含三个任务、12 次会话。本次 M5 交付针对复测中重复执行整套验证及失败 summary 缺少日志的问题；真实 agent 的整体耗时收益仍需后续同条件复测。
 
 ## 开发原则与任务范围
 
@@ -103,6 +103,10 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 `context` 返回 `candidateId`；`begin --query` 合并起步调用；CLI 的 `decisionGuide` 保留简单 argvTemplate，增补 inputArgvTemplate、inputCandidateRole 和 inputExclusiveFlags，benchmark agent 接入也读取这份指南。复杂模式仍校验所有候选、完整记录及基线检索；原有 input 和手写记录不迁移格式。新 issue code 为 not-considered / conflict，不改变 CLI v1 或基线格式。`check --summary` 仅省略 stdout 的验证日志，持久化完整报告、发现、退出码及验证执行保持原有语义。实质策略仍由 agent 选择。
 
 `resultOutput(command, payload)` 包装业务结果；`errorOutput(command, stage, error)` 包装异常，供 CLI 共用。`outputKind: error` 不保证有业务字段；`result` 也可能 `incomplete`。执行诊断使用 `code`、`message`、`stage` 和可选 `causeCode`；规则发现继续位于 `findings`。M1 代码经 `causeCode` 传出，避免解析消息文本。持久化报告不添加 CLI 公共包装字段。
+
+`verificationGuide(root, run)` 只构造 CLI 接入提示与已填充的 check 参数数组，不重新读取基线或执行验证。begin/context/decide 返回同一指南；默认由 check 执行全部基线验证，省去重复手动整套测试和不必要的帮助查询。`summaryOutput(root, report)` 只呈现已有检查结果，为 failed/error 项保留每项 2,048、总计 4,096 个 JS 字符单位的首尾摘要；错误、发现和原有持久化报告不变。二者归属 M5，不引入验证缓存或改动 M4 编排。
+
+决策回归用四个真实子进程验证：手动全套再 check 执行 8 次，同一工作区仅 check 执行 4 次，结果和覆盖相同；非源码输入变化后相同源码哈希也须全部重跑并发现失败。另覆盖执行失败、启动错误、摘要预算耗尽与完整日志保留。基准提示将接入组的配置命令标为已由 check 执行，保留单项调试和正常审批重试；父评测器仍独立执行四项验收，不能以减少验收换取耗时下降。
 
 MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现有核心能力。当前没有强制宿主执行约束。
 

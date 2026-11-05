@@ -1,5 +1,7 @@
 import { VERSION, type Status } from './types.js';
+import path from 'node:path';
 import type { DecisionIssue } from './decision.js';
+import type { check } from './check.js';
 
 export const EXIT_CODES: Record<Status, number> = { pass: 0, fail: 1, 'needs-review': 2, incomplete: 3 };
 export type Command = 'begin' | 'context' | 'decide' | 'check' | 'help' | 'version';
@@ -21,6 +23,26 @@ export interface CliOutput {
   exitCode: number;
   errors: string[];
   diagnostics: Diagnostic[];
+}
+
+export function verificationGuide(root: string, run: string) {
+  return {argvTemplate: ['check', '--cwd', root, '--run', run, '--summary', '--json'], verificationOwner: 'check',
+    notes: 'Check runs all baseline verification and static checks; do not duplicate configured tests manually by default. Begin --query already includes context. Inspect failureOutput/errors before targeted debugging; rerun the full check after fixes or relevant input/environment changes. Repeating unchanged checks cannot resolve review-only findings. No result cache.'};
+}
+
+export function summaryOutput(root: string, report: Awaited<ReturnType<typeof check>>) {
+  let remaining = 4096;
+  return {...report, detail: 'summary', reportPath: path.join(root, '.terse/runs', report.run, 'report.json'),
+    verification: report.verification.map(({output, ...item}) => {
+      if (item.status === 'passed') return {...item, outputOmitted: true};
+      const limit = Math.min(2048, remaining);
+      const marker = '\n… output omitted …\n';
+      const tail = Math.floor((limit - marker.length) / 2);
+      const excerpt = output.length <= limit ? output : limit < marker.length ? ''
+        : output.slice(0, limit - marker.length - tail) + marker + (tail ? output.slice(-tail) : '');
+      remaining -= excerpt.length;
+      return {...item, outputOmitted: true, failureOutput: excerpt, failureOutputTruncated: excerpt.length < output.length};
+    })};
 }
 
 export function resultOutput(command: Command, payload: Record<string, unknown>): CliOutput {
