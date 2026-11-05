@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/sindresorhus/p-map.git",
+  "commit": "2ba3a002acac080c60c47ca1dfa2fad3e17f5b7c",
+  "tag": "v7.0.3",
+  "license": "MIT",
+  "task": "mapper-settled-api",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "repetitions": 2,
+  "timeoutMs": 600000,
+  "editable": ["index.js", "index.d.ts", "readme.md"]
+}

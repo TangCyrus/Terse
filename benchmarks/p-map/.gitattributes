@@ -1,0 +1,10 @@
+# Preserve the exact bytes bound by the published experiment's hashes on all platforms.
+.gitattributes text eol=lf
+task.md text eol=lf
+acceptance.mjs text eol=lf
+acceptance-types.mts text eol=lf
+project.json text eol=lf
+# Diff context uses a single space for empty source lines; preserve it as evidence.
+observed/*.patch -text -whitespace
+observed/*.json text eol=lf
+observed/*.gz binary

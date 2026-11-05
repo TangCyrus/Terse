@@ -106,6 +106,8 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 
 项目评测由 [scripts/evaluate.mjs](scripts/evaluate.mjs) 执行，[scripts/evaluation-cases.mjs](scripts/evaluation-cases.mjs) 定义任务、变体和预期处置，[examples/evaluation](examples/evaluation) 提供调用入口与独立验收测试。[test/evaluation.test.mjs](test/evaluation.test.mjs) 将评测接入现有 `npm test`；示例和评测共用 [workspace.mjs](scripts/lib/workspace.mjs) 的隔离 Git 工作区与真实 CLI 调用，没有第二套检测器。
 
+实际 agent 对照由 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs) 编排，固定开源项目、任务与独立验收位于 [benchmarks/p-map](benchmarks/p-map)。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与成对统计；离线协议测试不需要模型凭据。实际实验使用 `npm run benchmark:agent` 单独启动，不因新增离线测试就声称已经跑过模型。方法和观测见 [agent 评测文档](docs/AGENT-BENCHMARK.md)。
+
 测试验证模块协作和失败路径；示例通过真实 CLI，在两个独立 Git 工作区中比较复制实现与复用实现。两个版本使用相同的行为验收测试。测试数据和真实业务实现分开，不能用移除功能或放松测试换取更少的重复。
 
 已完成 GitHub Actions：面向 main 的 PR、main 推送及手动触发，在 `ubuntu-latest`/`windows-latest` 上使用 Node 24，执行 `npm ci`、`npm test`、`npm pack --dry-run`。工作流只读仓库权限、固定 action 提交，自动取消旧运行；打包预检不发布包。当前存在工作流，不表示已配置仓库强制合并保护。
@@ -183,7 +185,7 @@ node --test --test-name-pattern="context finds" test/terse.test.mjs
 
 首轮完成记录见开头表格。以下是建议的后续切片，均为待开发，不代表已创建 PR 或确定排期：
 
-1. **M6 评测扩展。** 当前切片已覆盖本地受控项目的修改、删除、重构、合理新增、独立职责、无候选和动态引用。下一步可引入授权的外部项目任务与实际 agent 对照实验，记录正确性、人工判断的误报/漏报、额外耗时与模型 token。现有评测不调用模型，token 留空；不能把受控结果当作跨模型收益比例。
+1. **M6 评测扩展。** 受控项目覆盖四类任务与反例；本次另增加固定 p-map 版本的实际 agent 有无 Terse 对照，保留补丁、独立验收、耗时和 CLI 返回的 token。后续扩展任务、项目与模型，检查检索和工作流成本；不能把单项目少量会话外推为跨模型收益比例或一般误报率。
 2. **由评测驱动 M2/M3/M4 改进。** 每次选择一个可复现的检索、归因或清理问题，补失败案例后修正，并记录覆盖与性能边界。不要同时重写扫描器或扩大到完整语义分析。
 3. **M5 外部适配。** 在具体接入需求明确后做 MCP 或宿主适配，复用 CLI 契约和核心能力，验收成功、待评估、失败与异常路径。
 4. **受信任 CI 与例外策略。** 仓库必需检查、策略来源、可审查例外和宿主写入约束需独立设计与授权；现有构建 CI 不构成产品的防篡改验收凭据。
