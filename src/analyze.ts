@@ -71,6 +71,9 @@ function words(query: string): string[] {
     ? [p, ...Array.from({ length: p.length - 1 }, (_, i) => p.slice(i, i + 2))] : [p]))];
 }
 
+export const candidateId = (symbol: { path: string; symbol: string; line: number }, sourceHash: string) =>
+  digest(JSON.stringify([symbol.path, symbol.symbol, symbol.line, sourceHash])).slice(0, 20);
+
 export function context(root: string, run: string, query: string, limit: number) {
   const { dir, baseline } = loadRun(root, run);
   const state = snapshot(root);
@@ -84,7 +87,7 @@ export function context(root: string, run: string, query: string, limit: number)
     const score = matched.reduce((total, t) => total + (name.includes(t) ? 8 : 0) + (filename.includes(t) ? 3 : 0) + (text.includes(t) ? 1 : 0), 0);
     return { ...symbol, score, matched };
   }).filter(s => s.score > 0).sort((a, b) => b.score - a.score || a.path.localeCompare(b.path) || a.line - b.line).slice(0, limit).map(({ text, ...symbol }) => ({
-    ...symbol, sourceHash: state.files[symbol.path].hash,
+    ...symbol, sourceHash: state.files[symbol.path].hash, candidateId: candidateId(symbol, state.files[symbol.path].hash),
     snippet: text.split(/\r?\n/).slice(0, 60).join('\n').slice(0, 6000),
     snippetTruncated: text.split(/\r?\n/).length > 60 || text.length > 6000,
     imports: index.imports.filter(i => i.from === symbol.path),
@@ -104,7 +107,7 @@ export function context(root: string, run: string, query: string, limit: number)
   const history: unknown[] = fs.existsSync(evidencePath) ? readJson(evidencePath) : [];
   if (!Array.isArray(history)) throw new Error('Invalid context evidence');
   history.push({ query, at: new Date().toISOString(), snapshotHash: state.hash, atBaseline: state.hash === baseline.snapshot.hash,
-    candidates: candidates.map(c => ({ path: c.path, symbol: c.symbol, sourceHash: c.sourceHash })), errors: index.errors });
+    candidates: candidates.map(c => ({ path: c.path, symbol: c.symbol, sourceHash: c.sourceHash, candidateId: c.candidateId })), errors: index.errors });
   writeJson(dir, 'context.json', history);
   return result;
 }

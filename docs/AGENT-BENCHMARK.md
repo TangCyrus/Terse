@@ -4,6 +4,8 @@
 
 本次 p-map 任务中，两组各 2/2 通过独立验收，新增重复均为 0；没有观察到 Terse 额外减少重复。接入组的平均 agent 墙钟时间更长。原始数值与可审查补丁已提交，不能以手工复制对照的结果替代这一实际观察。
 
+后续 M5 命令式接入的独立复测见下文，原始手写记录组的数据保留不变。
+
 ## 实际观测
 
 [比较结果](../benchmarks/p-map/observed/comparison.json) 来自 2026-11-05 的四次有效 CLI 会话，按执行顺序：
@@ -24,6 +26,25 @@
 有效实验之前有一个被中止的环境试跑：忽略本机配置时，子 agent 的执行策略拒绝了源码读取和验收命令，未修改源码。该试跑及连接预检的本地日志保留，不混入四次有效任务；之后通过保留本机 Windows/代理配置并使用 `--approve-for-me`，先验证了实际读写，再完整重启配对。有效四次运行均未超时、未修改保护文件、未跨编辑范围，且有真实命令事件；两次 Terse 运行均保留最终工作流证据。
 
 上游派生补丁随附 [MIT 许可](../benchmarks/p-map/UPSTREAM-LICENSE)。依赖锁快照为 [dependency-lock.json.gz](../benchmarks/p-map/observed/dependency-lock.json.gz)，用于复现该次安装，而非升级项目依赖。
+
+## M5 命令式接入复测
+
+M5 新增 `decide`、候选 ID 和 `check --summary` 后，用同一任务、模型、依赖锁、时限与验收重新执行四个独立会话。结果单独保存在 [commands-observed/comparison.json](../benchmarks/p-map/commands-observed/comparison.json)，`workflow` 标记为 `commands`。此次没有并行运行工程测试，仍未对全部系统背景负载作严格隔离。
+
+| 配对 | 工作流 | 验收 | 新增重复组 | agent 秒 | 命令事件数 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 无 Terse | 5/5 + 49/49 + 类型通过 | 0 | 106.194 | 12 |
+| 1 | 命令式 Terse | 5/5 + 49/49 + 类型通过 | 0 | 118.037 | 13 |
+| 2 | 命令式 Terse | 5/5 + 49/49 + 类型通过 | 0 | 87.760 | 9 |
+| 2 | 无 Terse | 5/5 + 49/49 + 类型通过 | 0 | 68.421 | 8 |
+
+两次 Terse 会话均一次成功调用 `decide`（本地 JSONL 的 command_execution item_5、item_4，退出码均为 0），没有重现原先的手写字段修正。四份补丁均复用既有 pMap，独立验收和协议检查均通过。
+
+本轮均值为无 Terse 87.3 秒、命令式 Terse 102.9 秒。历史手写接入为 156.7 秒；此次 Terse 的命令事件均值为 11，历史为 16.5。这是有用的接入观察，但控制组均值也从 70.4 秒变为 87.3 秒，两轮不是同时开展的严格版本对照，不能把 53.8 秒差值当作已证实的普遍提速。命令事件数包含源码阅读、实现与验收，并非纯 Terse 调用数。
+
+该复测由父评测器预建 run，因此只验证命令式决策和精简 check 的接入，不计入 `begin --query` 合并起步调用的收益；三步起步流程由独立 CLI 回归覆盖。CLI 的 pass 仍不是语义审批，精简返回仍执行完整验证；新旧报告的 token 字段均来自实际 CLI，不估算费用。
+
+复测是在本 PR 的工作区实现构建后执行，报告中的 `terseRevision` 是当时已提交的起点 `85c45c8`，不代表该提交已经包含未提交的 M5 功能。复现命令式运行应使用包含本次实现的 PR 提交。原始事件、提示和验证日志保留在本地 `.terse/agent-benchmark-e63jB7`；发布目录包含补丁、哈希绑定结果和同一依赖锁快照。后续模型或网络状态变化可能产生不同结果。
 
 ## 固定实验
 
@@ -70,6 +91,8 @@ git -C .terse/p-map-upstream checkout --detach 2ba3a002acac080c60c47ca1dfa2fad3e
 ```sh
 npm run benchmark:agent -- --source .terse/p-map-upstream
 ```
+
+旧提示路径默认是 `--workflow manual`。测试当前命令式接入用 `npm run benchmark:agent -- --source .terse/p-map-upstream --workflow commands`；该参数写入 plan 和 comparison，不覆盖历史结果。新版本 CLI 本身也提供更多引导信息，因此要逐字复现最初的手写接入观测，还需使用 PR #9 的历史实现，而非只切换此参数。
 
 可以通过 `--codex <可执行文件>` 指定 CLI，通过 `--repetitions <1..10>` 改变配对数。改变次数后视为另一实验，不能与默认实验混称。执行保留本机用户配置以使用 Windows/网络设置，模型与推理等级由命令行统一覆盖；CLI 接口与 JSONL 用法参照 [OpenAI 官方非交互文档](https://learn.chatgpt.com/docs/non-interactive-mode)。本次 CLI 版本和运行时保存在 JSON 中。
 

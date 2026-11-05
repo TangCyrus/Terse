@@ -90,11 +90,13 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 
 ### M5 CLI 与 agent 接入
 
-代码归属：[src/cli.ts](src/cli.ts) 与 [src/output.ts](src/output.ts)。外部契约见 [docs/CLI.md](docs/CLI.md) 和 [JSON Schema](docs/cli-output.schema.json)。
+代码归属：[src/cli.ts](src/cli.ts)、[src/output.ts](src/output.ts) 与 [src/decision.ts](src/decision.ts)。外部契约见 [docs/CLI.md](docs/CLI.md)、[CLI JSON Schema](docs/cli-output.schema.json) 和 [决策形状](docs/decision.schema.json)。
 
 输入是命令行参数，输出是文本或 JSON，以及进程退出码。负责参数校验、调用核心能力和结果呈现；业务规则留在对应核心模块。所有路径都从目标项目的 Git 根目录处理。
 
-三个业务命令为 `begin`、`context`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
+命令为 `begin`、`context`、`decide`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
+
+当前切片针对真实评测的决策格式重试：`validateDecision` 取代 check 内部的孤立校验，`decide(root, run, options)` 按候选 ID 或 input 文件验证并保存；写入失败返回 `DECISION_INVALID` 和字段 issues，不覆盖原记录或运行项目验证。`context` 返回 `candidateId`；`begin --query` 合并起步调用；CLI 的 `decisionGuide` 提供参数模板与 schema 路径。`check --summary` 仅省略 stdout 的验证日志，持久化完整报告、发现、退出码及验证执行保持原有语义。实质策略仍由 agent 选择。
 
 `resultOutput(command, payload)` 包装业务结果；`errorOutput(command, stage, error)` 包装异常，供 CLI 共用。`outputKind: error` 不保证有业务字段；`result` 也可能 `incomplete`。执行诊断使用 `code`、`message`、`stage` 和可选 `causeCode`；规则发现继续位于 `findings`。M1 代码经 `causeCode` 传出，避免解析消息文本。持久化报告不添加 CLI 公共包装字段。
 
@@ -175,7 +177,7 @@ node --test --test-name-pattern="context finds" test/terse.test.mjs
 - M2：`context resolves`、`nearest jsconfig`、`NodeNext distinguishes`、`config changes`。
 - M3：`splitting or shortening`、`expanded duplicates`、`occurrence attribution`、`new copies of a historical subfragment`。
 - M4：`cleanup resolves`、`local residual calls`、`current alias fallback`、`verification failures`。
-- M5：`CLI v1`、`CLI distinguishes`、`CLI contract preserves`；M6：`example comparison`、`project evaluation`。
+- M5：`CLI v1`、`CLI distinguishes`、`CLI contract preserves`，以及 [决策回归](test/decision.test.mjs) 的 `M5` 筛选；M6：`example comparison`、`project evaluation`。
 
 缺陷修复应补能复现该缺陷的回归案例；功能变更应覆盖目标行为与重要失败路径。测试断言可观察结果，避免仅复制内部实现步骤。临时 Git 工作区和生成报告使用已隔离的目录，不提交缓存、依赖或构建产物。
 

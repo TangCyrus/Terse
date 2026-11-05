@@ -41,20 +41,22 @@ test('published agent results bind task, tests, dependency lock and implementati
   const directory = new URL('../benchmarks/p-map/', import.meta.url);
   const read = file => fs.readFileSync(new URL(file, directory));
   const hash = value => createHash('sha256').update(value).digest('hex');
-  const report = JSON.parse(read('observed/comparison.json'));
-  assert.deepEqual(report.project, JSON.parse(read('project.json')));
-  assert.equal(report.taskHash, hash(read('task.md')));
-  assert.equal(report.acceptanceHash, hash(read('acceptance.mjs')));
-  assert.equal(report.typeAcceptanceHash, hash(read('acceptance-types.mts')));
-  assert.equal(report.dependencyLockHash, hash(gunzipSync(read('observed/dependency-lock.json.gz'))));
-  assert.equal(report.results.length, report.repetitions * 2);
-  assert.deepEqual(report.pairs, pairedSummary(report.results));
-  for (const run of report.results) {
-    assert.equal(hash(read(`observed/${run.patch}`)), run.evidence.patchHash);
-    const findings = JSON.parse(read(`observed/${run.duplications}`));
-    assert.equal(findings.length, run.newDuplications);
-    assert.equal(run.correct, Object.values(run.checks).every(check => check.passed) && run.tampered.length === 0);
-    assert(!Object.hasOwn(run.events, 'finalMessage'));
+  for (const recorded of ['observed', 'commands-observed']) {
+    const report = JSON.parse(read(`${recorded}/comparison.json`));
+    assert.deepEqual(report.project, JSON.parse(read('project.json')));
+    assert.equal(report.taskHash, hash(read('task.md')));
+    assert.equal(report.acceptanceHash, hash(read('acceptance.mjs')));
+    assert.equal(report.typeAcceptanceHash, hash(read('acceptance-types.mts')));
+    assert.equal(report.dependencyLockHash, hash(gunzipSync(read(`${recorded}/dependency-lock.json.gz`))));
+    assert.equal(report.results.length, report.repetitions * 2);
+    assert.deepEqual(report.pairs, pairedSummary(report.results));
+    for (const run of report.results) {
+      assert.equal(hash(read(`${recorded}/${run.patch}`)), run.evidence.patchHash);
+      const findings = JSON.parse(read(`${recorded}/${run.duplications}`));
+      assert.equal(findings.length, run.newDuplications);
+      assert.equal(run.correct, Object.values(run.checks).every(check => check.passed) && run.tampered.length === 0);
+      assert(!Object.hasOwn(run.events, 'finalMessage'));
+    }
+    assert(!Object.hasOwn(report, 'artifactDirectory'));
   }
-  assert(!Object.hasOwn(report, 'artifactDirectory'));
 });

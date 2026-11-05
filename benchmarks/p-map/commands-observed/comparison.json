@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "kind": "open-source-agent-comparison",
+  "project": {
+    "repository": "https://github.com/sindresorhus/p-map.git",
+    "commit": "2ba3a002acac080c60c47ca1dfa2fad3e17f5b7c",
+    "tag": "v7.0.3",
+    "license": "MIT",
+    "task": "mapper-settled-api",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "repetitions": 2,
+    "timeoutMs": 600000,
+    "editable": [
+      "index.js",
+      "index.d.ts",
+      "readme.md"
+    ]
+  },
+  "repetitions": 2,
+  "workflow": "commands",
+  "cliVersion": "codex-cli 0.166.0-alpha.6",
+  "runtime": {
+    "node": "v24.20.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "terseRevision": "85c45c81e726f46ec9038d16d2bfc026c0aa7114",
+  "taskHash": "02355a1d21f5cea051fd741b1dc449beb5e6bfe2085e8e4b1fa6d0619555af77",
+  "acceptanceHash": "8864f417917ae048b7080b19ad4b2167d11dbed5621cb1e2d9a301cdd7c82244",
+  "typeAcceptanceHash": "96b665ccc8557917701d0a1888a7086b97b3e3cd24902df8b0760878de8b8395",
+  "dependencyLockHash": "82978ed68ef724be64794bee9e4fa07e215360d988877d6b9f79901ef9ff9243",
+  "preflight": {
+    "upstream": {
+      "exitCode": 0,
+      "error": null,
+      "passed": true,
+      "elapsedMs": 6204
+    },
+    "taskBefore": {
+      "exitCode": 1,
+      "error": null,
+      "passed": false,
+      "elapsedMs": 92
+    }
+  },
+  "results": [
+    {
+      "repetition": 1,
+      "arm": "control",
+      "baselineHash": "51b1b4dfaa0c79898a5021c4f3aa4fb512aab2bcb4354e11e4b1481d201f2d6e",
+      "acceptanceHash": "8864f417917ae048b7080b19ad4b2167d11dbed5621cb1e2d9a301cdd7c82244",
+      "agentMs": 106194,
+      "evaluationMs": 5185,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 231834,
+          "cached_input_tokens": 196096,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2447,
+          "reasoning_output_tokens": 489
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 12
+      },
+      "checks": {
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 166
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 4375
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 488
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "index.d.ts",
+        "index.js",
+        "readme.md"
+      ],
+      "evidence": {
+        "patchHash": "f06a61a03abc057a9045ef68db72bd3114f048f0798c4ec16e3d310e11b17c59",
+        "eventHash": "e6d2ad227a8c466b20052f347d32cd38b508585de4a096589373b9cb269cd247"
+      },
+      "patch": "pair-1-control.patch",
+      "duplications": "pair-1-control.duplications.json"
+    },
+    {
+      "repetition": 1,
+      "arm": "terse",
+      "baselineHash": "51b1b4dfaa0c79898a5021c4f3aa4fb512aab2bcb4354e11e4b1481d201f2d6e",
+      "acceptanceHash": "8864f417917ae048b7080b19ad4b2167d11dbed5621cb1e2d9a301cdd7c82244",
+      "agentMs": 118037,
+      "evaluationMs": 4905,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 267629,
+          "cached_input_tokens": 236288,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3077,
+          "reasoning_output_tokens": 676
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 13
+      },
+      "checks": {
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 151
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 4099
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 504
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "index.d.ts",
+        "index.js",
+        "readme.md"
+      ],
+      "evidence": {
+        "patchHash": "efabd5ad4a5cbbb42c6cda7c29af318f325e4526143769ed222eec86f9b76157",
+        "eventHash": "436902126923431e2d38a100d7ea822bdbee8458eb943b6f0707a7dcf444eb38"
+      },
+      "patch": "pair-1-terse.patch",
+      "duplications": "pair-1-terse.duplications.json"
+    },
+    {
+      "repetition": 2,
+      "arm": "terse",
+      "baselineHash": "51b1b4dfaa0c79898a5021c4f3aa4fb512aab2bcb4354e11e4b1481d201f2d6e",
+      "acceptanceHash": "8864f417917ae048b7080b19ad4b2167d11dbed5621cb1e2d9a301cdd7c82244",
+      "agentMs": 87760,
+      "evaluationMs": 5016,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 186683,
+          "cached_input_tokens": 155776,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2305,
+          "reasoning_output_tokens": 449
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9
+      },
+      "checks": {
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 151
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 4247
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 487
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "index.d.ts",
+        "index.js",
+        "readme.md"
+      ],
+      "evidence": {
+        "patchHash": "81dda761d3ece5686bef75205e2bc2eb99451495808ab51aeb37f8edfdff2ab8",
+        "eventHash": "e78b7e64fd2f5e5ad78b5ca012edc9850cfd9543828d9505043829c09a86059b"
+      },
+      "patch": "pair-2-terse.patch",
+      "duplications": "pair-2-terse.duplications.json"
+    },
+    {
+      "repetition": 2,
+      "arm": "control",
+      "baselineHash": "51b1b4dfaa0c79898a5021c4f3aa4fb512aab2bcb4354e11e4b1481d201f2d6e",
+      "acceptanceHash": "8864f417917ae048b7080b19ad4b2167d11dbed5621cb1e2d9a301cdd7c82244",
+      "agentMs": 68421,
+      "evaluationMs": 5000,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 164006,
+          "cached_input_tokens": 145152,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1957,
+          "reasoning_output_tokens": 359
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 8
+      },
+      "checks": {
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 134
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 4267
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 496
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "index.d.ts",
+        "index.js",
+        "readme.md"
+      ],
+      "evidence": {
+        "patchHash": "9e2c2883b0936542ca7283068a8f15e9951724f8eb4a564f457a28b1f29cfe74",
+        "eventHash": "80e6065af7a7f6bfb2c8f10edb14c4d1cc214a335d86fb3314ca798831192ac3"
+      },
+      "patch": "pair-2-control.patch",
+      "duplications": "pair-2-control.duplications.json"
+    }
+  ],
+  "pairs": [
+    {
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 106194,
+        "terse": 118037
+      },
+      "terseMinusControlMs": 11843
+    },
+    {
+      "repetition": 2,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 68421,
+        "terse": 87760
+      },
+      "terseMinusControlMs": 19339
+    }
+  ],
+  "exportedAt": "2026-11-05T05:22:49.113Z",
+  "publication": "Raw event streams and process logs remain local; SHA-256 hashes identify those artifacts. Final agent prose and machine-local artifact paths are omitted. Patches and duplicate evidence are included."
+}
