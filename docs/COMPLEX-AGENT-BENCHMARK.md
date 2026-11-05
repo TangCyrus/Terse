@@ -36,6 +36,14 @@ M4 后续切片用相同的 p-queue 提交、平铺配置、依赖和已发布�
 
 复核时，从固定原版和本文所列等价配置建立基线，保留对应任务的四项 verification，记录实际删除目标，再应用 observed 中对应 patch 并运行 check。无需放宽策略或省略私有成员声明。离线回归 `node --test --test-name-pattern="M4 " test/terse.test.mjs` 覆盖声明依赖、路径/工作区反例、元数据完整性与成员不确定性；规则与边界见 [M4 使用说明](../README.md#m4-清理与残留引用)。
 
+## 后续 M5 复杂决策回放
+
+M5 后续切片使用固定原版建立新 run，读取原始 `refactor-pair-2-terse/item_9` 的决策文件与候选 `7cb93ad172eb31414cd4`，保留 `--input` 和 `--candidate` 同用的参数组合。原调用被互斥检查拒绝；新调用一次以退出码 0 保存，完整保留 4 个候选的处置/理由及 `PQueue.#onEvent` 删除声明，input 文件内容未改动，没有执行项目 verification。
+
+candidate 在 input 模式下是校验断言，文件仍是完整决策；未知、失效或未列入输入的 ID 继续报错，其余冲突参数仍拒绝。指南分别提供简单/复杂模板，后续 benchmark 提示复用这些模板，避免在简单命令上叠加输入文件。契约见 [CLI 文档](CLI.md#决策与低往返接入)。
+
+这是确定性 CLI 回放，不是新的自主 agent 会话，也不是提速或普遍消除重试的证据。历史观测及原事件保持不变；本地回放记录在 `.terse/m5-input-replay-byyHpO/replay.json`，绑定原始事件与输入文件哈希。离线回归覆盖候选断言、每候选处置、符号删除、失败不覆盖记录、基线检索和禁止混合覆盖参数。
+
 ## 固定任务和独立验收
 
 [project.json](../benchmarks/p-queue/project.json) 固定源码、模型请求名 `gpt-6.1-sol`、medium 推理、每会话 600 秒、每任务两次配对及编辑范围。每个任务、每组、每次重复都从同一原版独立复制，不叠加前一个任务的实现。

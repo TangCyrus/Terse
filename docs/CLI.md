@@ -39,7 +39,7 @@ Agent 应通过参数数组运行 `node <terse>/dist/cli.js <command> ... --json
 
 M1 基线读取失败沿用 `COMMAND_ERROR` 和 `stage: "command"`，通过 `causeCode` 提供错误类别：`JSON_READ_FAILED`、`INVALID_JSON`、`BASELINE_INVALID`、`BASELINE_INCOMPATIBLE`、`BASELINE_INTEGRITY`、`INVALID_RUN_ID` 或 `RUN_NOT_FOUND`。JSON 读取错误也可能来自配置等记录，应结合消息中的文件位置定位。此时 `outputKind` 为 `error`、退出码为 3，不生成新的检查报告，也不执行验证命令；具体恢复方式见 README 的“基线校验与恢复”。
 
-`decide` 的记录格式、候选或前置证据错误使用 `COMMAND_ERROR`，`causeCode: "DECISION_INVALID"`，并提供 `diagnostics[].issues`。每项含 `field`、`code`、`message`，例如 `field: "considered[0].disposition"`；不需要读源码或解析英文报错。issue code 当前包括 `invalid`、`required`、`not-found`、`parse-error`，未来可扩展。JSON 读取或解析错误仍沿用 M1 causeCode。拒绝写入时保留原 decision，且不执行项目验证。
+`decide` 的记录格式、候选或前置证据错误使用 `COMMAND_ERROR`，`causeCode: "DECISION_INVALID"`，并提供 `diagnostics[].issues`。每项含 `field`、`code`、`message`，例如 `field: "considered[0].disposition"`；不需要读源码或解析英文报错。issue code 包括 `invalid`、`required`、`not-found`、`not-considered`、`parse-error`，未来可扩展。`not-considered` 表示候选 ID 属于基线，但 input.considered 没有该 path/symbol。真正冲突的 input 参数组合使用 `INVALID_ARGUMENT` / arguments，并在 issues 中逐项给出 `code: "conflict"` 和字段名，先于项目定位或读取 input。核心 decide API 同样拒绝冲突，不静默忽略参数。JSON 读取或解析错误仍沿用 M1 causeCode。拒绝写入时保留原 decision，且不执行项目验证。
 
 直接编辑记录仍可用于既有工作流。`check` 复用同一形状校验器，格式不完整时保留 `DECISION_MISSING` 待评估发现，并附顶层 `decisionIssues`；无效 JSON 仍是执行异常。默认检查的状态优先级和验证行为不变。
 
@@ -69,12 +69,16 @@ M1 基线读取失败沿用 `COMMAND_ERROR` 和 `stage: "command"`，通过 `cau
 推荐以参数数组调用三步流程（需求实现发生在第 2 步之后）：
 
 1. `begin --task <需求> --query <关键词> --json`。同一调用中建立基线并执行既有 `context`；返回 `context` 嵌套载荷、`decisionGuide` 和建议的下一步。嵌套 context 是核心检索载荷，不额外套 CLI 公共字段。失败检索返回 `incomplete`、`CONTEXT_INCOMPLETE` 和已建立的 run；不能把它当作成功证据。`--limit` 可与 query 配合，未给 query 时禁止单独使用 limit。
-2. 阅读候选并明确选择，用 `decide --run <id> --strategy <策略> --rationale <理由> --candidate <candidateId> --json` 记录。`candidateId` 来自检索返回，绑定路径、符号、行号和源文件哈希，不随排序或关键词变化；编辑后产生的新 ID 不能当作旧基线候选。`decisionGuide` 提供策略、disposition 枚举、参数数组模板及已打包的形状 schema 路径。
+2. 阅读候选并明确选择，用 `decide --run <id> --strategy <策略> --rationale <理由> --candidate <candidateId> --json` 记录。`candidateId` 来自检索返回，绑定路径、符号、行号和源文件哈希，不随排序或关键词变化；编辑后产生的新 ID 不能当作旧基线候选。`decisionGuide` 保留简单记录的 argvTemplate，另提供可直接使用的 inputArgvTemplate、inputCandidateRole: assertion、inputExclusiveFlags 及已打包的形状 schema 路径。复杂记录应使用 input 模板，不在简单模板上叠加 input。
 3. 修改后执行 `check --run <id> --summary --json`。省略验证日志正文以控制上下文体积，执行完整检查和验证；处理所有非零退出码。
 
 `decide` 是显式写操作，替换完整 decision，不隐式合并旧候选或删除列表。`--candidate` 可重复传入，重复 ID 去重；所有候选默认使用同一 disposition 和 reason：strategy reuse→reuse，modify/refactor→modify，new→reject；reason 默认等于实际填入的 rationale。可分别用 `--disposition`、`--reason` 覆盖。它们需要 candidate；未选候选时只有 new 策略可保存。`--remove <repo-relative-path>` 可重复，用于整文件删除声明。
 
-复杂记录使用 `decide --run <id> --input <文件> --json`，input 相对 Git 根目录解析，也允许显式绝对路径；不能与其他决策字段选项混用。支持每个候选单独的处置/理由和 `{path, symbol}` 删除目标。形状见 [decision.schema.json](decision.schema.json)，未知扩展字段仍允许；命令还会验证基线候选存在、非 new 策略有未拒绝候选、基线检索成功。合法旧 run 无需迁移基线：工作区仍匹配基线时可再次 context 获得 ID；已经修改时，可保留原成功检索证据并用 input 引用基线中的 path/symbol。旧检索历史没有 ID 字段不因此失效，编辑后的新 ID 不能冒充旧基线候选。
+复杂记录使用 `decide --run <id> --input <文件> --json`，input 相对 Git 根目录解析，也允许显式绝对路径。文件是完整决策，保留每个候选单独的处置/理由、`{path, symbol}` 删除目标及扩展字段。可选的一个或多个 `--candidate <id>` 只作断言：每个 ID 必须属于该 run 的基线，其 path/symbol 必须已经列在 input.considered 中；重复 ID 去重，不追加候选、不改变 reject、不生成理由或覆盖删除声明。输入中未通过标志列出的其他候选仍完整保留。
+
+input 不能与 `--strategy`、`--rationale`、`--disposition`、`--reason`、`--remove` 混用；这些值应写在文件中。命令不会把两种来源隐式合并。形状见 [decision.schema.json](decision.schema.json)，决策文件格式本身不变；命令仍验证每个候选存在、非 new 策略有未拒绝候选、基线检索成功。候选断言不代替完整格式或前置条件校验。
+
+合法旧 run 无需迁移基线：工作区仍匹配基线时可再次 context 获得 ID；已经修改时，可保留原成功检索证据并用 input 引用基线中的 path/symbol。旧检索历史没有 ID 字段不因此失效；不带 candidate 的原有 input 用法继续支持，编辑后的新 ID 不能冒充旧基线候选。
 
 保存成功返回 `run`、`decisionPath`、`decision` 和 `next`，不自动选择第一个候选，不生成理由，也不消除重复发现。候选 ID 和本地证据是定位辅助，不是防篡改凭据。
 

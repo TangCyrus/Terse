@@ -76,7 +76,7 @@ $candidate = $taskStart.context.candidates | Where-Object { $_.path -eq 'src/ord
 node $terseCli decide --cwd $targetProject --run $taskStart.run --strategy modify --candidate $candidate.candidateId --rationale '付款筛选属于现有导出职责，应复用权限检查和 CSV 编码。' --json
 ```
 
-`decide` 负责写入下述格式，省去 agent 手写字段。需要分别解释多个候选或声明符号删除时，可准备同格式文件并使用 `decide --input <file>`；格式错误会返回 `DECISION_INVALID` 和具体 `issues[].field`，不会覆盖原记录。此命令替换完整决策，不做隐式追加或候选选择。仍支持直接编辑 `decision.json`：
+`decide` 负责写入下述格式，省去 agent 手写字段。需要分别解释多个候选或声明符号删除时，可准备同格式文件并使用 decisionGuide.inputArgvTemplate 调用 `decide --input <file>`；格式错误会返回 `DECISION_INVALID` 和具体 `issues[].field`，不会覆盖原记录。此命令替换完整决策，不做隐式追加或候选选择。仍支持直接编辑 `decision.json`：
 
 ```json
 {
@@ -115,6 +115,8 @@ Agent 的 JSON 接口使用输出契约 v1，公共字段包含 `schemaVersion`�
 `context --run <id> --query <关键词>` 提取函数、类、方法及类型声明，按名称、路径和源码内容排序。结果包含源码位置、内容哈希、限长片段、相对路径与别名导入关系及按名称匹配的测试。每个候选新增 `candidateId`，绑定源码位置和内容，供 `decide --candidate` 使用，不依赖搜索排序。默认最多 5 个候选，可用 `--limit 1..20` 调整。中文关键词可匹配中文注释；源码没有相关中文时请补充英文业务词或符号名。空结果不代表没有可复用实现。搜索证据会保存在 `context.json`。
 
 `decide --run <id> --strategy <reuse|modify|refactor|new> --rationale <理由> [--candidate <id>]` 校验并保存完整决策。候选可重复传入；策略 reuse 默认将候选标为 reuse，modify/refactor 默认为 modify，new 默认为 reject。`--reason` 默认复用所填 rationale，可用 `--disposition` 明确调整；`--remove <路径>` 声明文件删除。new 可不选候选，其他策略至少需要一个未拒绝的基线候选。需要先有对基线的成功检索。保存成功只说明记录有效，不代表项目通过，也不免除重复检查。
+
+复杂记录使用 `decide --run <id> --input <file> [--candidate <id>]`。input 是完整决策；candidate 在此仅校验基线 ID 已出现在 input.considered，不追加或覆盖记录。因此 p-queue 中冗余携带正确候选 ID 的调用可以直接成功。其他决策标志（strategy、rationale、disposition、reason、remove）仍与 input 互斥，返回逐字段 conflict 提示；未知、失效或未列入输入的候选仍拒绝写入。细节见 [CLI 输入契约](docs/CLI.md#决策与低往返接入)。
 
 `check --summary` 仍执行完整检查与配置的验证，不使用缓存或跳过验证；JSON 只省略 `verification[].output`，以 `outputOmitted: true` 标记，并给出完整持久化报告的 `reportPath`。状态、退出码、发现和执行错误保持可见；默认输出不变。决策形状错误另提供 `decisionIssues`，避免用笼统的待评估消息猜字段。
 

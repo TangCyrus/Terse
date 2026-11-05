@@ -3,7 +3,10 @@ import test from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import { createWorkspace, invoke } from '../scripts/lib/workspace.mjs';
+import {decide} from '../dist/decision.js';
 
 function project(t) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'terse-m5-'));
@@ -130,7 +133,105 @@ test('M5 complex input retains candidate-specific decisions and symbol removals'
   ], remove: [{ path: 'src/orders.ts', symbol: 'obsolete' }], note: 'Legacy extension fields remain allowed.' };
   p.write('complex.json', JSON.stringify(decision));
   assert.deepEqual(p.run(['decide', '--run', begun.run, '--input', 'complex.json']).decision, decision);
+  const input = p.read('complex.json');
+  const asserted = p.run(['decide', '--run', begun.run, '--input', 'complex.json',
+    '--candidate', selected(begun).candidateId, '--candidate', selected(begun).candidateId]);
+  assert.deepEqual(asserted.decision, decision);
+  assert.deepEqual(JSON.parse(p.read(path.relative(p.root, begun.decisionPath))), decision);
+  assert.equal(p.read('complex.json'), input);
   const invalid = p.run(['decide', '--run', begun.run, '--input', 'complex.json', '--strategy', 'new'], 3);
   assert.equal(invalid.diagnostics[0].code, 'INVALID_ARGUMENT');
   assert.equal(p.run(['begin', '--task', 'x', '--limit', '2'], 3).diagnostics[0].code, 'INVALID_ARGUMENT');
+});
+
+test('M5 input candidate assertions cannot add entries or bypass baseline identity and record validation', t => {
+  const p = project(t);
+  p.write('terse.config.json', JSON.stringify({verification: [{command: 'node', args: ['-e', "require('node:fs').writeFileSync('executed.txt', 'yes')"]}]}));
+  const begun = start(p);
+  save(p, begun);
+  const previous = p.read(path.relative(p.root, begun.decisionPath));
+  const id = selected(begun).candidateId;
+  const input = {strategy: 'new', rationale: 'A separate responsibility.', considered: [], remove: []};
+  p.write('input.json', JSON.stringify(input));
+  const attempt = candidate => p.run(['decide', '--run', begun.run, '--input', 'input.json', '--candidate', candidate], 3);
+  const absent = attempt(id);
+  assert.equal(absent.diagnostics[0].causeCode, 'DECISION_INVALID');
+  assert(absent.diagnostics[0].issues.some(issue => issue.field === 'candidate' && issue.code === 'not-considered'));
+  assert(attempt('unknown-id').diagnostics[0].issues.some(issue => issue.field === 'candidate' && issue.code === 'not-found'));
+  input.considered.push({path: 'src/orders.ts', symbol: 'exportOrders', disposition: 'reuse', reason: 'Use the existing entry.'});
+  p.write('input.json', JSON.stringify(input));
+  p.write('src/orders.ts', '// Edited after the baseline\n' + p.read('src/orders.ts'));
+  const current = p.run(['context', '--run', begun.run, '--query', 'exportOrders']).candidates.find(candidate => candidate.symbol === 'exportOrders');
+  assert.notEqual(current.candidateId, id);
+  assert(attempt(current.candidateId).diagnostics[0].issues.some(issue => issue.code === 'not-found'));
+  input.considered[0].disposition = 'wrong';
+  p.write('input.json', JSON.stringify(input));
+  assert(attempt(id).diagnostics[0].issues.some(issue => issue.field === 'considered[0].disposition'));
+  p.write('input.json', '{broken');
+  assert.equal(attempt(id).diagnostics[0].causeCode, 'INVALID_JSON');
+  assert.equal(p.read(path.relative(p.root, begun.decisionPath)), previous);
+  assert(!fs.existsSync(path.join(p.root, 'executed.txt')));
+});
+
+test('M5 complex file assertions preserve rejected candidates, private removals and retrieval requirements', t => {
+  const p = project(t);
+  p.write('src/queue.ts', 'export class Queue { #onEvent() {} onIdle() {} }');
+  const begun = p.run(['begin', '--task', 'Extract a private event waiter', '--query', 'Queue onEvent onIdle']);
+  const privateId = begun.context.candidates.find(candidate => candidate.symbol === 'Queue.#onEvent').candidateId;
+  const publicId = begun.context.candidates.find(candidate => candidate.symbol === 'Queue.onIdle').candidateId;
+  const input = {strategy: 'refactor', rationale: 'Extract the existing wait implementation.', considered: [
+    {path: 'src/queue.ts', symbol: 'Queue.#onEvent', disposition: 'modify', reason: 'Move this implementation.'},
+    {path: 'src/queue.ts', symbol: 'Queue.onIdle', disposition: 'reject', reason: 'Keep this public entry point unchanged.'},
+  ], remove: [{path: 'src/queue.ts', symbol: 'Queue.#onEvent'}], note: 'Keep extension fields.'};
+  p.write('input.json', JSON.stringify(input));
+  const recorded = p.run(['decide', '--run', begun.run, '--input', 'input.json', '--candidate', privateId, '--candidate', publicId, '--candidate', privateId]);
+  assert.deepEqual(recorded.decision, input); // Assertions do not turn reject into modify or drop removals.
+  const previous = p.read(path.relative(p.root, begun.decisionPath));
+  input.considered[0].disposition = 'reject';
+  p.write('input.json', JSON.stringify(input));
+  const unsupported = p.run(['decide', '--run', begun.run, '--input', 'input.json', '--candidate', privateId], 3);
+  assert(unsupported.diagnostics[0].issues.some(issue => issue.field === 'considered' && issue.code === 'required'));
+  assert.equal(p.read(path.relative(p.root, begun.decisionPath)), previous);
+  input.considered[0].disposition = 'modify';
+  p.write('input.json', JSON.stringify(input));
+  const withoutContext = p.run(['begin', '--task', 'Do not invent retrieval evidence']);
+  const missing = p.run(['decide', '--run', withoutContext.run, '--input', 'input.json', '--candidate', privateId], 3);
+  assert(missing.diagnostics[0].issues.some(issue => issue.field === 'context'));
+});
+
+test('M5 input conflicts identify every forbidden field before I/O and the core API refuses silent overrides', t => {
+  const p = project(t);
+  const begun = start(p);
+  save(p, begun);
+  const previous = p.read(path.relative(p.root, begun.decisionPath));
+  const fields = {strategy: 'new', rationale: 'Override', disposition: 'reject', reason: 'Override', remove: 'src/legacy.ts'};
+  for (const [field, value] of Object.entries(fields)) {
+    const result = p.run(['decide', '--run', 'invalid-run', '--input', 'missing-input.json', '--candidate', 'not-read', `--${field}`, value], 3);
+    assert.equal(result.diagnostics[0].code, 'INVALID_ARGUMENT');
+    assert.equal(result.diagnostics[0].stage, 'arguments');
+    assert.deepEqual(result.diagnostics[0].issues.map(issue => [issue.field, issue.code]), [[field, 'conflict']]);
+    assert.throws(() => decide(p.root, begun.run, {input: 'missing-input.json', [field]: field === 'remove' ? [value] : value}),
+      error => error.code === 'DECISION_INVALID' && error.issues.some(issue => issue.field === field && issue.code === 'conflict'));
+  }
+  const multiple = p.run(['decide', '--run', begun.run, '--input', 'missing-input.json', '--strategy', 'new', '--rationale', 'Override'], 3);
+  assert.deepEqual(multiple.diagnostics[0].issues.map(issue => issue.field), ['strategy', 'rationale']);
+  assert.equal(p.read(path.relative(p.root, begun.decisionPath)), previous);
+});
+
+test('M5 complex input guide is directly executable without adding selection flags', t => {
+  const p = project(t);
+  const begun = start(p);
+  const input = {strategy: 'modify', rationale: 'Use the existing pipeline.', considered: [
+    {path: 'src/orders.ts', symbol: 'exportOrders', disposition: 'modify', reason: 'Existing responsibility.'},
+  ], remove: []};
+  p.write('input.json', JSON.stringify(input));
+  const guide = begun.decisionGuide;
+  assert.equal(guide.inputCandidateRole, 'assertion');
+  assert.deepEqual(guide.inputExclusiveFlags, ['--strategy', '--rationale', '--disposition', '--reason', '--remove']);
+  assert(!guide.inputArgvTemplate.includes('--candidate'));
+  const args = guide.inputArgvTemplate.map(value => value === '<decision.json>' ? 'input.json' : value);
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL('../dist/cli.js', import.meta.url)), ...args], {cwd: p.root, encoding: 'utf8'});
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(result.stderr, '');
+  assert.deepEqual(JSON.parse(result.stdout).decision, input);
 });

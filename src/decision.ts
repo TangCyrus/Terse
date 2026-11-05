@@ -44,22 +44,39 @@ export interface DecisionOptions {
   disposition?: string; reason?: string; remove?: string[];
 }
 
+const inputExclusiveFlags = ['strategy', 'rationale', 'disposition', 'reason', 'remove'] as const;
+export function inputOptionIssues(options: DecisionOptions): DecisionIssue[] {
+  return options.input === undefined ? [] : inputExclusiveFlags.filter(field => options[field] !== undefined).map(field => ({
+    field, code: 'conflict', message: `--${field} cannot be combined with --input; put this decision field in the input file. Only --candidate may accompany --input as a baseline assertion.`,
+  }));
+}
+
 export function decide(root: string, run: string, options: DecisionOptions) {
+  const conflicts = inputOptionIssues(options);
+  if (conflicts.length) invalid(conflicts);
   const { dir, baseline } = loadRun(root, run);
   const index = indexSources(baseline.snapshot);
+  const selected = [...new Set(options.candidates ?? [])].map(id => {
+    const symbol = index.symbols.find(s => candidateId(s, baseline.snapshot.files[s.path].hash) === id);
+    if (!symbol) invalid([{ field: 'candidate', code: 'not-found', message: `Unknown baseline candidate ID: ${id}. Run context against this run's baseline.` }]);
+    return symbol;
+  });
   let proposed: unknown;
-  if (options.input) proposed = readJson(path.resolve(root, options.input));
+  if (options.input !== undefined) proposed = readJson(path.resolve(root, options.input));
   else {
     const defaultDisposition = options.strategy === 'new' ? 'reject' : options.strategy === 'reuse' ? 'reuse' : 'modify';
-    const selected = [...new Set(options.candidates ?? [])].map(id => {
-      const symbol = index.symbols.find(s => candidateId(s, baseline.snapshot.files[s.path].hash) === id);
-      if (!symbol) invalid([{ field: 'candidate', code: 'not-found', message: `Unknown baseline candidate ID: ${id}. Run context against this run's baseline.` }]);
-      return { path: symbol.path, symbol: symbol.symbol, disposition: options.disposition ?? defaultDisposition, reason: options.reason ?? options.rationale };
-    });
-    proposed = { strategy: options.strategy, rationale: options.rationale, considered: selected, remove: (options.remove ?? []).map(path => ({ path })) };
+    proposed = { strategy: options.strategy, rationale: options.rationale,
+      considered: selected.map(symbol => ({ path: symbol.path, symbol: symbol.symbol, disposition: options.disposition ?? defaultDisposition, reason: options.reason ?? options.rationale })),
+      remove: (options.remove ?? []).map(path => ({ path })) };
   }
   const { decision, issues } = validateDecision(proposed);
   if (!decision) invalid(issues);
+  if (options.input !== undefined) for (const symbol of selected) {
+    if (!decision.considered.some(candidate => candidate.path === symbol.path && candidate.symbol === symbol.symbol)) {
+      issues.push({field: 'candidate', code: 'not-considered',
+        message: `Baseline candidate ${symbol.path}#${symbol.symbol} is absent from input.considered. Add the intended entry to the input or remove --candidate; candidates are not appended automatically.`});
+    }
+  }
   if (decision.strategy !== 'new' && !decision.considered.some(candidate => candidate.disposition !== 'reject')) {
     issues.push({ field: 'considered', code: 'required', message: 'Reuse, modify and refactor need an existing candidate with reuse or modify disposition' });
   }
@@ -83,5 +100,7 @@ export function decide(root: string, run: string, options: DecisionOptions) {
 export function decisionGuide(root: string, run: string) {
   return { strategies, dispositions, candidateField: 'candidateId', schemaPath: fileURLToPath(new URL('../docs/decision.schema.json', import.meta.url)),
     argvTemplate: ['decide', '--cwd', root, '--run', run, '--strategy', '<strategy>', '--rationale', '<your reason>', '--candidate', '<candidateId>', '--json'],
-    notes: 'Choose candidates explicitly. Reuse defaults to reuse, modify/refactor to modify, new to reject. Complex records: decide --input <file>.' };
+    inputArgvTemplate: ['decide', '--cwd', root, '--run', run, '--input', '<decision.json>', '--json'],
+    inputCandidateRole: 'assertion', inputExclusiveFlags: inputExclusiveFlags.map(flag => `--${flag}`),
+    notes: 'Choose candidates explicitly. Reuse defaults to reuse, modify/refactor to modify, new to reject. Complex records use inputArgvTemplate: the file is the complete decision. Optional --candidate IDs assert existing input.considered entries; they never append candidates or override dispositions, reasons or removals.' };
 }
