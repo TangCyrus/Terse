@@ -28,6 +28,8 @@ npm run demo
 
 `npm run evaluate` 扩展为多文件订单项目的 6 个场景、10 个实现变体，覆盖修改、删除、重构、合理新增，以及独立职责与动态引用反例。配对版本使用相同基线和验收测试，报告保存在 `.terse/evaluation-*/evaluation.json`。方法、结果和限制见 [项目评测](docs/EVALUATION.md)。这是本地受控项目评测，不是外部生产仓库或自主 agent 的统计实验。
 
+实际 agent 对照入口为 `npm run benchmark:agent -- --source <p-map 工作区>`，使用固定开源版本、独立会话和事后验收，比较有无 Terse 的正确性、重复和墙钟时间。它需要单独登录的 Codex CLI，不在常规 CI 中调用模型。准备方式、真实观测与限制见 [开源项目 agent 评测](docs/AGENT-BENCHMARK.md)。
+
 ## 自动化检查
 
 [CI 工作流](.github/workflows/ci.yml) 在面向 `main` 的 PR 和 `main` 推送时运行，使用 Node.js 24 分别在 Linux、Windows 执行 `npm ci` 与 `npm test`，再通过 `npm pack --dry-run` 预检打包并显示文件清单。`npm test` 已包含 TypeScript 构建、导入解析、清理检查、CLI 输出契约、订单导出对比示例和项目评测，不额外重复运行示例。评测摘要写入测试诊断日志，完整项目与报告在运行目录保留。打包预检不发布或上传 npm 包。
