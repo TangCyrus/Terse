@@ -5,13 +5,16 @@ import { Detector, MemoryStore, weak, type IClone, type IMapFrame } from '@jscpd
 import { Tokenizer, tokenize } from '@jscpd/tokenizer';
 import { digest, loadRun, readJson, snapshot, writeJson } from './project.js';
 import type { Snapshot, SymbolInfo } from './types.js';
+import { importResolver, type ImportReference } from './imports.js';
 
-export function indexSources(state: Snapshot) {
+export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snapshot['files'] = {}) {
   const symbols: SymbolInfo[] = [];
-  const imports: { from: string; specifier: string; target?: string; line: number }[] = [];
+  const imports: ImportReference[] = [];
   const errors: string[] = [];
+  const resolver = importResolver(state, errors, root, fallbackFiles);
   for (const [file, source] of Object.entries(state.files)) {
     const ast = ts.createSourceFile(file, source.content, ts.ScriptTarget.Latest, true);
+    const resolve = resolver(file, ast);
     const diagnostics = (ast as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics;
     for (const d of diagnostics) errors.push(`${file}:${ast.getLineAndCharacterOfPosition(d.start ?? 0).line + 1}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`);
     function visit(node: ts.Node) {
@@ -31,18 +34,28 @@ export function indexSources(state: Snapshot) {
           signature: source.content.slice(start, body?.getStart(ast) ?? Math.min(node.end, start + 200)).trim(),
           text: source.content.slice(node.getFullStart(), node.end).trim() });
       }
-      let specifier: string | undefined;
-      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) specifier = node.moduleSpecifier.text;
-      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || node.expression.getText(ast) === 'require') && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) specifier = node.arguments[0].text;
-      if (specifier) {
-        let target: string | undefined;
-        if (specifier.startsWith('.')) {
-          const base = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
-          const stem = base.replace(/\.[cm]?jsx?$/, '');
-          const candidates = [base, ...['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs', '.cts', '.cjs'].flatMap(ext => [`${base}${ext}`, `${stem}${ext}`, `${base}/index${ext}`])];
-          target = candidates.find(p => Object.hasOwn(state.files, p));
-        }
-        imports.push({ from: file, specifier, target, line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1 });
+      let expression: ts.Expression | undefined;
+      let names: string[] | undefined;
+      if (ts.isImportDeclaration(node)) {
+        expression = node.moduleSpecifier;
+        const clause = node.importClause;
+        if (!clause) names = [];
+        else if (!clause.namedBindings || ts.isNamedImports(clause.namedBindings)) names = [
+          ...(clause.name ? ['default'] : []),
+          ...(clause.namedBindings && ts.isNamedImports(clause.namedBindings) ? clause.namedBindings.elements.map(e => (e.propertyName ?? e.name).text) : []),
+        ];
+      }
+      if (ts.isExportDeclaration(node)) {
+        expression = node.moduleSpecifier;
+        if (node.exportClause && ts.isNamedExports(node.exportClause)) names = node.exportClause.elements.map(e => (e.propertyName ?? e.name).text);
+      }
+      if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) expression = node.moduleReference.expression;
+      if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) expression = node.argument.literal;
+      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || node.expression.getText(ast) === 'require')) expression = node.arguments[0];
+      if (expression) {
+        imports.push({ from: file, ...resolve(expression), names,
+          requireCall: ts.isCallExpression(node) && node.expression.getText(ast) === 'require',
+          line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1 });
       }
       ts.forEachChild(node, visit);
     }
@@ -61,7 +74,7 @@ function words(query: string): string[] {
 export function context(root: string, run: string, query: string, limit: number) {
   const { dir, baseline } = loadRun(root, run);
   const state = snapshot(root);
-  const index = indexSources(state);
+  const index = indexSources(state, root);
   const terms = words(query);
   const candidates = index.symbols.map(symbol => {
     const name = symbol.symbol.toLowerCase();
@@ -79,10 +92,12 @@ export function context(root: string, run: string, query: string, limit: number)
     relatedTests: Object.keys(state.files).filter(p => /(?:test|spec)[/.]|\.(?:test|spec)\./i.test(p) && state.files[p].content.includes(symbol.symbol.split('.').at(-1)!)),
   }));
   const fileMatches = Object.entries(state.files).filter(([p, s]) => terms.some(t => `${p}\n${s.content}`.toLowerCase().includes(t))).slice(0, limit).map(([p, s]) => ({ path: p, sourceHash: s.hash }));
+  if (snapshot(root).hash !== state.hash) index.errors.push('Project changed during context; run context again on a stable workspace.');
   const result = { command: 'context', run, query, snapshotHash: state.hash, scannedFiles: Object.keys(state.files).length,
-    candidates, fileMatches, errors: index.errors,
+    candidates, fileMatches, unresolvedImports: index.imports.filter(i => !i.target), errors: index.errors,
     limitations: ['Lexical ranking and syntactic symbols only; no semantic equivalence or complete call graph.',
-      'Imports resolve relative paths only; aliases, external packages and dynamic expressions remain unresolved.',
+      'Imports use the nearest tsconfig.json/jsconfig.json and snapshot files only; dynamic expressions and targets outside source coverage remain unresolved.',
+      'Config inheritance is limited to snapshotted tsconfig*.json/jsconfig.json; project references and bundler-specific aliases are not followed.',
       'Chinese queries match Chinese source comments/names; add English behavior or symbol names when needed.'],
   };
   const evidencePath = path.join(dir, 'context.json');

@@ -37,3 +37,5 @@ jobs:
         run: npm ci
       - name: Build and test
         run: npm test
+      - name: Preview package contents
+        run: npm pack --dry-run
