@@ -250,7 +250,7 @@ test('deleted files retain import evidence including new consumers and re-export
   assert.equal(references.length, 3);
   assert(references.some(f => f.locations[0].path === 'src/new.ts' && f.locations[0].line === 2));
   const processResult = spawnSync(process.execPath, [cli, 'check', '--cwd', p.root, '--run', run, '--json'], { encoding: 'utf8' });
-  assert.equal(processResult.status, 1);
+  assert.equal(processResult.status, 1, processResult.stdout + processResult.stderr);
   assert(JSON.parse(processResult.stdout).findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS'));
   p.write('src/consumer.ts', 'export const migrated = 1;');
   p.write('src/new.ts', 'export const migrated = 2;');
@@ -562,7 +562,7 @@ test('CLI v1 returns a single consistent JSON object for results and every error
   assert(review.findings.length > 0);
   const run = ready(p.root);
   const passed = invoke(['check', '--run', run]);
-  assert.equal(passed.status, 'pass');
+  assert.equal(passed.status, 'pass', JSON.stringify(passed));
   const saved = JSON.parse(fs.readFileSync(path.join(p.root, '.terse/runs', run, 'report.json'), 'utf8'));
   for (const [key, value] of Object.entries(saved)) assert.deepEqual(passed[key], value);
   assert(!Object.hasOwn(saved, 'schemaVersion'));
@@ -585,7 +585,7 @@ test('CLI distinguishes rule failures from execution errors and keeps text mode 
   const run = ready(p.root);
   const checked = spawnSync(process.execPath, [cli, 'check', '--run', run, '--cwd', p.root, '--json'], { encoding: 'utf8' });
   const result = JSON.parse(checked.stdout);
-  assert.equal(checked.status, 1);
+  assert.equal(checked.status, 1, checked.stdout + checked.stderr);
   assert.equal(result.exitCode, 1);
   assert.equal(result.status, 'fail');
   assert.equal(result.outputKind, 'result');
