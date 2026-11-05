@@ -82,6 +82,8 @@ node $terseCli check --cwd $targetProject --run $taskStart.run --json
 
 ## 三个命令的职责
 
+Agent 的 JSON 接口使用输出契约 v1，公共字段包含 `schemaVersion`、`outputKind`、`status`、`exitCode` 和结构化 `diagnostics`，原有业务字段与 `errors` 字符串数组继续保留。帮助、版本和错误也支持 `--json`。详细约定、错误代码与接入流程见 [CLI 输出文档](docs/CLI.md) 和 [JSON Schema](docs/cli-output.schema.json)。CLI 公共字段不改变本地运行记录格式。
+
 `begin --task <需求>` 保存任务开始时的实际 JS/TS 源码、内容哈希、配置、重要项目清单的哈希与可用的 HEAD。它包含已跟踪和未跟踪文件，不要求工作区干净，也支持尚无提交的 Git 仓库。缓存保存在目标项目的 `.terse/runs/<id>/`，建议将 `.terse/` 加入目标项目的 `.gitignore`；工具自身始终排除这个缓存目录。
 
 `context --run <id> --query <关键词>` 提取函数、类、方法及类型声明，按名称、路径和源码内容排序。结果包含源码位置、内容哈希、限长片段、相对路径与别名导入关系及按名称匹配的测试。默认最多 5 个候选，可用 `--limit 1..20` 调整。中文关键词可匹配中文注释；源码没有相关中文时请补充英文业务词或符号名。空结果不代表没有可复用实现。搜索证据会保存在 `context.json`。

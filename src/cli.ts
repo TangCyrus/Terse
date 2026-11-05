@@ -4,6 +4,7 @@ import { begin, rootOf } from './project.js';
 import { context } from './analyze.js';
 import { check } from './check.js';
 import { VERSION } from './types.js';
+import { resultOutput, errorOutput, type CliOutput, type Command, type ErrorStage } from './output.js';
 
 const help = `Terse ${VERSION} — find existing code before adding another implementation
 
@@ -13,10 +14,14 @@ terse check --run <id> [--skip-verification] [--cwd <project>] [--json]
 
 After context, edit the run's decision.json, implement the change, then check.
 check exit codes: 0 pass, 1 fail, 2 needs-review, 3 incomplete/error.
+--json returns one versioned JSON object for results, help, version and errors.
 Verification executes the command/args configured in terse.config.json at begin.
 `;
 
 function render(result: any): string {
+  if (result.outputKind === 'error') return `${result.status}: ${result.diagnostics.map((d: any) => `[${d.code}] ${d.message}`).join('\n')}`;
+  if (result.command === 'help') return result.help;
+  if (result.command === 'version') return result.toolVersion;
   if (result.command === 'begin') return `Run: ${result.run}\nTask: ${result.task}\nScanned: ${result.scannedFiles} files\nDecision: ${result.decisionPath}\nNext: ${result.next}`;
   if (result.command === 'context') {
     const rows = result.candidates.map((c: any) => `${c.path}:${c.line}  ${c.symbol}\nMatched: ${c.matched.join(', ')}\n${c.snippet}\nImported by: ${c.importedBy.map((i: any) => i.from).join(', ') || '(none resolved)'}\nTests: ${c.relatedTests.join(', ') || '(none matched)'}`);
@@ -37,34 +42,41 @@ function render(result: any): string {
 }
 
 let json = process.argv.includes('--json');
+let command: Command | null = null;
+let stage: ErrorStage = 'arguments';
+let output: CliOutput;
 try {
   const { values, positionals } = parseArgs({ allowPositionals: true, strict: true, options: {
     task: { type: 'string' }, run: { type: 'string' }, query: { type: 'string' }, cwd: { type: 'string' }, limit: { type: 'string' },
     json: { type: 'boolean' }, help: { type: 'boolean' }, version: { type: 'boolean' }, 'skip-verification': { type: 'boolean' },
   } });
   json = values.json ?? false;
-  if (values.version) console.log(VERSION);
-  else if (values.help || !positionals.length) console.log(help);
+  if (values.version) { command = 'version'; output = resultOutput(command, {}); }
+  else if (values.help || !positionals.length) { command = 'help'; output = resultOutput(command, { help }); }
   else {
-    const command = positionals[0];
     const permitted: Record<string, string[]> = { begin: ['task'], context: ['run', 'query', 'limit'], check: ['run', 'skip-verification'] };
-    if (positionals.length !== 1 || !permitted[command]) throw new Error('Expected begin, context or check. Use --help.');
+    if (positionals.length !== 1 || !Object.hasOwn(permitted, positionals[0])) throw new Error('Expected begin, context or check. Use --help.');
+    command = positionals[0] as 'begin' | 'context' | 'check';
     for (const key of Object.keys(values)) if (!['cwd', 'json', ...permitted[command]].includes(key)) throw new Error(`--${key} is not valid for ${command}`);
-    const root = rootOf(values.cwd ?? process.cwd());
     const required = (value: string | undefined, name: string) => { if (!value?.trim()) throw new Error(`--${name} is required`); return value; };
-    let result;
-    if (command === 'begin') result = begin(root, required(values.task, 'task'));
-    else if (command === 'context') {
-      const limit = Number(values.limit ?? 5);
+    if (command === 'begin') required(values.task, 'task');
+    else required(values.run, 'run');
+    const limit = Number(values.limit ?? 5);
+    if (command === 'context') {
+      required(values.query, 'query');
       if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('--limit must be 1..20');
-      result = context(root, required(values.run, 'run'), required(values.query, 'query'), limit);
-    } else result = await check(root, required(values.run, 'run'), values['skip-verification']);
-    console.log(json ? JSON.stringify(result, null, 2) : render(result));
-    if ('status' in result) process.exitCode = { pass: 0, fail: 1, 'needs-review': 2, incomplete: 3 }[result.status];
-    else if ('errors' in result && result.errors.length) process.exitCode = 3;
+    }
+    stage = 'project';
+    const root = rootOf(values.cwd ?? process.cwd());
+    stage = 'command';
+    let result;
+    if (command === 'begin') result = begin(root, values.task!);
+    else if (command === 'context') result = context(root, values.run!, values.query!, limit);
+    else result = await check(root, values.run!, values['skip-verification']);
+    output = resultOutput(command, result);
   }
 } catch (error) {
-  const result = { status: 'incomplete', errors: [error instanceof Error ? error.message : String(error)] };
-  console.log(json ? JSON.stringify(result, null, 2) : render(result));
-  process.exitCode = 3;
+  output = errorOutput(command, stage, error);
 }
+console.log(json ? JSON.stringify(output, null, 2) : render(output));
+process.exitCode = output.exitCode;
