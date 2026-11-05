@@ -1,0 +1,12 @@
+diff --git a/src/routes.ts b/src/routes.ts
+index e09f194..0469c9c 100644
+--- a/src/routes.ts
++++ b/src/routes.ts
+@@ -2,5 +2,6 @@ import { exportOrders, type Order } from './orders.ts';
+ 
+ // Application entry point: preserve the public contract while changing its implementation.
+ export function downloadOrders(orders: Order[], ownerId: string, status?: 'paid'): string {
+-  return exportOrders(orders, ownerId);
++  const selected = status === 'paid' ? orders.filter(order => order.status === status) : orders;
++  return exportOrders(selected, ownerId);
+ }

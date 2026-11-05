@@ -163,6 +163,49 @@ test('functional preflight checks all six task starts without a live model or cr
   for (const task of plan.tasks) assert(!fs.existsSync(path.join(directory, `preflight-${task.id}`, 'agent.jsonl')));
 });
 
+test('published functional observation binds every fixture, pair, patch and implementation review', () => {
+  const directory = fileURLToPath(new URL('../benchmarks/reuse/observed/', import.meta.url));
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const report = JSON.parse(fs.readFileSync(path.join(directory, 'comparison.json'), 'utf8'));
+  const reviews = JSON.parse(fs.readFileSync(path.join(directory, 'functional-reviews.json'), 'utf8'));
+  const hash = data => createHash('sha256').update(data).digest('hex');
+  assert.equal(report.kind, 'controlled-agent-comparison');
+  assert.equal(report.tasks.length, 6);
+  assert.equal(report.results.length, 12);
+  assert.deepEqual(validateFunctionalReviews(report.results, reviews), report.functionalSummary);
+  assert.equal(report.reviewHash, hash(JSON.stringify(reviews)));
+  assert.equal(report.functionalSummary.control.functional, 6);
+  assert.equal(report.functionalSummary.terse.functional, 6);
+  assert.deepEqual(Object.keys(report.fixtureCanonicalHashes), Object.keys(report.fixtureHashes));
+  for (const [file, expected] of Object.entries(report.fixtureCanonicalHashes)) {
+    const canonical = fs.readFileSync(path.join(repository, file), 'utf8').replaceAll('\r\n', '\n');
+    assert.equal(hash(canonical), expected, file);
+    assert([hash(canonical), hash(canonical.replaceAll('\n', '\r\n'))].includes(report.fixtureHashes[file]), `Measured LF/CRLF bytes must describe the same fixture: ${file}`);
+  }
+  for (const result of report.results) {
+    assert.equal(hash(fs.readFileSync(path.join(directory, result.patch))), result.evidence.patchHash);
+    const duplicates = JSON.parse(fs.readFileSync(path.join(directory, result.duplications), 'utf8'));
+    assert.equal(duplicates.length, result.newDuplications);
+    assert.equal(result.events.completed, true);
+    assert.equal(result.correct, true);
+    assert.equal(result.protocolValid, true);
+    assert(!Object.hasOwn(result.events, 'finalMessage'));
+    assert.match(result.evidence.eventHash, /^[a-f0-9]{64}$/);
+  }
+  for (const task of report.tasks) {
+    const runs = report.results.filter(result => result.taskId === task.id);
+    assert.deepEqual(new Set(runs.map(result => result.arm)), new Set(['control', 'terse']));
+    assert.equal(runs[0].baselineHash, runs[1].baselineHash);
+    assert.equal(runs[0].acceptanceHash, runs[1].acceptanceHash);
+    assert.equal(report.pairs.find(pair => pair.taskId === task.id).comparable, true);
+  }
+  const terse = report.results.filter(result => result.arm === 'terse');
+  assert.equal(terse.filter(result => result.candidateHit === true).length, 5);
+  assert(terse.every(result => result.workflow && result.terseStatus === 'pass'));
+  assert(!Object.hasOwn(report, 'artifactDirectory'));
+  assert(!fs.existsSync(path.join(directory, 'dependency-lock.json.gz')));
+});
+
 test('retrospective decision measurements refuse altered raw events and never overwrite observations', t => {
   const parent = workspace(t);
   const label = 'pair-1-terse';

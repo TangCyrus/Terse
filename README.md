@@ -30,6 +30,8 @@ npm run demo
 
 `npm run benchmark:reuse` 在同一组六类任务上运行真实 agent 对照，以行为、实际复用、清理和职责边界为主要标准；补丁逐份审查，耗时仅作辅助。运行方式和判定规则见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。模型会话不进入 CI。
 
+首轮 12 次真实会话中，两组各 6/6 行为与补丁审查达标，尚未观察到 Terse 相对对照组的改善。受控改写式重复反例仍未检出，因此当前不能保证没有同职责重复；详见上述评测的能力边界。
+
 实际 agent 对照入口为 `npm run benchmark:agent -- --source <p-map 工作区>`，使用固定开源版本、独立会话和事后验收，比较有无 Terse 的正确性、重复和墙钟时间。它需要单独登录的 Codex CLI，不在常规 CI 中调用模型。准备方式、真实观测与限制见 [开源项目 agent 评测](docs/AGENT-BENCHMARK.md)。
 
 多文件 TypeScript 评测使用 `npm run benchmark:agent -- --suite p-queue --source <p-queue 工作区>`，覆盖修改、删除和重构三类任务，以优化后的命令式接入做 12 次独立会话对照。任务、验收、配置准备边界与结果见 [p-queue agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md)。
