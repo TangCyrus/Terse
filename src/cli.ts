@@ -32,7 +32,7 @@ function render(result: any): string {
   if (result.command === 'check') return [
     `Status: ${result.status}`, `Scanned: ${result.scannedFiles} files; baseline: ${result.baselineFiles}`,
     `Changes: +${result.changes.added.length} files, ~${result.changes.modified.length}, -${result.changes.deleted.length}`,
-    `New duplicate matches: ${result.newDuplications} (baseline ${result.baselineClones}; current ${result.currentClones})`,
+    `New duplicate groups: ${result.newDuplications} (baseline pairs ${result.baselineClones}; current pairs ${result.currentClones})`,
     ...result.findings.map((f: any) => `[${f.severity}] ${f.rule}: ${f.message}\n${f.locations.map((l: any) => `  ${l.path}${l.line ? `:${l.line}` : ''}${l.symbol ? `#${l.symbol}` : ''}`).join('\n')}`),
     ...result.verification.map((v: any) => `Verification ${v.status}: ${v.command.command} ${v.command.args.join(' ')}`),
     ...result.errors.map((e: string) => `Error: ${e}`),

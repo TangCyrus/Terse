@@ -173,7 +173,17 @@ M4 已适配 M2：`indexSources(state, root?, fallbackFiles?)` 保留第二个�
 
 重复检测复用 [jscpd 的 Node API 组件](https://github.com/kucherenko/jscpd/blob/master/README-v4.md)，只安装检测核心和 tokenizer。它忽略空白与注释，保留标识符和字面量；首版不做变量改名归一化、跨语言语义检测或自动合并。不同 tokenizer 格式间的重复可能漏报。
 
-重复基线通过片段 token 指纹及出现数量比较，避免将未变化或移动的旧重复计为新增。它不是完整的编辑历史追踪，片段边界改变可能需要人工评估。每次检查分析基线与当前快照，当前版本没有大型仓库持久化索引或性能承诺。
+M3 对当前检测到的每个重复片段，核对其完整 token 序列在基线和当前源码中的出现次数。出现次数没有增长时不报新增，因此旧片段的拆分、缩短、换行、注释调整和移动不会仅因片段指纹改变而触发新增发现。新片段形成至少两处重复，或已有片段增加副本时，仍按 `duplicatePolicy` 返回待评估或失败。
+
+检测结果会先核对两侧 token，修正检测窗口多带的末尾 token，并重新检查长度和行数阈值。同一 token 序列的检测匹配合并为一条 `NEW_DUPLICATION`，`locations` 可以包含两个以上位置。`newDuplications` 是新增重复序列组数；`baselineClones` 和 `currentClones` 是通过边界校验的匹配对数，三者不应直接相减。每条发现新增 `attribution`：
+
+- `kind`：`new-or-expanded` 表示该完整序列在基线中不足两处，`additional-copy` 表示已有重复的出现次数增加。
+- `baselineOccurrences` / `currentOccurrences`：完整 token 序列在两份源码快照中的出现次数，包含同文件及重叠出现，不等同于函数数量。
+- `files`：检测器提供的位置涉及哪些文件，以及相对基线属于 `added`、`modified` 或 `unchanged`。这不是作者归因，也不保证某个具体位置就是新增来源。
+
+报告通过 `attributionAlgorithm: "token-occurrences/1"` 标识此归因算法。基线 schema 和分析器依赖标识不变，读取旧 run 时会用保存的源码重新分析，不复用旧的重复检测结果。内部 `newClones` 接口改为接收前后 `Snapshot` 和当前 `Clone[]`，统一由 `check` 调用；`clones` 保留检测器并增加来自完整文件词法上下文的 token 序列，无新增依赖。
+
+这是基于内容与数量的归因，不是完整编辑历史：删除一个副本再在别处添加相同内容，与移动无法可靠区分；净出现次数不增加时不会报告新增。检测范围仍受 jscpd 阈值及 tokenizer 格式影响，也不做变量改名或语义等价判断。每个不同片段扫描前后 token 流，当前没有大型仓库性能承诺或持久化索引。
 
 源码结构与导入解析复用固定版本的 [TypeScript Compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API)，别名遵循 [paths](https://www.typescriptlang.org/tsconfig/paths.html) 与 [extends](https://www.typescriptlang.org/tsconfig/extends.html) 的配置语义及上述覆盖范围。当前进行语法解析与词法检索，尚不提供完整类型检查、精确符号调用图或业务职责判断；项目可以配置自身的类型检查与测试命令。
 

@@ -193,7 +193,86 @@ test('new copy is reported, existing clone remains baseline, and identical movem
   const report = await check(p.root, run);
   assert.equal(report.status, 'needs-review');
   assert(report.newDuplications > 0);
-  assert(report.findings.some(f => f.rule === 'NEW_DUPLICATION' && f.locations.length === 2));
+  assert(report.findings.some(f => f.rule === 'NEW_DUPLICATION' && f.locations.some(l => l.path === 'src/new.js') && f.locations.length >= 2));
+});
+
+test('splitting or shortening historical duplicates does not introduce duplication', async t => {
+  const longBody = `export function calculate(value) {\n${Array.from({ length: 24 }, (_, i) => `  value += Math.sqrt(value + ${i});`).join('\n')}\n  return value;\n}`;
+  const p = project(t, { 'src/calculate.js': longBody, 'src/old.js': longBody.replace('calculate', 'previous') });
+  const run = ready(p.root);
+  p.write('src/old.js', longBody.replace('calculate', 'previous').replace('  value += Math.sqrt(value + 12);', '  value = Number(value) * 71;'));
+  const split = await check(p.root, run);
+  assert(split.currentClones >= 2);
+  assert.equal(split.newDuplications, 0);
+  p.write('src/old.js', longBody.replace('calculate', 'previous').replace('  value += Math.sqrt(value + 0);', '  value = 37;'));
+  assert.equal((await check(p.root, run)).newDuplications, 0);
+});
+
+test('expanded duplicates and extra copies have reproducible occurrence evidence', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/old.js': body.replace('calculate', 'previous') });
+  const run = ready(p.root);
+  p.write('src/copy.js', body.replace('calculate', 'another'));
+  const copies = await check(p.root, run);
+  const added = copies.findings.find(f => f.rule === 'NEW_DUPLICATION');
+  assert(added);
+  assert.equal(added.attribution.kind, 'additional-copy');
+  assert.equal(added.attribution.baselineOccurrences, 2);
+  assert.equal(added.attribution.currentOccurrences, 3);
+  assert(added.attribution.files.some(f => f.path === 'src/copy.js' && f.change === 'added'));
+  fs.unlinkSync(path.join(p.root, 'src/copy.js'));
+  const expanded = body.replace('  return rows.sort', '  console.log(rows.length);\n  rows.reverse();\n  return rows.sort');
+  p.write('src/calculate.js', expanded);
+  p.write('src/old.js', expanded.replace('calculate', 'previous'));
+  const report = await check(p.root, run);
+  assert(report.newDuplications > 0);
+  assert(report.findings.filter(f => f.rule === 'NEW_DUPLICATION').every(f => f.attribution.kind === 'new-or-expanded' && f.attribution.baselineOccurrences < 2));
+});
+
+test('moving multiple copies with whitespace changes preserves historical duplication', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/old.js': body.replace('calculate', 'previous'), 'src/third.js': body.replace('calculate', 'third') });
+  const run = ready(p.root);
+  fs.renameSync(path.join(p.root, 'src/third.js'), path.join(p.root, 'src/aaa.js'));
+  p.write('src/old.js', '// shifted\n\n' + body.replace('calculate', 'previous').replaceAll('  ', '    '));
+  const report = await check(p.root, run);
+  assert.equal(report.newDuplications, 0);
+  assert.equal(report.status, 'pass');
+});
+
+test('occurrence attribution covers same-file copies and supported tokenizer formats', async t => {
+  for (const ext of ['js', 'ts', 'jsx', 'tsx', 'mts', 'cts']) {
+    await t.test(ext, async t => {
+      const file = `src/calculate.${ext}`;
+      const p = project(t, { [file]: body });
+      const run = ready(p.root, { file });
+      p.write(file, body + '\n' + body.replace('calculate', 'another'));
+      const result = await check(p.root, run);
+      assert.deepEqual(result.errors, []);
+      const found = result.findings.find(f => f.rule === 'NEW_DUPLICATION');
+      assert(found);
+      assert.equal(found.attribution.baselineOccurrences, 1);
+      assert.equal(found.attribution.currentOccurrences, 2);
+      assert.deepEqual(found.attribution.files, [{ path: file, change: 'modified' }]);
+      assert(found.locations.every(l => l.path === file));
+    });
+  }
+});
+
+test('new copies of a historical subfragment remain visible after a split', async t => {
+  const longBody = `export function calculate(value) {\n${Array.from({ length: 24 }, (_, i) => `  value += Math.sqrt(value + ${i});`).join('\n')}\n  return value;\n}`;
+  const p = project(t, { 'src/calculate.js': longBody, 'src/old.js': longBody.replace('calculate', 'previous') });
+  const run = ready(p.root);
+  const fragment = longBody.replace('calculate', 'another').replace('  value += Math.sqrt(value + 12);', '  value = 99;');
+  p.write('src/new.js', fragment);
+  const result = await check(p.root, run);
+  assert.deepEqual(result.errors, []);
+  assert(result.newDuplications >= 2);
+  for (const f of result.findings.filter(f => f.rule === 'NEW_DUPLICATION')) {
+    assert.equal(f.attribution.baselineOccurrences, 2);
+    assert.equal(f.attribution.currentOccurrences, 3);
+  }
+  assert.equal(result.attributionAlgorithm, 'token-occurrences/1');
+  const saved = JSON.parse(fs.readFileSync(path.join(p.root, '.terse/runs', run, 'report.json'), 'utf8'));
+  assert.deepEqual(saved.findings, result.findings);
 });
 
 test('checks duplicates between two newly added files', async t => {
@@ -430,6 +509,41 @@ test('cleanup preserves NodeNext resolution rules for deleted alias targets', as
   assert.deepEqual(result.errors, []);
   assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS' && f.locations[0].line === 1));
   assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_UNRESOLVED' && f.locations[0].line === 2));
+});
+
+test('CLI contract preserves duplication attribution alongside alias cleanup findings', t => {
+  const p = project(t, { 'src/calculate.js': body,
+    'tsconfig.json': '{"compilerOptions":{"paths":{"legacy":["./src/legacy.ts"]}}}',
+    'src/legacy.ts': 'export function obsolete() { return 1; }',
+    'src/use.ts': "import { obsolete } from 'legacy';\nexport const use = () => obsolete();" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.ts' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  p.write('src/copy.js', body.replace('calculate', 'copy'));
+  const invoke = () => {
+    const processResult = spawnSync(process.execPath, [cli, 'check', '--cwd', p.root, '--run', run, '--json'], { encoding: 'utf8' });
+    const result = JSON.parse(processResult.stdout);
+    assert.equal(processResult.status, result.exitCode, processResult.stdout);
+    assert.equal(result.schemaVersion, 1);
+    assert.equal(result.outputKind, 'result');
+    assert.deepEqual(result.diagnostics, []);
+    return result;
+  };
+  const result = invoke();
+  assert.equal(result.status, 'fail');
+  assert.equal(result.attributionAlgorithm, 'token-occurrences/1');
+  assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS' && f.locations[0].path === 'src/use.ts'));
+  const duplicate = result.findings.find(f => f.rule === 'NEW_DUPLICATION');
+  assert(duplicate);
+  assert.equal(duplicate.attribution.baselineOccurrences, 1);
+  assert.equal(duplicate.attribution.currentOccurrences, 2);
+  assert(duplicate.attribution.files.some(f => f.path === 'src/copy.js' && f.change === 'added'));
+  const saved = JSON.parse(fs.readFileSync(path.join(p.root, '.terse/runs', run, 'report.json'), 'utf8'));
+  assert.deepEqual(result.findings, saved.findings);
+  p.write('src/use.ts', "import { calculate } from './calculate.js';\nexport const use = () => calculate([]);");
+  fs.unlinkSync(path.join(p.root, 'src/copy.js'));
+  const cleaned = invoke();
+  assert.equal(cleaned.status, 'pass');
+  assert.equal(cleaned.newDuplications, 0);
 });
 
 test('new strict-policy duplication fails even when verification passes', async t => {
