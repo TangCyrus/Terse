@@ -13,6 +13,8 @@
 | M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
 | M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
+本次 M6 后续切片新增 [项目评测](docs/EVALUATION.md)：6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。是否已合并以对应 PR 为准。
+
 ## 开发原则与任务范围
 
 一个开发任务围绕一个明确结果展开，确定主模块后，先检查该模块及直接依赖中的已有能力。优先在已有职责归属处修改，新增文件、依赖、抽象或兼容分支需要说明具体用途，并清理被替代的路径。
@@ -102,6 +104,8 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 
 代码归属：[test/terse.test.mjs](test/terse.test.mjs)、[scripts/demo.mjs](scripts/demo.mjs)、[examples/orders](examples/orders)、[package.json](package.json)、[tsconfig.json](tsconfig.json) 与 [CI 工作流](.github/workflows/ci.yml)。
 
+项目评测由 [scripts/evaluate.mjs](scripts/evaluate.mjs) 执行，[scripts/evaluation-cases.mjs](scripts/evaluation-cases.mjs) 定义任务、变体和预期处置，[examples/evaluation](examples/evaluation) 提供调用入口与独立验收测试。[test/evaluation.test.mjs](test/evaluation.test.mjs) 将评测接入现有 `npm test`；示例和评测共用 [workspace.mjs](scripts/lib/workspace.mjs) 的隔离 Git 工作区与真实 CLI 调用，没有第二套检测器。
+
 测试验证模块协作和失败路径；示例通过真实 CLI，在两个独立 Git 工作区中比较复制实现与复用实现。两个版本使用相同的行为验收测试。测试数据和真实业务实现分开，不能用移除功能或放松测试换取更少的重复。
 
 已完成 GitHub Actions：面向 main 的 PR、main 推送及手动触发，在 `ubuntu-latest`/`windows-latest` 上使用 Node 24，执行 `npm ci`、`npm test`、`npm pack --dry-run`。工作流只读仓库权限、固定 action 提交，自动取消旧运行；打包预检不发布包。当前存在工作流，不表示已配置仓库强制合并保护。
@@ -152,7 +156,7 @@ npm ci
 npm test
 ```
 
-`npm test` 会先构建再执行自动化测试，其中已包含完整示例对比。需要查看示例工作区和报告时，可单独运行 `npm run demo`；这不是每次测试之后都必须重复执行的步骤。
+`npm test` 会先构建再执行自动化测试，其中已包含完整示例对比与项目评测。需要查看工作区和报告时，可单独运行 `npm run demo` 或 `npm run evaluate`；这不是每次测试之后都必须重复执行的步骤。评测会对成对变体核对相同源码、基线、验收哈希及策略；行为验收和 Terse 检查结果分别记录，不能只以发现数量减少判断成功。
 
 修改期间可先构建，再按模块选择已有测试。例如 M2：
 
@@ -169,7 +173,7 @@ node --test --test-name-pattern="context finds" test/terse.test.mjs
 - M2：`context resolves`、`nearest jsconfig`、`NodeNext distinguishes`、`config changes`。
 - M3：`splitting or shortening`、`expanded duplicates`、`occurrence attribution`、`new copies of a historical subfragment`。
 - M4：`cleanup resolves`、`local residual calls`、`current alias fallback`、`verification failures`。
-- M5：`CLI v1`、`CLI distinguishes`、`CLI contract preserves`；M6：`example comparison`。
+- M5：`CLI v1`、`CLI distinguishes`、`CLI contract preserves`；M6：`example comparison`、`project evaluation`。
 
 缺陷修复应补能复现该缺陷的回归案例；功能变更应覆盖目标行为与重要失败路径。测试断言可观察结果，避免仅复制内部实现步骤。临时 Git 工作区和生成报告使用已隔离的目录，不提交缓存、依赖或构建产物。
 
@@ -179,7 +183,7 @@ node --test --test-name-pattern="context finds" test/terse.test.mjs
 
 首轮完成记录见开头表格。以下是建议的后续切片，均为待开发，不代表已创建 PR 或确定排期：
 
-1. **M6 真实结构评测。** 从当前示例扩展到修改、删除、重构和合理新增任务，覆盖不能合并的相似实现、无可复用候选和动态引用。分别记录正确性、误报/漏报、额外耗时与 token，不承诺未经实测的节省比例。
+1. **M6 评测扩展。** 当前切片已覆盖本地受控项目的修改、删除、重构、合理新增、独立职责、无候选和动态引用。下一步可引入授权的外部项目任务与实际 agent 对照实验，记录正确性、人工判断的误报/漏报、额外耗时与模型 token。现有评测不调用模型，token 留空；不能把受控结果当作跨模型收益比例。
 2. **由评测驱动 M2/M3/M4 改进。** 每次选择一个可复现的检索、归因或清理问题，补失败案例后修正，并记录覆盖与性能边界。不要同时重写扫描器或扩大到完整语义分析。
 3. **M5 外部适配。** 在具体接入需求明确后做 MCP 或宿主适配，复用 CLI 契约和核心能力，验收成功、待评估、失败与异常路径。
 4. **受信任 CI 与例外策略。** 仓库必需检查、策略来源、可审查例外和宿主写入约束需独立设计与授权；现有构建 CI 不构成产品的防篡改验收凭据。

@@ -1,19 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { spawnSync, execFileSync } from 'node:child_process';
+import { createWorkspace, invoke, repository as root } from './lib/workspace.mjs';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
-const cli = path.join(root, 'dist/cli.js');
 const demoRoot = path.join(root, '.terse', `demo-${Date.now()}`);
 fs.mkdirSync(demoRoot, { recursive: true });
-
-function invoke(cwd, args, expected = 0) {
-  const result = spawnSync(process.execPath, [cli, ...args, '--cwd', cwd, '--json'], { encoding: 'utf8' });
-  assert.equal(result.status, expected, `${result.stdout}\n${result.stderr}`);
-  return JSON.parse(result.stdout);
-}
 
 const acceptance = `
 test('paid filter retains permissions, validation and existing defaults', () => {
@@ -29,10 +20,7 @@ test('paid filter retains permissions, validation and existing defaults', () => 
 
 const results = [];
 for (const variant of ['copy', 'reuse']) {
-  const project = path.join(demoRoot, variant);
-  fs.cpSync(path.join(root, 'examples/orders'), project, { recursive: true });
-  fs.writeFileSync(path.join(project, '.gitignore'), '.terse/\n');
-  execFileSync('git', ['init', '-q'], { cwd: project });
+  const project = createWorkspace(demoRoot, variant);
   const begin = invoke(project, ['begin', '--task', '订单导出支持付款状态筛选，同时保持权限、默认行为和 CSV 格式']);
   const context = invoke(project, ['context', '--run', begin.run, '--query', '订单导出 exportOrders paid']);
   assert(context.candidates.some(c => c.symbol === 'exportOrders'), 'Existing export function must be discoverable');
