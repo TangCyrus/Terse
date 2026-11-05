@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本文以 `main` 的 `eda28f2` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11 和 M4 外部依赖清理优化 #12 均已合并；起点的 Windows/Linux Node 24 CI 各通过 120 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本文以 `main` 的 `1320bcb` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12 和 M5 复杂决策优化 #13 均已合并；起点的 Windows/Linux Node 24 CI 各通过 124 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -13,7 +13,7 @@
 | M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
 | M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
-已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 覆盖三个任务、12 次会话。M4 外部依赖清理切片已合并；本次 M5 切片处理该评测中 input/candidate 混用造成的重试，合并状态以对应 PR 为准。
+已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 的首轮包含三个任务、12 次会话。M4/M5 优化切片已合并；本次 M6 使用同一固定输入重新运行实际 agent 对照，比较正确性、重复、耗时和决策重试，合并状态以对应 PR 为准。
 
 ## 开发原则与任务范围
 
@@ -113,6 +113,8 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 项目评测由 [scripts/evaluate.mjs](scripts/evaluate.mjs) 执行，[scripts/evaluation-cases.mjs](scripts/evaluation-cases.mjs) 定义任务、变体和预期处置，[examples/evaluation](examples/evaluation) 提供调用入口与独立验收测试。[test/evaluation.test.mjs](test/evaluation.test.mjs) 将评测接入现有 `npm test`；示例和评测共用 [workspace.mjs](scripts/lib/workspace.mjs) 的隔离 Git 工作区与真实 CLI 调用，没有第二套检测器。
 
 实际 agent 对照复用 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs)，`--suite` 选择固定的 [p-map](benchmarks/p-map) 或 [p-queue](benchmarks/p-queue) 输入，默认 p-map 保持兼容。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与按任务 ID、重复编号成对统计；[benchmark-project.mjs](scripts/lib/benchmark-project.mjs) 处理等价配置准备、上游计数和包含新增文件的 Git 补丁。准备后的项目必须编译、可分析且无范围外变更，再启动模型。离线协议与发布测试不需要模型凭据；实际实验使用 `npm run benchmark:agent` 单独启动。方法、真实结果和限制见 [p-map](docs/AGENT-BENCHMARK.md) 与 [p-queue](docs/COMPLEX-AGENT-BENCHMARK.md) 文档。
+
+`summarizeEvents(text, terseCli?)` 在提供 CLI 路径时增补 decisions 统计，不改变原有调用结果。它读取工具事件中的 CLI JSON，区分保存、拒绝、帮助和未知结果；只把失败后的后续记录调用计为重试，未知/截断时不报告零重试。[measure-agent-decisions.mjs](scripts/measure-agent-decisions.mjs) 用同一逻辑回算历史日志，先核对每个已发布 eventHash，再写新文件；新旧观测互不覆盖。真实模型仍只在独立评测中调用。
 
 测试验证模块协作和失败路径；示例通过真实 CLI，在两个独立 Git 工作区中比较复制实现与复用实现。两个版本使用相同的行为验收测试。测试数据和真实业务实现分开，不能用移除功能或放松测试换取更少的重复。
 

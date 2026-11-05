@@ -32,6 +32,8 @@ npm run demo
 
 多文件 TypeScript 评测使用 `npm run benchmark:agent -- --suite p-queue --source <p-queue 工作区>`，覆盖修改、删除和重构三类任务，以优化后的命令式接入做 12 次独立会话对照。任务、验收、配置准备边界与结果见 [p-queue agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md)。
 
+M4/M5 优化后的 [真实 agent 复测](docs/COMPLEX-AGENT-BENCHMARK.md#优化后真实-agent-复测) 使用同一固定任务，单独保留新旧数据及决策重试证据。两组本轮各 6/6 正确、token 新重复均为 0；Terse 记录重试由历史 1 次变为 0 次，但总体耗时基本持平，未观察到进一步减少重复或整体提速。
+
 ## 自动化检查
 
 [CI 工作流](.github/workflows/ci.yml) 在面向 `main` 的 PR 和 `main` 推送时运行，使用 Node.js 24 分别在 Linux、Windows 执行 `npm ci` 与 `npm test`，再通过 `npm pack --dry-run` 预检打包并显示文件清单。`npm test` 已包含 TypeScript 构建、导入解析、清理检查、CLI 输出契约、订单导出对比示例和项目评测，不额外重复运行示例。评测摘要写入测试诊断日志，完整项目与报告在运行目录保留。打包预检不发布或上传 npm 包。
