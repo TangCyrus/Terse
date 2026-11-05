@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本文以 `main` 的 `111ec17` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10 和 p-queue 评测 #11 均已合并；起点的 Windows/Linux Node 24 CI 各通过 108 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本文以 `main` 的 `eda28f2` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11 和 M4 外部依赖清理优化 #12 均已合并；起点的 Windows/Linux Node 24 CI 各通过 120 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -13,7 +13,7 @@
 | M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
 | M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
-已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 覆盖三个任务、12 次会话。本次 M4 切片处理该评测暴露的外部依赖导入误触发清理复核问题；合并状态以对应 PR 为准。
+已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 覆盖三个任务、12 次会话。M4 外部依赖清理切片已合并；本次 M5 切片处理该评测中 input/candidate 混用造成的重试，合并状态以对应 PR 为准。
 
 ## 开发原则与任务范围
 
@@ -98,7 +98,9 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 
 命令为 `begin`、`context`、`decide`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
 
-当前切片针对真实评测的决策格式重试：`validateDecision` 取代 check 内部的孤立校验，`decide(root, run, options)` 按候选 ID 或 input 文件验证并保存；写入失败返回 `DECISION_INVALID` 和字段 issues，不覆盖原记录或运行项目验证。`context` 返回 `candidateId`；`begin --query` 合并起步调用；CLI 的 `decisionGuide` 提供参数模板与 schema 路径。`check --summary` 仅省略 stdout 的验证日志，持久化完整报告、发现、退出码及验证执行保持原有语义。实质策略仍由 agent 选择。
+`validateDecision` 为 decide/check 共用的形状校验器，`decide(root, run, options)` 按候选 ID 或 input 文件验证并保存；失败返回 `DECISION_INVALID` 和字段 issues，不覆盖原记录或运行项目验证。本次允许 input 携带 candidate，但仅校验基线 ID 对应的 path/symbol 已在 considered 中，不改变文件内容。`inputOptionIssues` 供 CLI 与核心入口共用，拒绝 input 与 strategy/rationale/disposition/reason/remove 的冲突，避免核心 API 静默忽略参数。
+
+`context` 返回 `candidateId`；`begin --query` 合并起步调用；CLI 的 `decisionGuide` 保留简单 argvTemplate，增补 inputArgvTemplate、inputCandidateRole 和 inputExclusiveFlags，benchmark agent 接入也读取这份指南。复杂模式仍校验所有候选、完整记录及基线检索；原有 input 和手写记录不迁移格式。新 issue code 为 not-considered / conflict，不改变 CLI v1 或基线格式。`check --summary` 仅省略 stdout 的验证日志，持久化完整报告、发现、退出码及验证执行保持原有语义。实质策略仍由 agent 选择。
 
 `resultOutput(command, payload)` 包装业务结果；`errorOutput(command, stage, error)` 包装异常，供 CLI 共用。`outputKind: error` 不保证有业务字段；`result` 也可能 `incomplete`。执行诊断使用 `code`、`message`、`stage` 和可选 `causeCode`；规则发现继续位于 `findings`。M1 代码经 `causeCode` 传出，避免解析消息文本。持久化报告不添加 CLI 公共包装字段。
 

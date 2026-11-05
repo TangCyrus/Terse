@@ -4,7 +4,7 @@ import path from 'node:path';
 import { begin, rootOf } from './project.js';
 import { context } from './analyze.js';
 import { check } from './check.js';
-import { decide, decisionGuide } from './decision.js';
+import { decide, decisionGuide, inputOptionIssues } from './decision.js';
 import { VERSION } from './types.js';
 import { resultOutput, errorOutput, type CliOutput, type Command, type ErrorStage } from './output.js';
 
@@ -13,7 +13,7 @@ const help = `Terse ${VERSION} — find existing code before adding another impl
 terse begin --task "<requirement>" [--query "<behavior or symbol>"] [--limit 5] [--cwd <project>] [--json]
 terse context --run <id> --query "<behavior or symbol>" [--limit 5] [--cwd <project>] [--json]
 terse decide --run <id> --strategy <reuse|modify|refactor|new> --rationale "<reason>" [--candidate <candidateId>] [--json]
-terse decide --run <id> --input <decision.json> [--cwd <project>] [--json]
+terse decide --run <id> --input <decision.json> [--candidate <candidateId>] [--cwd <project>] [--json]
 terse check --run <id> [--summary] [--skip-verification] [--cwd <project>] [--json]
 
 Use begin --query to create a baseline and retrieve candidates in one call.
@@ -21,6 +21,8 @@ Read candidates, then use decide to save a validated decision before implementin
 --candidate and --remove (file path) can repeat; --reason defaults to --rationale.
 --disposition overrides the candidate default: reuse, modify or reject.
 decide replaces the complete decision; --input supports per-candidate reasons and symbol removals.
+With --input, --candidate only asserts that the baseline candidate is already in input.considered; it never appends or overrides entries.
+Do not combine --input with --strategy, --rationale, --disposition, --reason or --remove; put those fields in the input file.
 check --summary omits verification logs from stdout; findings and saved report remain available.
 check exit codes: 0 pass, 1 fail, 2 needs-review, 3 incomplete/error.
 --json returns one versioned JSON object for results, help, version and errors.
@@ -80,10 +82,13 @@ try {
       if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('--limit must be 1..20');
     }
     if (command === 'begin' && values.limit !== undefined && values.query === undefined) throw new Error('--limit requires --query');
+    const decisionOptions = { input: values.input, strategy: values.strategy, rationale: values.rationale,
+      candidates: values.candidate, disposition: values.disposition, reason: values.reason, remove: values.remove };
     if (command === 'decide') {
       if (values.input !== undefined) {
         required(values.input, 'input');
-        if (['strategy', 'rationale', 'candidate', 'disposition', 'reason', 'remove'].some(key => Object.hasOwn(values, key))) throw new Error('--input cannot be combined with decision flags');
+        const issues = inputOptionIssues(decisionOptions);
+        if (issues.length) throw Object.assign(new Error(issues.map(issue => issue.message).join('; ')), {issues});
       } else {
         required(values.strategy, 'strategy'); required(values.rationale, 'rationale');
         if ((values.disposition !== undefined || values.reason !== undefined) && !values.candidate?.length) throw new Error('--disposition and --reason require --candidate');
@@ -100,8 +105,7 @@ try {
         next: 'Read the context candidates, choose a strategy, then save the decision with decide.' } : {}) };
     } else if (command === 'context') result = { ...context(root, values.run!, values.query!, limit), decisionGuide: decisionGuide(root, values.run!),
       next: 'Read candidates and use their candidateId with decide. Implement after recording the decision.' };
-    else if (command === 'decide') result = decide(root, values.run!, { input: values.input, strategy: values.strategy, rationale: values.rationale,
-      candidates: values.candidate, disposition: values.disposition, reason: values.reason, remove: values.remove });
+    else if (command === 'decide') result = decide(root, values.run!, decisionOptions);
     else {
       const report = await check(root, values.run!, values['skip-verification']);
       result = values.summary ? { ...report, detail: 'summary', reportPath: path.join(root, '.terse/runs', values.run!, 'report.json'),
