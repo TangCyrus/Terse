@@ -84,7 +84,7 @@ export async function check(root: string, run: string, skipVerification = false)
     newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length, findings, errors, decisionIssues, verification, skipped: after.skipped,
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
       'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
-      'Removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports need review. No complete call graph or external consumer analysis.',
+      'Removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports without declared external ownership need review. Unresolved non-builtin require calls remain uncertain. No complete call graph or external consumer analysis.',
       'This report applies only to the recorded snapshot. Local evidence is not a tamper-proof CI attestation.'],
   };
   writeJson(dir, 'report.json', report);

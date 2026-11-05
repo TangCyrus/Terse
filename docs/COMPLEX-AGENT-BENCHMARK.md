@@ -25,6 +25,17 @@
 
 后续可分别用独立 M2/M4 切片验证外部导入造成的清理复核范围，用 M5 切片改进复杂决策参数指引；本次 M6 保持产品实现不变，没有针对观测临时放松规则。每份补丁、重复证据、任务和验收哈希、实际 CLI usage、命令数、最终 Terse 状态以及 [依赖锁快照](../benchmarks/p-queue/observed/dependency-lock.json.gz) 均已发布。原始提示和日志保留于本地 `.terse/agent-benchmark-hpetfT`。`terseRevision` 指产品起点 `9f1187f`；复现新增任务及多任务脚本应使用包含本 PR 的提交。
 
+## 后续 M4 清理回放
+
+M4 后续切片用相同的 p-queue 提交、平铺配置、依赖和已发布补丁，在四个新副本中建立新 run，再执行 check；没有重新调用 agent，也没有修改上面的历史时间或观测文件。
+
+- `delete-pair-1-terse` / `delete-pair-2-terse`：从 `needs-review` 变为 `pass`，不再因 `eventemitter3` / `p-timeout` 的普通外部依赖导入产生 `REMOVAL_REFERENCE_UNRESOLVED`。
+- `refactor-pair-1-terse` / `refactor-pair-2-terse`：仍为 `needs-review`，移除无关外部导入提示，保留 `REMOVAL_REFERENCE_UNCERTAIN`。声明删除的私有成员没有被省略。
+
+四份原始补丁均通过 SHA-256 核对；每个案例的编译、4 项任务验收、上游 45 项通过及 2 项预期失败、类型验收都通过，新增 token 重复为 0。原始回放报告保留于本地 `.terse/m4-pqueue-replay-lqMxI6`。回放验证的是清理分类变化，不能作为新的 agent 正确率、提速或减少重复的证据。
+
+复核时，从固定原版和本文所列等价配置建立基线，保留对应任务的四项 verification，记录实际删除目标，再应用 observed 中对应 patch 并运行 check。无需放宽策略或省略私有成员声明。离线回归 `node --test --test-name-pattern="M4 " test/terse.test.mjs` 覆盖声明依赖、路径/工作区反例、元数据完整性与成员不确定性；规则与边界见 [M4 使用说明](../README.md#m4-清理与残留引用)。
+
 ## 固定任务和独立验收
 
 [project.json](../benchmarks/p-queue/project.json) 固定源码、模型请求名 `gpt-6.1-sol`、medium 推理、每会话 600 秒、每任务两次配对及编辑范围。每个任务、每组、每次重复都从同一原版独立复制，不叠加前一个任务的实现。
