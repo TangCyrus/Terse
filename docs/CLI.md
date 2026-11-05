@@ -37,6 +37,8 @@ Agent 应通过参数数组运行 `node <terse>/dist/cli.js <command> ... --json
 
 这些是首版按阶段划分的稳定代码，并不声称能细分所有底层故障。`causeCode`（如 ENOENT）是补充信息，其取值可能取决于 Node、操作系统或子进程。修复 run 记录前保留原始证据；不要把一次命令异常当作空发现列表。缺少必需参数的检查先于 Git 项目定位。
 
+M1 基线读取失败沿用 `COMMAND_ERROR` 和 `stage: "command"`，通过 `causeCode` 提供错误类别：`JSON_READ_FAILED`、`INVALID_JSON`、`BASELINE_INVALID`、`BASELINE_INCOMPATIBLE`、`BASELINE_INTEGRITY`、`INVALID_RUN_ID` 或 `RUN_NOT_FOUND`。JSON 读取错误也可能来自配置等记录，应结合消息中的文件位置定位。此时 `outputKind` 为 `error`、退出码为 3，不生成新的检查报告，也不执行验证命令；具体恢复方式见 README 的“基线校验与恢复”。
+
 例如缺少 task：
 
 ```json

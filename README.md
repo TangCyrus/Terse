@@ -100,6 +100,23 @@ Agent 的 JSON 接口使用输出契约 v1，公共字段包含 `schemaVersion`�
 
 `--skip-verification` 可显式跳过验证，但会产生 `needs-review`。配置中没有验证命令也不能得到 `pass`。检查期间源码或项目清单发生变化时，结果为 `incomplete`，需要重新检查。
 
+## 基线校验与恢复
+
+`context` 和 `check` 通过同一个 `loadRun` 读取基线。M1 会先验证记录结构、运行身份、仓库与分析器版本、配置、源码与清单哈希及排除记录，再核对整个快照的哈希。损坏记录在分析和执行验证命令之前被拒绝，CLI 保持退出码 `3`、`status: incomplete` 与 `errors` 数组，并沿用 M5 的 `COMMAND_ERROR`，通过 `diagnostics[].causeCode` 提供以下错误类别，无需解析消息文本。
+
+错误信息包含文件位置和可定位的字段，并区分以下情况：
+
+- `JSON_READ_FAILED`：文件缺失、无法读取、不是普通文件或无法按 UTF-8 解码。读取记录时不跟随文件符号链接。
+- `INVALID_JSON`：文件内容不是有效 JSON，错误中不会回显文件内容。
+- `BASELINE_INVALID`：字段类型、配置、相对路径或哈希格式不符合记录要求。
+- `BASELINE_INCOMPATIBLE`：schema、分析器、run ID 或仓库与当前运行不匹配。
+- `BASELINE_INTEGRITY`：源码内容与其哈希不符，或快照整体与保存的哈希不符。
+- `INVALID_RUN_ID` / `RUN_NOT_FOUND`：传入的运行标识无效，或本地不存在对应运行目录。
+
+修复时优先恢复原始记录，或使用 `begin` 开始新任务，不要通过重算哈希掩盖记录损坏。新任务以当前工作区为起点，不会还原旧任务开始时的代码。读取基线失败时不会生成新的检查报告；已有 `report.json` 仅代表之前那次检查，不能替代本次错误结果。
+
+本次保持 schema 1 和既有分析器标识，合法的 v0.1 基线仍可读取。JSON 对象字段的排列和缩进不会改变校验结果；源码内容或配置变化仍需要正确处置。校验用于发现结构与内容不一致，不是数字签名，无法证明本地记录未被有意修改。
+
 ## M2：导入与路径别名
 
 `context` 从每个源文件所在目录向上查找最近的 `tsconfig.json` 或 `jsconfig.json`，同目录优先使用前者，并止于 Git 根目录。复用 TypeScript 5.9 的配置与模块解析 API，支持 `baseUrl`、`paths` 的精确匹配、通配符与多个候选路径，以及仓库内配置继承。无配置时使用 Node10 解析规则；配置了 NodeNext 时保留其 ESM/CJS 区别。路径别名只帮助查找源码，不改变项目运行时的导入行为。
