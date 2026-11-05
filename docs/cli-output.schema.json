@@ -6,7 +6,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "toolVersion": { "type": "string" },
-    "command": { "enum": ["begin", "context", "check", "help", "version", null] },
+    "command": { "enum": ["begin", "context", "decide", "check", "help", "version", null] },
     "outputKind": { "enum": ["result", "error"] },
     "status": { "enum": ["pass", "fail", "needs-review", "incomplete"] },
     "exitCode": { "enum": [0, 1, 2, 3] },
@@ -20,7 +20,9 @@
           "code": { "enum": ["INVALID_ARGUMENT", "PROJECT_ERROR", "COMMAND_ERROR", "CONTEXT_INCOMPLETE", "CHECK_INCOMPLETE"] },
           "message": { "type": "string" },
           "stage": { "enum": ["arguments", "project", "command"] },
-          "causeCode": { "type": "string" }
+          "causeCode": { "type": "string" },
+          "issues": { "type": "array", "items": { "type": "object", "required": ["field", "code", "message"],
+            "properties": { "field": { "type": "string" }, "code": { "type": "string" }, "message": { "type": "string" } } } }
         }
       }
     }
@@ -37,6 +39,7 @@
         "oneOf": [
           { "properties": { "command": { "const": "begin" } }, "required": ["run", "root", "snapshotHash", "scannedFiles", "decisionPath"] },
           { "properties": { "command": { "const": "context" } }, "required": ["run", "query", "snapshotHash", "scannedFiles", "candidates", "fileMatches", "unresolvedImports"] },
+          { "properties": { "command": { "const": "decide" } }, "required": ["run", "decisionPath", "decision"] },
           { "properties": { "command": { "const": "check" } }, "required": ["run", "baselineHash", "snapshotHash", "findings", "verification", "changes"] },
           { "properties": { "command": { "const": "help" }, "help": { "type": "string" } }, "required": ["help"] },
           { "properties": { "command": { "const": "version" } } }

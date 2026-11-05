@@ -17,7 +17,7 @@ npm test
 npm run demo
 ```
 
-`npm run demo` 会在本仓库的 `.terse/demo-<时间戳>/` 下创建两个独立的 Git 示例项目，并依次执行真实的 `begin`、`context`、`check` CLI。它不修改 `examples/orders` 模板，也不需要 Git 提交或用户名配置。运行完成后保留示例代码、完整检查报告与 `comparison.json`，便于检查结果。
+`npm run demo` 会在本仓库的 `.terse/demo-<时间戳>/` 下创建两个独立的 Git 示例项目，并执行真实的 `begin --query`、`decide`、`check --summary` CLI。它不修改 `examples/orders` 模板，也不需要 Git 提交或用户名配置。运行完成后保留示例代码、完整检查报告与 `comparison.json`，便于检查结果。
 
 示例需求是为订单 CSV 导出增加付款状态筛选。两种实现运行相同的验收测试，覆盖默认行为、权限、CSV 转义、输入不变和金额校验：
 
@@ -63,11 +63,18 @@ PR 的 Checks 页面会显示 `Node 24 / ubuntu-latest` 和 `Node 24 / windows-l
 ```powershell
 $terseCli = (Resolve-Path .\dist\cli.js).Path
 $targetProject = 'D:\your-project'
-$taskStart = node $terseCli begin --cwd $targetProject --task '订单导出增加付款状态筛选' --json | ConvertFrom-Json
-node $terseCli context --cwd $targetProject --run $taskStart.run --query '订单导出 exportOrders paid'
+$taskStart = node $terseCli begin --cwd $targetProject --task '订单导出增加付款状态筛选' --query '订单导出 exportOrders paid' --json | ConvertFrom-Json
+$taskStart.context.candidates
 ```
 
-`begin` 返回 run ID 和 `decisionPath`。在修改项目代码之前，让 agent 阅读 `context` 返回的候选，并填写该文件，例如：
+`begin --query` 在同一调用中保存基线并执行检索，返回 run ID、`decisionPath`、嵌套 `context` 和 `decisionGuide`。先阅读候选源码与调用关系，再明确选定候选并记录决策，例如：
+
+```powershell
+$candidate = $taskStart.context.candidates | Where-Object { $_.path -eq 'src/orders.ts' -and $_.symbol -eq 'exportOrders' }
+node $terseCli decide --cwd $targetProject --run $taskStart.run --strategy modify --candidate $candidate.candidateId --rationale '付款筛选属于现有导出职责，应复用权限检查和 CSV 编码。' --json
+```
+
+`decide` 负责写入下述格式，省去 agent 手写字段。需要分别解释多个候选或声明符号删除时，可准备同格式文件并使用 `decide --input <file>`；格式错误会返回 `DECISION_INVALID` 和具体 `issues[].field`，不会覆盖原记录。此命令替换完整决策，不做隐式追加或候选选择。仍支持直接编辑 `decision.json`：
 
 ```json
 {
@@ -88,19 +95,26 @@ node $terseCli context --cwd $targetProject --run $taskStart.run --query '订单
 之后完成需求修改，再运行：
 
 ```powershell
-node $terseCli check --cwd $targetProject --run $taskStart.run
-node $terseCli check --cwd $targetProject --run $taskStart.run --json
+node $terseCli check --cwd $targetProject --run $taskStart.run --summary --json
 ```
+
+人工阅读可省略 `--summary --json`；选用一种输出形式即可，不需要为了显示两种格式重复执行验证。
 
 `--cwd` 可以是目标 Git 项目的子目录，分析范围会定位到 Git 根目录。若已通过自己的方式安装本地包，也可以直接使用 `terse` 命令。无需全局安装即可按上述步骤使用。
 
-## 三个命令的职责
+## 命令的职责
 
 Agent 的 JSON 接口使用输出契约 v1，公共字段包含 `schemaVersion`、`outputKind`、`status`、`exitCode` 和结构化 `diagnostics`，原有业务字段与 `errors` 字符串数组继续保留。帮助、版本和错误也支持 `--json`。详细约定、错误代码与接入流程见 [CLI 输出文档](docs/CLI.md) 和 [JSON Schema](docs/cli-output.schema.json)。CLI 公共字段不改变本地运行记录格式。
 
 `begin --task <需求>` 保存任务开始时的实际 JS/TS 源码、内容哈希、配置、重要项目清单的哈希与可用的 HEAD。它包含已跟踪和未跟踪文件，不要求工作区干净，也支持尚无提交的 Git 仓库。缓存保存在目标项目的 `.terse/runs/<id>/`，建议将 `.terse/` 加入目标项目的 `.gitignore`；工具自身始终排除这个缓存目录。
 
-`context --run <id> --query <关键词>` 提取函数、类、方法及类型声明，按名称、路径和源码内容排序。结果包含源码位置、内容哈希、限长片段、相对路径与别名导入关系及按名称匹配的测试。默认最多 5 个候选，可用 `--limit 1..20` 调整。中文关键词可匹配中文注释；源码没有相关中文时请补充英文业务词或符号名。空结果不代表没有可复用实现。搜索证据会保存在 `context.json`。
+`begin --query <关键词> [--limit 5]` 额外执行现有检索，不需要再重复调用 `context`。检索错误使本次输出为 `incomplete`，基线 run 仍会返回；不会自动选中候选或生成复用理由。
+
+`context --run <id> --query <关键词>` 提取函数、类、方法及类型声明，按名称、路径和源码内容排序。结果包含源码位置、内容哈希、限长片段、相对路径与别名导入关系及按名称匹配的测试。每个候选新增 `candidateId`，绑定源码位置和内容，供 `decide --candidate` 使用，不依赖搜索排序。默认最多 5 个候选，可用 `--limit 1..20` 调整。中文关键词可匹配中文注释；源码没有相关中文时请补充英文业务词或符号名。空结果不代表没有可复用实现。搜索证据会保存在 `context.json`。
+
+`decide --run <id> --strategy <reuse|modify|refactor|new> --rationale <理由> [--candidate <id>]` 校验并保存完整决策。候选可重复传入；策略 reuse 默认将候选标为 reuse，modify/refactor 默认为 modify，new 默认为 reject。`--reason` 默认复用所填 rationale，可用 `--disposition` 明确调整；`--remove <路径>` 声明文件删除。new 可不选候选，其他策略至少需要一个未拒绝的基线候选。需要先有对基线的成功检索。保存成功只说明记录有效，不代表项目通过，也不免除重复检查。
+
+`check --summary` 仍执行完整检查与配置的验证，不使用缓存或跳过验证；JSON 只省略 `verification[].output`，以 `outputOmitted: true` 标记，并给出完整持久化报告的 `reportPath`。状态、退出码、发现和执行错误保持可见；默认输出不变。决策形状错误另提供 `decisionIssues`，避免用笼统的待评估消息猜字段。
 
 `check --run <id>` 比较当前代码与任务基线，使用 jscpd 的 token 检测核心寻找新增或扩大的重复片段，检查决策中的候选与删除目标，并执行基线配置中的验证命令。完整结果写入 `report.json`，包括扫描文件数、排除范围、错误、验证输出、发现位置与快照标识。`--json` 返回同样的机器可读结果。
 
@@ -185,7 +199,7 @@ M4 已适配 M2：`indexSources(state, root?, fallbackFiles?)` 保留第二个�
 
 1. 修改代码前执行 `begin`，确定功能验收条件。
 2. 执行 `context`，阅读候选源码、相关调用位置和测试；必要时换关键词继续查找。
-3. 在 `decision.json` 中记录复用、修改或新增的理由，以及计划删除的实现。
+3. 使用 `decide` 记录复用、修改或新增的理由和计划删除对象；复杂记录可用 input 文件，既有手写记录仍支持。
 4. 实施需求并处理被替代代码。
 5. 执行 `check`，处理实际问题，并在源码变更后重新验证。
 6. 交付时说明复用了什么、为何新增、清理了什么、哪些验证完成或仍有缺口。

@@ -10,7 +10,8 @@ import { summarizeEvents, pairedSummary } from './lib/agent-events.mjs';
 import { begin, rootOf, snapshot } from '../dist/project.js';
 import { clones, newClones } from '../dist/analyze.js';
 
-const { values } = parseArgs({ options: { source: { type: 'string' }, codex: { type: 'string', default: 'codex' }, repetitions: { type: 'string' } } });
+const { values } = parseArgs({ options: { source: { type: 'string' }, codex: { type: 'string', default: 'codex' }, repetitions: { type: 'string' }, workflow: { type: 'string', default: 'manual' } } });
+assert(['manual', 'commands'].includes(values.workflow), '--workflow must be manual or commands');
 assert(values.source, 'Pass --source <clean p-map checkout with installed development dependencies>');
 const source = fs.realpathSync(values.source);
 const fixture = path.join(repository, 'benchmarks/p-map');
@@ -79,7 +80,7 @@ const preflight = { upstream: verify(source, 'upstream-before', ['node_modules/a
   taskBefore: verify(source, 'acceptance-before', ['--test', acceptance], output) };
 assert(preflight.upstream.passed, 'Upstream baseline tests must pass');
 assert(!preflight.taskBefore.passed, 'Acceptance must fail before implementing the task');
-write(path.join(output, 'plan.json'), { ...specification, repetitions, cliVersion, execution: 'workspace-write with automatic approval; preserve local Windows/proxy configuration', taskHash: digest(task),
+write(path.join(output, 'plan.json'), { ...specification, repetitions, workflow: values.workflow, cliVersion, execution: 'workspace-write with automatic approval; preserve local Windows/proxy configuration', taskHash: digest(task),
   acceptanceHash: digest(fs.readFileSync(acceptance)), dependencyLockHash: digest(dependencyLock), preflight });
 
 for (let repetition = 1; repetition <= repetitions; repetition++) {
@@ -110,7 +111,10 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
     const before = snapshot(root);
     const run = begin(root, task);
     const common = `${task}\n\nWorking directory: ${root}\nAcceptance: node --test ${JSON.stringify(acceptance)}\nUpstream runtime suite: node node_modules/ava/entrypoints/cli.mjs\nType acceptance: node ${typeArguments.join(' ')}\nYou may read the supplied external acceptance files, and the Terse CLI when provided, but no other experiment artifacts.\nTime limit: ${specification.timeoutMs / 1000} seconds.\n`;
-    const treatment = arm === 'terse' ? `\nUse the supplied Terse CLI before editing: node ${JSON.stringify(terseCli)} context --cwd ${JSON.stringify(root)} --run ${run.run} --query "pMap concurrency mapper skip abort" --limit 10 --json. Read the candidates, complete ${JSON.stringify(run.decisionPath)} with your actual strategy and considered candidates, then implement. Before finishing run node ${JSON.stringify(terseCli)} check --cwd ${JSON.stringify(root)} --run ${run.run} --json, inspect findings, and resolve duplication where appropriate within the same time limit. Explain unresolved findings honestly.\n`
+    const recordInstructions = values.workflow === 'commands'
+      ? `Read the candidates and their candidateId. Save your actual decision with node ${JSON.stringify(terseCli)} decide --cwd ${JSON.stringify(root)} --run ${run.run} --strategy <reuse|modify|refactor|new> --rationale "<your reasoning>" --candidate <candidateId> --json. Do not hand-edit decision.json or guess record fields; the command validates and writes the record. Use --input only for complex multi-candidate decisions. Then implement.`
+      : `Read the candidates, complete ${JSON.stringify(run.decisionPath)} with your actual strategy and considered candidates, then implement.`;
+    const treatment = arm === 'terse' ? `\nUse the supplied Terse CLI before editing: node ${JSON.stringify(terseCli)} context --cwd ${JSON.stringify(root)} --run ${run.run} --query "pMap concurrency mapper skip abort" --limit 10 --json. ${recordInstructions} Before finishing run node ${JSON.stringify(terseCli)} check --cwd ${JSON.stringify(root)} --run ${run.run}${values.workflow === 'commands' ? ' --summary' : ''} --json, inspect findings, and resolve duplication where appropriate within the same time limit. Explain unresolved findings honestly.\n`
       : '\nWork normally using project source and the supplied tests. Do not invoke Terse or read .terse records.\n';
     console.error(`Starting pair ${repetition}, ${arm}`);
     const agent = await runAgent(root, common + treatment, directory);
@@ -158,7 +162,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
   }
 }
 const summary = { schemaVersion: 1, kind: 'open-source-agent-comparison', project: specification,
-  repetitions, cliVersion, runtime: { node: process.version, platform: process.platform, arch: process.arch },
+  repetitions, workflow: values.workflow, cliVersion, runtime: { node: process.version, platform: process.platform, arch: process.arch },
   terseRevision: git('-C', repository, 'rev-parse', 'HEAD').trim(), taskHash: digest(task),
   acceptanceHash: digest(fs.readFileSync(acceptance)), typeAcceptanceHash: digest(fs.readFileSync(path.join(fixture, 'acceptance-types.mts'))), dependencyLockHash: digest(dependencyLock), preflight,
   results, pairs: pairedSummary(results), artifactDirectory: output };

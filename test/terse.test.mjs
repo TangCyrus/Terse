@@ -717,7 +717,7 @@ test('CLI distinguishes rule failures from execution errors and keeps text mode 
   }
 });
 
-test('example comparison runs all three commands and identical acceptance tests', () => {
+test('example comparison runs combined retrieval, decision recording and identical acceptance tests', () => {
   const result = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/demo.mjs', import.meta.url))], { encoding: 'utf8', timeout: 30_000 });
   assert.equal(result.status, 0, result.stdout + result.stderr);
   const summary = JSON.parse(result.stdout);

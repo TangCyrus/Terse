@@ -5,6 +5,6 @@ acceptance.mjs text eol=lf
 acceptance-types.mts text eol=lf
 project.json text eol=lf
 # Diff context uses a single space for empty source lines; preserve it as evidence.
-observed/*.patch -text -whitespace
-observed/*.json text eol=lf
-observed/*.gz binary
+**/*.patch -text -whitespace
+**/*.json text eol=lf
+**/*.gz binary

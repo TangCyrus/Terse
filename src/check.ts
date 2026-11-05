@@ -3,18 +3,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { clones, indexSources, newClones } from './analyze.js';
 import { loadRun, readJson, snapshot, writeJson } from './project.js';
-import { ANALYZER, type Decision, type Finding, type Status, type VerificationResult } from './types.js';
+import { ANALYZER, type Finding, type Status, type VerificationResult } from './types.js';
 import { cleanupFindings } from './cleanup.js';
-
-function readDecision(file: string): Decision | null {
-  const d = readJson(file);
-  if (!d || !['reuse', 'modify', 'refactor', 'new'].includes(d.strategy) || typeof d.rationale !== 'string' || !d.rationale.trim()
-    || !Array.isArray(d.considered) || !Array.isArray(d.remove)) return null;
-  if (d.considered.some((c: any) => !c || typeof c.path !== 'string' || typeof c.symbol !== 'string' || !['reuse', 'modify', 'reject'].includes(c.disposition)
-    || typeof c.reason !== 'string' || !c.reason.trim())) return null;
-  if (d.remove.some((r: any) => !r || typeof r.path !== 'string' || (r.symbol !== undefined && typeof r.symbol !== 'string'))) return null;
-  return d;
-}
+import { validateDecision } from './decision.js';
 
 export async function check(root: string, run: string, skipVerification = false) {
   const { dir, baseline } = loadRun(root, run);
@@ -43,8 +34,8 @@ export async function check(root: string, run: string, skipVerification = false)
   else if (!evidence.some(e => e?.snapshotHash === before.hash && Array.isArray(e.errors) && !e.errors.length)) {
     add('CONTEXT_MISSING', 'No successful context search was recorded against the task baseline.');
   }
-  const decision = readDecision(path.join(dir, 'decision.json'));
-  if (!decision) add('DECISION_MISSING', 'Complete decision.json with a strategy, rationale, considered candidates and removal targets.');
+  const { decision, issues: decisionIssues } = validateDecision(readJson(path.join(dir, 'decision.json')));
+  if (!decision) add('DECISION_MISSING', `Complete the decision using terse decide: ${decisionIssues.map(issue => `${issue.field}: ${issue.message}`).join('; ')}`);
   else {
     if (decision.strategy !== 'new' && !decision.considered.some(c => c.disposition !== 'reject')) add('DECISION_UNSUPPORTED', 'Reuse/modify/refactor requires at least one existing candidate.');
     for (const c of decision.considered) {
@@ -90,7 +81,7 @@ export async function check(root: string, run: string, skipVerification = false)
   const report = { command: 'check', run, task: baseline.task, status, analyzer: ANALYZER, checkedAt: new Date().toISOString(),
     baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', scannedFiles: Object.keys(after.files).length,
     baselineFiles: Object.keys(before.files).length, changes, baselineClones, currentClones,
-    newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length, findings, errors, verification, skipped: after.skipped,
+    newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length, findings, errors, decisionIssues, verification, skipped: after.skipped,
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
       'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
       'Removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports need review. No complete call graph or external consumer analysis.',

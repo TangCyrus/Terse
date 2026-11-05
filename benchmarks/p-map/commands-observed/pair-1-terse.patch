@@ -1,0 +1,92 @@
+diff --git a/index.d.ts b/index.d.ts
+index 075093a..cd0085f 100644
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -122,6 +122,17 @@ export function pMapIterable<Element, NewElement>(
+ 	options?: IterableOptions
+ ): AsyncIterable<Exclude<NewElement, typeof pMapSkip>>;
+ 
++/**
++Map concurrently and return fulfilled or rejected mapper outcomes in input order.
++
++Accepts the same input, mapper, concurrency and signal as `pMap`. Mapper errors become rejected records regardless of `stopOnError`. Returning `pMapSkip` omits the item. Invalid arguments, iteration failures and aborts reject the returned promise.
++*/
++export function pMapSettled<Element, NewElement>(
++	input: AsyncIterable<Element | Promise<Element>> | Iterable<Element | Promise<Element>>,
++	mapper: Mapper<Element, NewElement>,
++	options?: Options
++): Promise<Array<PromiseSettledResult<Exclude<NewElement, typeof pMapSkip>>>>;
++
+ /**
+ Return this value from a `mapper` function to skip including the value in the returned array.
+ 
+diff --git a/index.js b/index.js
+index 1055800..b430af8 100644
+--- a/index.js
++++ b/index.js
+@@ -174,6 +174,25 @@ export default async function pMap(
+ 	});
+ }
+ 
++export async function pMapSettled(iterable, mapper, options) {
++	if (typeof mapper !== 'function') {
++		return pMap(iterable, mapper, options);
++	}
++
++	return pMap(iterable, async (element, index) => {
++		try {
++			const value = await mapper(element, index);
++			return value === pMapSkip ? pMapSkip : {status: 'fulfilled', value};
++		} catch (error) {
++			return {status: 'rejected', reason: error};
++		}
++	}, {
++		...options,
++		// Mapper failures are settled above; input and iteration failures must reject.
++		stopOnError: true,
++	});
++}
++
+ export function pMapIterable(
+ 	iterable,
+ 	mapper,
+diff --git a/readme.md b/readme.md
+index bdc3f36..c569234 100644
+--- a/readme.md
++++ b/readme.md
+@@ -41,6 +41,26 @@ console.log(result);
+ 
+ Returns a `Promise` that is fulfilled when all promises in `input` and ones returned from `mapper` are fulfilled, or rejects if any of the promises reject. The fulfilled value is an `Array` of the fulfilled values returned from `mapper` in `input` order.
+ 
++### pMapSettled(input, mapper, options?)
++
++Returns a promise for mapper outcomes in input order: `{status: 'fulfilled', value}` or `{status: 'rejected', reason}`. Mapper throws and rejections become rejected records and do not stop later items, regardless of `stopOnError`. Returning `pMapSkip` omits the item.
++
++Accepts the same input, mapper, `concurrency` and `signal` as `pMap`. Invalid arguments, iteration failures and aborts reject the returned promise. Empty input resolves to an empty array.
++
++```js
++import {pMapSettled, pMapSkip} from 'p-map';
++
++const results = await pMapSettled([1, 2, 3], async value => {
++	if (value === 2) {
++		throw new Error('Unavailable');
++	}
++
++	return value === 3 ? pMapSkip : value * 2;
++}, {concurrency: 2});
++
++//=> [{status: 'fulfilled', value: 2}, {status: 'rejected', reason: Error('Unavailable')}]
++```
++
+ ### pMapIterable(input, mapper, options?)
+ 
+ Returns an async iterable that streams each return value from `mapper` in order.
+@@ -107,7 +127,7 @@ Caveat: When `true`, any already-started async mappers will continue to run unti
+ 
+ ##### signal
+ 
+-**Only for `pMap`**
++**Only for `pMap` and `pMapSettled`**
+ 
+ Type: [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal)
+ 

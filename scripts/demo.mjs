@@ -21,16 +21,13 @@ test('paid filter retains permissions, validation and existing defaults', () => 
 const results = [];
 for (const variant of ['copy', 'reuse']) {
   const project = createWorkspace(demoRoot, variant);
-  const begin = invoke(project, ['begin', '--task', '订单导出支持付款状态筛选，同时保持权限、默认行为和 CSV 格式']);
-  const context = invoke(project, ['context', '--run', begin.run, '--query', '订单导出 exportOrders paid']);
-  assert(context.candidates.some(c => c.symbol === 'exportOrders'), 'Existing export function must be discoverable');
-  fs.writeFileSync(begin.decisionPath, JSON.stringify({
-    strategy: variant === 'reuse' ? 'modify' : 'new',
-    rationale: variant === 'reuse' ? '在现有导出流程中增加筛选，复用权限检查和 CSV 编码。' : '对照组：复制现有流程增加已付款导出路径。',
-    considered: [{ path: 'src/orders.ts', symbol: 'exportOrders', disposition: variant === 'reuse' ? 'modify' : 'reject',
-      reason: variant === 'reuse' ? '已有流程负责权限和导出，新需求属于同一职责。' : '对照实验故意选择复制，以验证重复检测。' }],
-    remove: [],
-  }, null, 2));
+  const begin = invoke(project, ['begin', '--task', '订单导出支持付款状态筛选，同时保持权限、默认行为和 CSV 格式', '--query', '订单导出 exportOrders paid']);
+  const context = begin.context;
+  const candidate = context.candidates.find(c => c.symbol === 'exportOrders' && c.path === 'src/orders.ts');
+  assert(candidate, 'Existing export function must be discoverable');
+  invoke(project, ['decide', '--run', begin.run, '--strategy', variant === 'reuse' ? 'modify' : 'new',
+    '--rationale', variant === 'reuse' ? '在现有导出流程中增加筛选，复用权限检查和 CSV 编码。' : '对照组：故意复制现有流程增加已付款导出路径，以验证重复检测。',
+    '--candidate', candidate.candidateId]);
   const sourcePath = path.join(project, 'src/orders.ts');
   const original = fs.readFileSync(sourcePath, 'utf8');
   const signature = 'export function exportOrders(orders: Order[], ownerId: string): string {';
@@ -46,7 +43,7 @@ for (const variant of ['copy', 'reuse']) {
   assert.notEqual(modified, original);
   fs.writeFileSync(sourcePath, modified);
   fs.appendFileSync(path.join(project, 'test/orders.test.mjs'), acceptance);
-  const report = invoke(project, ['check', '--run', begin.run], variant === 'copy' ? 2 : 0);
+  const report = invoke(project, ['check', '--run', begin.run, '--summary'], variant === 'copy' ? 2 : 0);
   assert(report.verification.every(v => v.status === 'passed'));
   if (variant === 'copy') assert(report.newDuplications > 0);
   else assert.equal(report.newDuplications, 0);

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Terse decision record shape",
+  "type": "object",
+  "required": ["strategy", "rationale", "considered", "remove"],
+  "properties": {
+    "strategy": { "enum": ["reuse", "modify", "refactor", "new"] },
+    "rationale": { "type": "string", "pattern": "\\S" },
+    "considered": { "type": "array", "items": {
+      "type": "object", "required": ["path", "symbol", "disposition", "reason"],
+      "properties": {
+        "path": { "type": "string", "pattern": "\\S" },
+        "symbol": { "type": "string", "pattern": "\\S" },
+        "disposition": { "enum": ["reuse", "modify", "reject"] },
+        "reason": { "type": "string", "pattern": "\\S" }
+      }
+    } },
+    "remove": { "type": "array", "items": {
+      "type": "object", "required": ["path"],
+      "properties": { "path": { "type": "string", "pattern": "\\S" }, "symbol": { "type": "string", "pattern": "\\S" } }
+    } }
+  }
+}

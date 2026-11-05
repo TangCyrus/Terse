@@ -2,7 +2,7 @@
 
 Terse 帮助 coding agent 在完成项目需求时，先定位和评估已有实现，再选择复用、原位修改、局部重构或新增，并检查被替代逻辑是否得到清理。目标是在正确性和兼容性要求得到满足的前提下，减少重复职责、补丁分支和不必要的维护成本。
 
-当前已实现本地 CLI 原型：`begin`、`context`、`check`，支持 JavaScript/TypeScript 的任务基线、词法及语法结构检索、新增 token 重复检测、显式清理目标和配置的验证命令。已添加 Windows/Linux 的 Node 24 构建与测试工作流，使用方式及实际能力边界见 [README.md](README.md)。下文保留整体设计方向；语义职责判断、完整引用清理、强制宿主接入和仓库合并门槛等尚待后续实现。
+当前已实现本地 CLI 原型：`begin`、`context`、`decide`、`check`，支持 JavaScript/TypeScript 的任务基线、词法及语法结构检索、新增 token 重复检测、显式清理目标和配置的验证命令。起步可用 `begin --query` 合并检索，通过 `decide` 校验记录以减少手写格式重试，`check --summary` 控制返回日志体积。已添加 Windows/Linux 的 Node 24 构建与测试工作流，使用方式及实际能力边界见 [README.md](README.md)。下文保留整体设计方向；语义职责判断、完整引用清理、强制宿主接入和仓库合并门槛等尚待后续实现。
 
 M1–M6 首轮切片已合并：包括基线结构与完整性校验、导入与别名解析、按 token 出现次数归因、声明删除的残留引用检查，以及 CLI 输出契约 v1。当前实现的模块进度、接口、覆盖限制和后续计划见 [DEVELOPMENT.md](DEVELOPMENT.md)；下文的长期方案不表示这些能力均已实现。
 
@@ -111,6 +111,7 @@ CI 可以重新计算差异并执行必需检查；配合仓库的合并要求�
 ```text
 terse begin --task "为订单导出增加付款状态筛选"
 terse context --run <id> --query "订单导出 付款状态"
+terse decide --run <id> --strategy modify --candidate <candidateId> --rationale "在现有导出职责内增加筛选"
 terse check --run <id>
 ```
 
