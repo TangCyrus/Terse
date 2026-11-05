@@ -26,9 +26,11 @@ npm run demo
 
 行数仅说明这个示例的变化。示例证明了检索和重复检查可以运行，不代表已测得不同模型上的自动复用提升率。Terse 不会自动重写或删除项目源码。
 
+`npm run evaluate` 扩展为多文件订单项目的 6 个场景、10 个实现变体，覆盖修改、删除、重构、合理新增，以及独立职责与动态引用反例。配对版本使用相同基线和验收测试，报告保存在 `.terse/evaluation-*/evaluation.json`。方法、结果和限制见 [项目评测](docs/EVALUATION.md)。这是本地受控项目评测，不是外部生产仓库或自主 agent 的统计实验。
+
 ## 自动化检查
 
-[CI 工作流](.github/workflows/ci.yml) 在面向 `main` 的 PR 和 `main` 推送时运行，使用 Node.js 24 分别在 Linux、Windows 执行 `npm ci` 与 `npm test`，再通过 `npm pack --dry-run` 预检打包并显示文件清单。`npm test` 已包含 TypeScript 构建、导入解析、清理检查、CLI 输出契约及订单导出对比示例，不额外重复运行示例。打包预检不发布或上传 npm 包。
+[CI 工作流](.github/workflows/ci.yml) 在面向 `main` 的 PR 和 `main` 推送时运行，使用 Node.js 24 分别在 Linux、Windows 执行 `npm ci` 与 `npm test`，再通过 `npm pack --dry-run` 预检打包并显示文件清单。`npm test` 已包含 TypeScript 构建、导入解析、清理检查、CLI 输出契约、订单导出对比示例和项目评测，不额外重复运行示例。评测摘要写入测试诊断日志，完整项目与报告在运行目录保留。打包预检不发布或上传 npm 包。
 
 PR 的 Checks 页面会显示 `Node 24 / ubuntu-latest` 和 `Node 24 / windows-latest` 两项检查。一项失败不会取消另一项，便于比较平台差异；同一 PR 的新提交会取消旧运行。安装、构建、测试或打包预检失败会让对应检查失败。
 
