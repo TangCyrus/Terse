@@ -53,6 +53,22 @@ test('benchmark patches include new helpers and deleted modules while flagging o
   assert.equal(fs.readFileSync(path.join(parent, 'helper.ts'), 'utf8'), helper);
 });
 
+test('functional benchmark permits new source modules but still catches test edits', t => {
+  const root = workspace(t);
+  fs.mkdirSync(path.join(root, 'src'));
+  fs.mkdirSync(path.join(root, 'test'));
+  fs.writeFileSync(path.join(root, 'src/original.ts'), 'export const value = 1;');
+  fs.writeFileSync(path.join(root, 'test/acceptance.mjs'), 'original');
+  execFileSync('git', ['init', '-q'], {cwd: root});
+  execFileSync('git', ['add', '.'], {cwd: root});
+  fs.writeFileSync(path.join(root, 'src/new-module.ts'), 'export const extra = 2;');
+  fs.writeFileSync(path.join(root, 'test/acceptance.mjs'), 'tampered');
+  const result = collectChanges(root, ['src/']);
+  assert.deepEqual(result.changed, ['src/new-module.ts', 'test/acceptance.mjs']);
+  assert.deepEqual(result.outsideScope, ['test/acceptance.mjs']);
+  assert.match(result.patch, /new-module.ts/);
+});
+
 test('upstream counts distinguish expected failures from passing tests', () => {
   assert.deepEqual(upstreamCounts('\u001b[32m45 tests passed\u001b[0m\n2 known failures'), {passed: 45, knownFailures: 2});
   assert.deepEqual(upstreamCounts('1 test passed\n1 known failure'), {passed: 1, knownFailures: 1});
@@ -101,6 +117,50 @@ test('agent publication uses task-specific artifacts and preserves unknown dupli
   assert.deepEqual(report.results[0].events.errors, ['Transport reconnect']);
   assert(!Object.hasOwn(report, 'artifactDirectory'));
   assert.throws(() => execFileSync(process.execPath, [script, '--input', parent, '--output', target], {stdio: 'pipe'}));
+});
+
+test('functional publication requires complete reviews and immutable patch bytes without a dependency lock', t => {
+  const parent = workspace(t);
+  const artifactId = 'modify-pair-1-terse';
+  fs.mkdirSync(path.join(parent, artifactId));
+  const patchPath = path.join(parent, artifactId, 'implementation.patch');
+  fs.writeFileSync(patchPath, 'reviewed patch');
+  const patchHash = createHash('sha256').update('reviewed patch').digest('hex');
+  fs.writeFileSync(path.join(parent, 'comparison.json'), JSON.stringify({kind: 'controlled-agent-comparison',
+    artifactDirectory: parent, results: [{artifactId, arm: 'terse', correct: true, protocolValid: true,
+      evidence: {patchHash}, events: {errors: [], finalMessage: 'Do not publish prose'}}]}));
+  const script = fileURLToPath(new URL('../scripts/export-agent-benchmark.mjs', import.meta.url));
+  const target = path.join(parent, 'publication');
+  const publish = destination => execFileSync(process.execPath, [script, '--input', parent, '--output', destination], {stdio: 'pipe'});
+  assert.throws(() => publish(target));
+  assert(!fs.existsSync(target));
+  const reviews = [{artifactId, patchHash, functional: true, reason: 'Single existing exporter owns CSV encoding.'}];
+  fs.writeFileSync(path.join(parent, 'functional-reviews.json'), JSON.stringify(reviews));
+  publish(target);
+  const report = JSON.parse(fs.readFileSync(path.join(target, 'comparison.json'), 'utf8'));
+  assert.equal(report.functionalSummary.terse.functional, 1);
+  assert(!fs.existsSync(path.join(target, 'dependency-lock.json.gz')));
+  assert(!Object.hasOwn(report, 'artifactDirectory'));
+  assert(!Object.hasOwn(report.results[0].events, 'finalMessage'));
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(target, 'functional-reviews.json'), 'utf8')), reviews);
+  fs.writeFileSync(patchPath, 'modified after review');
+  const altered = path.join(parent, 'altered');
+  assert.throws(() => publish(altered));
+  assert(!fs.existsSync(altered));
+});
+
+test('functional preflight checks all six task starts without a live model or credentials', () => {
+  const script = fileURLToPath(new URL('../scripts/benchmark-reuse.mjs', import.meta.url));
+  // Node --version stands in only for version discovery; preflight must never call exec.
+  const output = execFileSync(process.execPath, [script, '--codex', process.execPath, '--preflight-only'], {encoding: 'utf8', timeout: 60_000});
+  const {output: directory, preflight} = JSON.parse(output);
+  assert.equal(preflight.length, 6);
+  assert.deepEqual(preflight.filter(item => item.verification.passed).map(item => item.taskId), ['delete']);
+  const plan = JSON.parse(fs.readFileSync(path.join(directory, 'plan.json'), 'utf8'));
+  assert.equal(plan.kind, 'controlled-agent-comparison');
+  assert(plan.tasks.every(task => task.query === task.task));
+  assert(!fs.existsSync(path.join(directory, 'comparison.json')));
+  for (const task of plan.tasks) assert(!fs.existsSync(path.join(directory, `preflight-${task.id}`, 'agent.jsonl')));
 });
 
 test('retrospective decision measurements refuse altered raw events and never overwrite observations', t => {

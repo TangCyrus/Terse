@@ -16,6 +16,9 @@ assert(report.results.length > 0);
 const reviews = report.kind === 'controlled-agent-comparison'
   ? JSON.parse(fs.readFileSync(path.join(source, 'functional-reviews.json'), 'utf8')) : null;
 const functionalSummary = reviews ? validateFunctionalReviews(report.results, reviews) : null;
+if (reviews) for (const result of report.results) assert.equal(
+  createHash('sha256').update(fs.readFileSync(path.join(source, result.artifactId, 'implementation.patch'))).digest('hex'),
+  result.evidence.patchHash, 'Reviewed patch bytes changed after grading');
 fs.mkdirSync(target); // Never overwrite a previously published experiment.
 const results = report.results.map(result => {
   const label = result.artifactId ?? `pair-${result.repetition}-${result.arm}`;
