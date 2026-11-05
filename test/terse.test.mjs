@@ -389,6 +389,150 @@ test('current replacement paths take precedence over deleted baseline modules', 
   assert.equal((await check(p.root, run)).status, 'pass');
 });
 
+test('M4 unrelated declared package imports do not require cleanup review', async t => {
+  const p = project(t, {
+    'package.json': JSON.stringify({name: 'queue-app', dependencies: {eventemitter3: '^5', 'p-timeout': '^6'},
+      devDependencies: {'@scope/tools': '~2'}, peerDependencies: {peer: '>=1'}, optionalDependencies: {optional: 'latest'}}),
+    'tsconfig.json': '{"compilerOptions":{"paths":{"@app/*":["./src/*"]}}}',
+    'src/calculate.js': body,
+    'src/legacy.ts': 'export function legacy() { return 1; }',
+    'src/use.ts': `import {EventEmitter} from 'eventemitter3';
+import timeout from 'p-timeout';
+export {tool} from '@scope/tools/helpers';
+type Peer = typeof import('peer');
+const load = () => import('optional');
+import tools = require('@scope/tools');`,
+  });
+  const run = ready(p.root, {remove: [{path: 'src/legacy.ts'}]});
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  const report = await check(p.root, run);
+  assert.equal(report.status, 'pass', JSON.stringify(report.findings));
+  const index = indexSources(snapshot(p.root), p.root);
+  assert.deepEqual(index.errors, []);
+  assert.equal(index.imports.length, 6);
+  assert(index.imports.every(i => !i.target && i.reason === 'not-found-in-snapshot' && i.externalDependency?.manifest === 'package.json'));
+  assert.equal(index.imports[2].externalDependency.package, '@scope/tools');
+  const processResult = spawnSync(process.execPath, [cli, 'check', '--cwd', p.root, '--run', run, '--summary', '--json'], {encoding: 'utf8'});
+  assert.equal(processResult.status, 0, processResult.stdout + processResult.stderr);
+  assert.equal(JSON.parse(processResult.stdout).status, 'pass');
+});
+
+test('M4 external declarations do not hide dynamic, relative, unknown or replaceable require references', async t => {
+  const p = project(t, {
+    'package.json': '{"dependencies":{"eventemitter3":"^5"}}',
+    'src/calculate.js': body, 'src/legacy.ts': 'export function legacy() {}',
+    'src/use.ts': `import 'eventemitter3';
+import 'unknown-package';
+import(name);
+function custom(require) { return require('eventemitter3'); }
+import './missing.js';
+import '#internal';
+import 'node:fs';
+import 'eventemitter3/../legacy';
+import 'eventemitter3/%2e%2e/legacy';`,
+  });
+  const run = ready(p.root, {remove: [{path: 'src/legacy.ts'}]});
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  const report = await check(p.root, run);
+  assert.equal(report.status, 'needs-review');
+  assert.deepEqual(report.findings.find(f => f.rule === 'REMOVAL_REFERENCE_UNRESOLVED').locations.map(l => l.line), [2, 3, 4, 5, 6, 8, 9]);
+});
+
+test('M4 dependency declarations cannot override unresolved aliases or baseUrl uncertainty', async t => {
+  for (const [name, config, specifier] of [
+    ['exact', {paths: {eventemitter3: ['./missing.ts']}}, 'eventemitter3'],
+    ['wildcard', {paths: {'event*': ['./missing/*']}}, 'eventemitter3'],
+    ['catch-all', {paths: {'*': ['./missing/*']}}, 'eventemitter3'],
+    ['baseUrl', {baseUrl: '.'}, 'eventemitter3'],
+  ]) await t.test(name, async t => {
+    const p = project(t, {
+      'package.json': '{"dependencies":{"eventemitter3":"^5"}}',
+      'config/tsconfig.base.json': JSON.stringify({compilerOptions: config}),
+      'tsconfig.json': '{"extends":"./config/tsconfig.base.json"}',
+      'src/calculate.js': body, 'src/legacy.ts': 'export function legacy() {}',
+      'src/use.ts': `import '${specifier}';`,
+    });
+    const run = ready(p.root, {remove: [{path: 'src/legacy.ts'}]});
+    fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+    const report = await check(p.root, run);
+    assert.equal(report.status, 'needs-review');
+    assert(report.findings.some(f => f.rule === 'REMOVAL_REFERENCE_UNRESOLVED'));
+  });
+});
+
+test('M4 declared dependency aliases still resolve deleted baseline targets and uncovered local files', async t => {
+  const p = project(t, {
+    'package.json': '{"dependencies":{"eventemitter3":"^5"}}',
+    'tsconfig.json': '{"compilerOptions":{"paths":{"eventemitter3":["./src/legacy.ts"]}}}',
+    'src/calculate.js': body, 'src/legacy.ts': 'export function legacy() {}', 'src/use.ts': "import 'eventemitter3';",
+  });
+  const run = ready(p.root, {remove: [{path: 'src/legacy.ts'}]});
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  const report = await check(p.root, run);
+  assert.equal(report.status, 'fail');
+  assert(report.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS'));
+  p.write('src/legacy.ts', '// ' + 'x'.repeat(1024 * 1024));
+  const uncovered = await check(p.root, run);
+  assert.equal(uncovered.status, 'needs-review');
+  assert(uncovered.findings.some(f => f.rule === 'REMOVAL_NOT_VERIFIED'));
+  assert(uncovered.findings.some(f => f.rule === 'COVERAGE_GAP'));
+  assert.equal(indexSources(snapshot(p.root), p.root).imports[0].externalDependency, undefined);
+});
+
+test('M4 nearest package declarations and local package ownership stay conservative', t => {
+  const declarations = {dependencies: {external: '^1'}};
+  const p = project(t, {'package.json': JSON.stringify(declarations), 'src/use.ts': "import 'external';"});
+  const indexed = () => indexSources(snapshot(p.root), p.root);
+  assert(indexed().imports[0].externalDependency);
+  p.write('src/package.json', '{}');
+  assert.equal(indexed().imports[0].externalDependency, undefined); // Do not inherit root declarations through a package boundary.
+  p.write('src/package.json', JSON.stringify(declarations));
+  assert.equal(indexed().imports[0].externalDependency.manifest, 'src/package.json');
+  p.write('packages/local/package.json', '{"name":"external"}');
+  assert.equal(indexed().imports[0].externalDependency, undefined); // Local workspaces can use ordinary version ranges.
+  p.write('packages/local/package.json', '{"name":"different","workspaces":["packages/*"]}');
+  assert.equal(indexed().imports[0].externalDependency, undefined);
+  p.write('packages/local/package.json', '{broken');
+  assert.equal(indexed().imports[0].externalDependency, undefined);
+});
+
+test('M4 external evidence requires snapshot-covered unchanged package metadata', t => {
+  const p = project(t, {'package.json': '{"dependencies":{"external":"^1"}}', 'src/use.ts': "import 'external';"});
+  const state = snapshot(p.root);
+  assert(indexSources(state, p.root).imports[0].externalDependency);
+  assert.equal(indexSources(state).imports[0].externalDependency, undefined); // Historical indexes never consult live manifests.
+  p.write('package.json', '{"dependencies":{"external":"^2"}}');
+  const stale = indexSources(state, p.root);
+  assert(stale.errors.some(error => /IMPORT_METADATA: package.json: changed since snapshot/.test(error)));
+  assert.equal(stale.imports[0].externalDependency, undefined);
+  p.write('terse.config.json', '{"exclude":["package.json"]}');
+  assert.equal(indexSources(snapshot(p.root), p.root).imports[0].externalDependency, undefined);
+});
+
+test('M4 local dependency specs, conflicting declarations and package self-imports remain unresolved', t => {
+  const p = project(t, {'src/use.ts': "import 'external';"});
+  for (const version of ['workspace:*', 'file:../external', 'link:../external', 'portal:../external', 'catalog:', 'npm:other@^1', 'git+https://example.org/pkg.git', '.', ' .. ', '']) {
+    p.write('package.json', JSON.stringify({dependencies: {external: version}}));
+    assert.equal(indexSources(snapshot(p.root), p.root).imports[0].externalDependency, undefined, version);
+  }
+  p.write('package.json', '{"dependencies":{"external":"^1"},"optionalDependencies":{"external":"file:../external"}}');
+  assert.equal(indexSources(snapshot(p.root), p.root).imports[0].externalDependency, undefined);
+  p.write('package.json', '{"name":"external","dependencies":{"external":"^1"}}');
+  assert.equal(indexSources(snapshot(p.root), p.root).imports[0].externalDependency, undefined);
+});
+
+test('M4 external ownership never clears private member reference uncertainty', async t => {
+  const p = project(t, {
+    'package.json': '{"dependencies":{"eventemitter3":"^5"}}', 'src/calculate.js': body,
+    'src/queue.ts': "import 'eventemitter3';\nexport class Queue { #onEvent() {} }",
+  });
+  const run = ready(p.root, {remove: [{path: 'src/queue.ts', symbol: 'Queue.#onEvent'}]});
+  p.write('src/queue.ts', "import 'eventemitter3';\nexport class Queue {} ");
+  const report = await check(p.root, run);
+  assert.equal(report.status, 'needs-review');
+  assert.deepEqual(report.findings.map(f => f.rule), ['REMOVAL_REFERENCE_UNCERTAIN']);
+});
+
 test('removal outside source coverage and member removal cannot silently pass', async t => {
   const p = project(t, { 'src/calculate.js': body, 'src/legacy.js': 'export function obsolete() { return 1; }',
     'src/member.js': 'export class Service {\n  obsolete() { return 1; }\n}' });

@@ -86,8 +86,9 @@ export function cleanupFindings(before: Snapshot, after: Snapshot, oldIndex: Ind
     }
   }
   if (checkUnresolved) {
-    const unresolved = current.imports.filter(i => !i.target && (i.reason === 'dynamic-expression' || !isBuiltin(i.specifier)));
-    if (unresolved.length) add('REMOVAL_REFERENCE_UNRESOLVED', 'review', 'Some imports cannot be associated with scanned files; review aliases, packages and dynamic expressions before accepting cleanup.',
+    const unresolved = current.imports.filter(i => !i.target && (i.reason === 'dynamic-expression'
+      || (!isBuiltin(i.specifier) && (i.requireCall || !i.externalDependency))));
+    if (unresolved.length) add('REMOVAL_REFERENCE_UNRESOLVED', 'review', 'Some imports have uncertain ownership; review local paths, aliases, undeclared packages, require calls and dynamic expressions before accepting cleanup.',
       unresolved.map(i => ({ path: i.from, line: i.line })));
   }
   return findings;

@@ -153,6 +153,8 @@ Agent 的 JSON 接口使用输出契约 v1，公共字段包含 `schemaVersion`�
 
 JSON 结果新增顶层 `unresolvedImports`，即使没有匹配候选也会返回；普通文本输出同样显示这些引用。`reason` 包括 `dynamic-expression`、`config-error`、`not-found-in-snapshot`、`outside-source-snapshot`。未解析的包、内置模块、排除文件或动态表达式不会被伪装成有效源码目标，也不单独导致命令失败。
 
+未找到当前或基线源码目标的字面量包导入，可以带可选的 `externalDependency: { "package": "eventemitter3", "manifest": "package.json" }`。该证据来自哈希核对过的最近项目清单中的依赖声明；导入仍保留在 `unresolvedImports`，不保证依赖已安装、子路径可导出或包的类型有效。历史索引不读取实时清单。
+
 配置读取仅允许快照中已有哈希的 `tsconfig*.json`、`jsconfig.json` 和项目清单，并核对实时内容。继承链暂不支持任意名称的 JSON（例如 `configs/base.json`）、依赖包配置或仓库外配置；可使用 `configs/tsconfig.base.json`。无效或不支持的配置产生 `IMPORT_CONFIG` 错误，配置读取或哈希不一致产生 `IMPORT_METADATA`，命令退出码为 3，且不能作为成功的基线检索证据。搜索期间项目变化同样要求重新运行。
 
 源码覆盖仍由 Terse 的扫描规则决定，不使用 tsconfig 的 include/exclude 来缩小检索；不遍历 project references，也不自动选择 `tsconfig.app.json` 等变体入口。Vite/Webpack 自定义别名、工作区包链接及完整依赖包解析留待后续。实现集中在 `src/imports.ts`，供现有索引流程调用；历史基线的符号检查不读取当前工作区配置，基线格式保持不变。
@@ -172,11 +174,13 @@ JSON 结果新增顶层 `unresolvedImports`，即使没有匹配候选也会返�
 以下发现要求 `needs-review`，不会把未知情况当作已完成清理：
 
 - `REMOVAL_REFERENCE_UNCERTAIN`：namespace、星号转发、require、动态 import 的符号使用、成员/嵌套声明删除，或可能的转发替代。require 可能是局部自定义函数，因此仅凭语法不判定其调用已失效。
-- `REMOVAL_REFERENCE_UNRESOLVED`：存在无法对应到扫描文件的别名、包或动态表达式。已知 Node 内置模块不在此列；其他未解析包即使可能无关，也需要评估。
+- `REMOVAL_REFERENCE_UNRESOLVED`：存在无法确认归属的本地路径、别名、未声明包、非内置 require 或动态表达式。已知 Node 内置模块，以及带上述外部依赖证据的普通导入，不会单独触发此提示；非内置 require 仍保留复核，因为它可能被局部替换。
 - `REMOVAL_NOT_VERIFIED`：目标仍列在跳过文件中；离开扫描范围不能证明文件已删除。
 - `REMOVAL_TARGET_UNKNOWN`：声明的对象不在基线；`REMOVAL_REMAINS` 则表示声明删除的实现仍存在，属于失败。
 
 M4 已适配 M2：`indexSources(state, root?, fallbackFiles?)` 保留第二个参数作为项目根目录，第三个可选参数提供基线源码定位候选。导入记录复用 `ImportReference`，补充导入名称、require 标记及 `targetSnapshot: current | baseline`。`context` 不传基线候选，只报告当前目标；`check` 使用当前配置查找当前消费者，历史基线符号分析不读取实时配置。基线回退不读取旧配置或旧 package.json，配置继承和覆盖边界与 M2 一致；不能解析的别名仍要求评估。配置读取或解析失败时，`check` 返回 `incomplete`，不执行验证命令。
+
+外部依赖证据只接受最近 `package.json` 的 dependencies、devDependencies、peerDependencies、optionalDependencies 中普通版本/范围/tag 声明。匹配 paths、启用 baseUrl、同名本地包、工作区标记、本地/协议依赖（含 npm 别名）、不合法或未覆盖的清单都不能用作免复核依据；最近包未声明时不向父包借用声明。现有解析器先检查当前与基线源码，能定位的残留引用、未覆盖目标、成员引用不确定性继续按原规则处理。该判断限定于 M2 已覆盖的配置，不解析额外的 bundler 别名。
 
 清理规则集中在 `src/cleanup.ts`，路径解析统一复用 `src/imports.ts`，已删除 M4 的手写路径候选逻辑。沿用既有快照、发现结构、验证命令和退出码，不增加依赖或修改基线格式。
 

@@ -8,6 +8,7 @@ export interface ImportReference {
   from: string; specifier: string; line: number; target?: string; config?: string;
   names?: string[]; requireCall?: boolean; targetSnapshot?: 'current' | 'baseline';
   reason?: 'dynamic-expression' | 'config-error' | 'not-found-in-snapshot' | 'outside-source-snapshot';
+  externalDependency?: { package: string; manifest: string };
 }
 
 // The resolver sees snapshot paths only. Historical indexes never read live config.
@@ -46,6 +47,49 @@ export function importResolver(state: Snapshot, errors: string[], root?: string,
     ...host,
     fileExists: file => host.fileExists(file) || Object.hasOwn(fallbackFiles, relative(file)),
   };
+  const packages = new Map<string, Record<string, unknown> | undefined>();
+  const packageFiles = [...known].filter(name => /(?:^|\/)package\.json$/.test(name));
+  const readPackage = (name: string) => {
+    if (!packages.has(name)) {
+      const text = host.readFile(path.posix.join(base, name));
+      let value;
+      try { value = text === undefined ? undefined : JSON.parse(text.replace(/^\uFEFF/, '')); } catch { /* Keep unresolved when package metadata is invalid. */ }
+      packages.set(name, value && typeof value === 'object' && !Array.isArray(value) ? value : undefined);
+    }
+    return packages.get(name);
+  };
+  const externalDependency = (specifier: string, file: string, options: ts.CompilerOptions): ImportReference['externalDependency'] => {
+    // A declaration is evidence of external ownership, not proof that a package is installed.
+    if (!root || options.baseUrl || Object.keys(options.paths ?? {}).some(pattern => {
+      const star = pattern.indexOf('*');
+      return star < 0 ? pattern === specifier : specifier.length >= pattern.length - 1
+        && specifier.startsWith(pattern.slice(0, star)) && specifier.endsWith(pattern.slice(star + 1));
+    })) return;
+    const match = /^(@[a-z0-9_~-][a-z0-9._~-]*\/[a-z0-9_~-][a-z0-9._~-]*|[a-z0-9_~-][a-z0-9._~-]*)(?:\/(.+))?$/i.exec(specifier);
+    if (!match || /[\\:%?#]/.test(specifier) || match[2]?.split('/').some(part => !part || part === '.' || part === '..')) return;
+    const name = match[1];
+    let manifest: string | undefined;
+    let directory = path.posix.dirname(file);
+    while (true) {
+      const candidate = path.posix.join(directory, 'package.json');
+      if (known.has(candidate)) { manifest = candidate; break; }
+      if (directory === '.') return;
+      directory = path.posix.dirname(directory);
+    }
+    const owner = readPackage(manifest);
+    if (!owner) return;
+    const declarations = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
+      .map(key => owner[key]).filter((value): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value));
+    const versions = declarations.filter(value => Object.hasOwn(value, name)).map(value => value[name]);
+    // Registry ranges/tags only. File, link, workspace, catalog, npm aliases and URL specs stay uncertain.
+    if (!versions.length || versions.some(value => typeof value !== 'string' || !value.trim() || /^\./.test(value.trim()) || /[:/\\]/.test(value))) return;
+    // Local packages can use ordinary version ranges too; do not infer external ownership in a workspace.
+    for (const candidate of packageFiles) {
+      const local = readPackage(candidate);
+      if (!local || local.name === name || Object.hasOwn(local, 'workspaces')) return;
+    }
+    return { package: name, manifest };
+  };
   const configs = new Map<string, { options: ts.CompilerOptions; invalid: boolean }>();
   return (file: string, ast: ts.SourceFile) => {
     let config: string | undefined;
@@ -77,7 +121,7 @@ export function importResolver(state: Snapshot, errors: string[], root?: string,
     const { options, invalid } = settings;
     const containingFile = path.posix.join(base, file);
     ast.impliedNodeFormat = ts.getImpliedNodeFormatForFile(containingFile, undefined, host, options);
-    return (expression: ts.Expression): Pick<ImportReference, 'specifier' | 'target' | 'reason' | 'config' | 'targetSnapshot'> => {
+    return (expression: ts.Expression): Pick<ImportReference, 'specifier' | 'target' | 'reason' | 'config' | 'targetSnapshot' | 'externalDependency'> => {
       const literal = ts.isStringLiteralLike(expression);
       const specifier = literal ? expression.text : expression.getText(ast);
       if (!literal) return { specifier, config, reason: 'dynamic-expression' };
@@ -86,7 +130,10 @@ export function importResolver(state: Snapshot, errors: string[], root?: string,
       const resolve = (resolutionHost: ts.ModuleResolutionHost) => ts.resolveModuleName(specifier, containingFile, options, resolutionHost, undefined, undefined, mode).resolvedModule;
       const current = resolve(host);
       const resolved = current ?? resolve(fallbackHost);
-      if (!resolved) return { specifier, config, reason: 'not-found-in-snapshot' };
+      if (!resolved) {
+        const dependency = externalDependency(specifier, file, options);
+        return { specifier, config, reason: 'not-found-in-snapshot', ...(dependency ? {externalDependency: dependency} : {}) };
+      }
       const target = relative(resolved.resolvedFileName);
       if (Object.hasOwn(state.files, target)) return { specifier, config, target, targetSnapshot: 'current' };
       if (!current && Object.hasOwn(fallbackFiles, target)) return { specifier, config, target, targetSnapshot: 'baseline' };

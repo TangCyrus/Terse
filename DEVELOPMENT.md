@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本文以 `main` 的 `9f1187f` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9 和 M5 决策接入优化 #10 均已合并；起点的 Windows/Linux Node 24 CI 各通过 102 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本文以 `main` 的 `111ec17` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10 和 p-queue 评测 #11 均已合并；起点的 Windows/Linux Node 24 CI 各通过 108 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -13,7 +13,7 @@
 | M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
 | M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
-已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。本次 M6 切片扩展 [p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md)：三个独立任务、12 次会话，比较优化后的命令式接入。该切片的合并状态以对应 PR 为准。
+已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 覆盖三个任务、12 次会话。本次 M4 切片处理该评测暴露的外部依赖导入误触发清理复核问题；合并状态以对应 PR 为准。
 
 ## 开发原则与任务范围
 
@@ -56,7 +56,7 @@
 
 这里使用名称、路径和源码内容进行词法排序，TypeScript API 提供语法结构与模块解析。传入 `root` 时查找最近的 `tsconfig.json`/`jsconfig.json`，支持 `baseUrl`、`paths`、限定范围的继承与 NodeNext ESM/CJS 区别。元数据仅在快照覆盖且实时哈希一致时读取；继承暂限仓库内 `tsconfig*.json`/`jsconfig.json`，不遍历 project references 或 bundler 自定义别名。
 
-`ImportReference` 包含 `from`、`specifier`、`line`，以及可选的 `target`、`config`、`names`、`requireCall`、`targetSnapshot` 和 `reason`。未解析原因包括 `dynamic-expression`、`config-error`、`not-found-in-snapshot`、`outside-source-snapshot`。配置问题记录为 `IMPORT_CONFIG`/`IMPORT_METADATA`，不能成为成功检索证据。
+`ImportReference` 包含 `from`、`specifier`、`line`，以及可选的 `target`、`config`、`names`、`requireCall`、`targetSnapshot`、`reason` 和 `externalDependency: { package, manifest }`。未解析原因仍为 `dynamic-expression`、`config-error`、`not-found-in-snapshot`、`outside-source-snapshot`。新增证据不创建源码目标，也不移除 unresolvedImports：仅标明在当前配置覆盖范围内，哈希验证过的最近包明确声明了普通外部依赖。配置问题记录为 `IMPORT_CONFIG`/`IMPORT_METADATA`，不能成为成功检索证据。
 
 M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析优先，失败后才以基线源码存在性定位删除目标，`targetSnapshot` 标记 `current`/`baseline`；配置和包元数据不会回退到旧版本。历史符号索引使用 `indexSources(before)`，不读取当前配置。`context` 只展示当前目标，不传基线 fallback。`importedBy` 是文件级导入关系，测试关联是候选线索；检索排序质量与更广解析范围仍可按真实案例改进。
 
@@ -86,7 +86,9 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 
 `cleanupFindings(before, after, oldIndex, current, removals): Finding[]` 复用 M2 索引，检查 `Decision.remove` 声明。目标仍存在、删除文件的残留导入、可确认的命名/默认导出引用及同文件未绑定直接调用产生失败发现；同名局部绑定或当前替代导出不会简单判为残留。
 
-命名空间、require、动态表达式、转发链、嵌套声明及成员访问等不能确定的引用保留 review；未覆盖目标和未解析导入不能静默通过。没有完整调用图或外部消费者保证，也不自动发现全部死代码。验证命令采用基线配置，以参数数组和 `shell: false` 执行；策略变化或检查中快照变化使结果未完成。例外管理仍为后续任务。
+命名空间、非内置 require、动态表达式、转发链、嵌套声明及成员访问等不能确定的引用保留 review；未覆盖目标和归属不明的导入不能静默通过。M4 仅从全局未解析导入提示中排除带 externalDependency 证据的普通导入；不降级可定位的残留引用失败。M2 先尝试当前/基线源码定位，只有均未找到目标时才提供声明证据，复用现有 metadata 读取、哈希检查和缓存，不扫描 node_modules。匹配 paths、baseUrl、同名本地包、工作区、协议依赖或清单覆盖/完整性不足时保持保守；非内置 require 即使有声明也需复核。公共字段为兼容性增补，不修改 Baseline.schema、CLI v1 或归因标识。
+
+没有完整调用图或外部消费者保证，也不自动发现全部死代码。验证命令采用基线配置，以参数数组和 `shell: false` 执行；策略变化或检查中快照变化使结果未完成。例外管理仍为后续任务。p-queue 四份历史补丁的独立回放结果见[评测文档](docs/COMPLEX-AGENT-BENCHMARK.md#后续-m4-清理回放)，历史 agent 数据不改写。
 
 ### M5 CLI 与 agent 接入
 
@@ -187,7 +189,7 @@ node --test --test-name-pattern="context finds" test/terse.test.mjs
 
 首轮完成记录见开头表格。以下是后续方向，不代表全部已经实现或确定排期：
 
-1. **M6 评测扩展。** 受控项目和 p-map 实验已合并；本次增加固定 p-queue 版本的修改、删除与重构对照。后续扩展项目、模型和样本，检查检索和工作流成本；不能把少量会话外推为跨模型收益比例或一般误报率。
+1. **M6 评测扩展。** 受控项目、p-map 和 p-queue 对照已合并。后续扩展项目、模型和样本，检查检索和工作流成本；不能把少量会话外推为跨模型收益比例或一般误报率。
 2. **由评测驱动 M2/M3/M4 改进。** 每次选择一个可复现的检索、归因或清理问题，补失败案例后修正，并记录覆盖与性能边界。不要同时重写扫描器或扩大到完整语义分析。
 3. **M5 外部适配。** 在具体接入需求明确后做 MCP 或宿主适配，复用 CLI 契约和核心能力，验收成功、待评估、失败与异常路径。
 4. **受信任 CI 与例外策略。** 仓库必需检查、策略来源、可审查例外和宿主写入约束需独立设计与授权；现有构建 CI 不构成产品的防篡改验收凭据。
