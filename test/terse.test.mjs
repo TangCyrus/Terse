@@ -511,6 +511,97 @@ test('CLI JSON, argument validation, corrupted baseline and exit codes are usabl
   assert.equal(invoke(['check', '--run', b.json.run]).json.status, 'incomplete');
 });
 
+test('CLI v1 returns a single consistent JSON object for results and every error stage', t => {
+  const p = project(t);
+  const version = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+  const schema = JSON.parse(fs.readFileSync(new URL('../docs/cli-output.schema.json', import.meta.url), 'utf8'));
+  const invoke = (args, cwd = p.root) => {
+    const processResult = spawnSync(process.execPath, [cli, ...args, '--json'], { cwd, encoding: 'utf8' });
+    assert.equal(processResult.error, undefined);
+    assert.equal(processResult.stderr, '');
+    const result = JSON.parse(processResult.stdout);
+    for (const key of schema.required) assert(Object.hasOwn(result, key), key);
+    assert.equal(result.schemaVersion, 1);
+    assert.equal(result.toolVersion, version);
+    assert.equal(result.exitCode, processResult.status);
+    assert.equal(result.exitCode, { pass: 0, fail: 1, 'needs-review': 2, incomplete: 3 }[result.status]);
+    assert.deepEqual(result.errors, result.diagnostics.map(d => d.message));
+    assert(result.diagnostics.every(d => schema.properties.diagnostics.items.properties.code.enum.includes(d.code)));
+    assert(!Object.hasOwn(result, 'stack'));
+    return result;
+  };
+  const help = invoke(['--help']);
+  assert.equal(help.command, 'help');
+  assert.match(help.help, /terse begin/);
+  assert.equal(invoke([]).command, 'help');
+  assert.equal(invoke(['--version']).command, 'version');
+  assert.equal(invoke(['--version', '--help']).command, 'version');
+  const invalidOption = invoke(['begin', '--unknown']);
+  assert.equal(invalidOption.command, null);
+  assert.equal(invalidOption.outputKind, 'error');
+  assert.equal(invalidOption.diagnostics[0].code, 'INVALID_ARGUMENT');
+  assert.equal(invoke(['constructor']).diagnostics[0].code, 'INVALID_ARGUMENT');
+  const missing = invoke(['begin', '--cwd', path.join(p.root, 'missing')]);
+  assert.equal(missing.command, 'begin');
+  assert.equal(missing.diagnostics[0].code, 'INVALID_ARGUMENT');
+  const projectError = invoke(['begin', '--task', 'x', '--cwd', path.join(p.root, 'missing')]);
+  assert.equal(projectError.diagnostics[0].code, 'PROJECT_ERROR');
+  assert.equal(projectError.diagnostics[0].stage, 'project');
+  const commandError = invoke(['check', '--run', '0000000000000-00000000-0000-0000-0000-000000000000']);
+  assert.equal(commandError.command, 'check');
+  assert.equal(commandError.outputKind, 'error');
+  assert.equal(commandError.diagnostics[0].code, 'COMMAND_ERROR');
+  assert(!Object.hasOwn(commandError, 'findings'));
+  const begun = invoke(['begin', '--task', 'contract']);
+  assert.equal(begun.outputKind, 'result');
+  assert.equal(begun.status, 'pass');
+  assert.equal(invoke(['context', '--run', begun.run, '--query', 'calculate']).status, 'pass');
+  const review = invoke(['check', '--run', begun.run]);
+  assert.equal(review.status, 'needs-review');
+  assert.deepEqual(review.diagnostics, []);
+  assert(review.findings.length > 0);
+  const run = ready(p.root);
+  const passed = invoke(['check', '--run', run]);
+  assert.equal(passed.status, 'pass');
+  const saved = JSON.parse(fs.readFileSync(path.join(p.root, '.terse/runs', run, 'report.json'), 'utf8'));
+  for (const [key, value] of Object.entries(saved)) assert.deepEqual(passed[key], value);
+  assert(!Object.hasOwn(saved, 'schemaVersion'));
+  p.write('src/broken.ts', 'export function broken( {');
+  const incomplete = invoke(['check', '--run', run]);
+  assert.equal(incomplete.outputKind, 'result');
+  assert.equal(incomplete.status, 'incomplete');
+  assert(incomplete.diagnostics.every(d => d.code === 'CHECK_INCOMPLETE'));
+  assert(incomplete.findings);
+  const partial = invoke(['context', '--run', run, '--query', 'calculate']);
+  assert.equal(partial.status, 'incomplete');
+  assert(partial.candidates.length > 0);
+  assert(partial.diagnostics.every(d => d.code === 'CONTEXT_INCOMPLETE'));
+  fs.writeFileSync(path.join(p.root, '.terse/runs', run, 'baseline.json'), '{');
+  assert.equal(invoke(['check', '--run', run]).outputKind, 'error');
+});
+
+test('CLI distinguishes rule failures from execution errors and keeps text mode usable', t => {
+  const p = project(t, undefined, { verification: [{ command: 'node', args: ['-e', 'console.log("validation output"); process.exit(1)'] }] });
+  const run = ready(p.root);
+  const checked = spawnSync(process.execPath, [cli, 'check', '--run', run, '--cwd', p.root, '--json'], { encoding: 'utf8' });
+  const result = JSON.parse(checked.stdout);
+  assert.equal(checked.status, 1);
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.status, 'fail');
+  assert.equal(result.outputKind, 'result');
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.verification[0].output, /validation output/);
+  assert.equal(checked.stderr, '');
+  for (const args of [['--help'], ['--version'], ['check', '--run', run], ['check', '--run', 'invalid'], ['begin']]) {
+    const text = spawnSync(process.execPath, [cli, ...args, '--cwd', p.root], { encoding: 'utf8' });
+    assert(text.stdout.trim().length > 0);
+    assert.equal(text.stderr, '');
+    assert.doesNotMatch(text.stdout, /TypeError:|at render/);
+    if (args[0] === 'begin') assert.match(text.stdout, /INVALID_ARGUMENT/);
+    if (args.includes('invalid')) assert.match(text.stdout, /COMMAND_ERROR/);
+  }
+});
+
 test('example comparison runs all three commands and identical acceptance tests', () => {
   const result = spawnSync(process.execPath, [fileURLToPath(new URL('../scripts/demo.mjs', import.meta.url))], { encoding: 'utf8', timeout: 30_000 });
   assert.equal(result.status, 0, result.stdout + result.stderr);
