@@ -6,7 +6,7 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts} from '../scripts/lib/benchmark-project.mjs';
+import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts, validateFunctionalReviews} from '../scripts/lib/benchmark-project.mjs';
 
 function workspace(t) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'terse-benchmark-'));
@@ -57,6 +57,25 @@ test('upstream counts distinguish expected failures from passing tests', () => {
   assert.deepEqual(upstreamCounts('\u001b[32m45 tests passed\u001b[0m\n2 known failures'), {passed: 45, knownFailures: 2});
   assert.deepEqual(upstreamCounts('1 test passed\n1 known failure'), {passed: 1, knownFailures: 1});
   assert.deepEqual(upstreamCounts('initialization failed'), {passed: 0, knownFailures: 0});
+});
+
+test('functional grading requires patch review and cannot promote zero-clone or incomplete runs', () => {
+  const results = [
+    {artifactId: 'modify-control', arm: 'control', correct: true, protocolValid: true, newDuplications: 0, evidence: {patchHash: 'copied-semantics'}},
+    {artifactId: 'modify-terse', arm: 'terse', correct: true, protocolValid: true, newDuplications: 0, evidence: {patchHash: 'reused-owner'}},
+  ];
+  const reviews = [
+    {artifactId: 'modify-control', patchHash: 'copied-semantics', functional: false, reason: 'Behavior passed, but the route implements another CSV encoder with different tokens.'},
+    {artifactId: 'modify-terse', patchHash: 'reused-owner', functional: true, reason: 'Route delegates to the existing exporter; one encoder remains.'},
+  ];
+  assert.deepEqual(validateFunctionalReviews(results, reviews), {
+    control: {runs: 1, behaviorCorrect: 1, functional: 0}, terse: {runs: 1, behaviorCorrect: 1, functional: 1},
+  });
+  assert.throws(() => validateFunctionalReviews(results, []), /Every run/);
+  assert.throws(() => validateFunctionalReviews(results, [reviews[0], reviews[0]]), /unique/);
+  assert.throws(() => validateFunctionalReviews(results, [reviews[0], {...reviews[1], patchHash: 'other'}]), /exact observed/);
+  assert.throws(() => validateFunctionalReviews([{...results[1], protocolValid: false}], [reviews[1]]), /Incomplete/);
+  assert.throws(() => validateFunctionalReviews([{...results[1], correct: false}], [reviews[1]]), /behavior-incorrect/);
 });
 
 test('agent publication uses task-specific artifacts and preserves unknown duplicate measurements', t => {

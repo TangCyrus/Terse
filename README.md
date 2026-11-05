@@ -26,7 +26,9 @@ npm run demo
 
 行数仅说明这个示例的变化。示例证明了检索和重复检查可以运行，不代表已测得不同模型上的自动复用提升率。Terse 不会自动重写或删除项目源码。
 
-`npm run evaluate` 扩展为多文件订单项目的 6 个场景、10 个实现变体，覆盖修改、删除、重构、合理新增，以及独立职责与动态引用反例。配对版本使用相同基线和验收测试，报告保存在 `.terse/evaluation-*/evaluation.json`。方法、结果和限制见 [项目评测](docs/EVALUATION.md)。这是本地受控项目评测，不是外部生产仓库或自主 agent 的统计实验。
+`npm run evaluate` 包含多文件订单项目的 6 个场景、11 个实现变体，覆盖修改、删除、重构、合理新增，以及独立职责与动态引用反例。新增改写式重复反例明确展示：行为通过且新增 token 重复为零，仍可能存在另一套同职责实现。方法、结果和限制见 [项目评测](docs/EVALUATION.md)。这是人工编写变体的受控评测。
+
+`npm run benchmark:reuse` 在同一组六类任务上运行真实 agent 对照，以行为、实际复用、清理和职责边界为主要标准；补丁逐份审查，耗时仅作辅助。运行方式和判定规则见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。模型会话不进入 CI。
 
 实际 agent 对照入口为 `npm run benchmark:agent -- --source <p-map 工作区>`，使用固定开源版本、独立会话和事后验收，比较有无 Terse 的正确性、重复和墙钟时间。它需要单独登录的 Codex CLI，不在常规 CI 中调用模型。准备方式、真实观测与限制见 [开源项目 agent 评测](docs/AGENT-BENCHMARK.md)。
 

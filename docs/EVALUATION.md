@@ -67,8 +67,10 @@ node --test test/evaluation.test.mjs
 
 ## 报告含义与限制
 
+后续增加第 11 个变体 modify/rewritten-copy：通过与上述修改任务相同的行为验收，Terse 为 pass、新增 token 重复为 0，但付费模块重写了另一套权限过滤、金额校验和 CSV 编码。`authoredReview.functional: false` 明确保留这个已知漏报；它是人工标注的职责重复，不是检测器的语义结论。原有十个变体及预期保持不变。真实 agent 的实现选择另由 [功能效果评测](FUNCTIONAL-AGENT-BENCHMARK.md) 观察。
+
 报告 `schemaVersion: 1` 描述此评测汇总格式，与 CLI 的同名版本分别使用；`kind` 为 `controlled-project-evaluation`。记录工具版本、运行时平台、仓库 HEAD、每个变体的预期和实际结果。HEAD 标识代码起点，未提交的工作区修改不由该字段证明；正式复现应使用干净的指定提交。
 
 `timingsMs` 记录包含进程启动的 begin/context/check 墙钟时间和整个变体耗时，用于本机成本观察，不保证跨硬件可比。`model` 和 `tokenUsage` 为 `null`，原因明确记录为未调用模型，不能将空值解释为节省了全部 token。
 
-这 10 个手工变体不是随机样本。它们能回归已知成功、失败和 review 边界，不能估计一般误报率、漏报率、业务职责等价性或大仓库性能。实际开源项目的 Codex 会话对照另见 [agent 评测](AGENT-BENCHMARK.md)，不混入本报告的手工变体数据。多模型、盲评和大规模项目采样仍待后续；核心分析器、阈值和 CLI 契约均复用现有实现。
+这 11 个手工变体不是随机样本。它们能回归已知成功、失败和 review 边界，不能估计一般误报率、漏报率、业务职责等价性或大仓库性能。实际开源项目的 Codex 会话对照另见 [agent 评测](AGENT-BENCHMARK.md)，不混入本报告的手工变体数据。多模型、盲评和大规模项目采样仍待后续；核心分析器、阈值和 CLI 契约均复用现有实现。

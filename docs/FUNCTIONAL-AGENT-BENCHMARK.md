@@ -1,0 +1,44 @@
+# 功能效果 agent 对照
+
+本轮 M6 将主要验收改为：agent 是否保留行为正确性、复用或修改合适的已有实现、完成旧路径清理，以及允许合理新增和保留真正不确定的引用。耗时、源码行数和 token 重复计数均为辅助指标，不单独决定功能达标。
+
+## 预先确定的任务与判断标准
+
+复用 [已有六类任务](../scripts/evaluation-cases.mjs)、订单项目和原有三个行为验收文件，两组都收到“保持兼容、避免平行实现、允许独立职责”的要求，并允许编辑整个 src/ 树和新增模块。不得通过只允许原文件来预先强制复用。control 按常规开发；terse 额外运行检索、显式决策、完整 check。模型、推理设置、时限、起点和验收相同，每个任务默认一对实际会话，交替执行顺序。
+
+- 修改：付费筛选接入原有导出职责；权限、金额校验和 CSV 编码保留一份实现。仅在入口筛选后委托原 exporter 也是合理复用。
+- 删除：旧模块实际移除，调用方迁移；不能只看运行测试，因为保留旧实现也能通过测试。
+- 重构：实现迁入 reporting，原 API 为薄 facade 或转发；不能留下两份完整函数体。
+- 合理新增：独立通知队列实现幂等、校验和不可变输入；不要求挤入 CSV 导出模块。
+- 独立权限职责：审计导出与客户隔离契约分别正确。共享格式化可以，直接绕过权限或破坏客户 API 不行；token 相似提示需结合职责判断。
+- 动态引用：旧模块移除、入口迁移、运行时选择当前 exporter；静态覆盖不足可保留 review，不因 needs-review 判行为失败，也不能删除真实移除声明来获得 pass。
+
+最终逐份审查补丁，检查上述职责和残留，而不是让检测器给自己的“零发现”背书。审查者为本次开发 agent，非独立盲评；结论绑定 patchHash 并记录理由。缺少审查、协议不完整或行为错误的运行不能算功能达标。所有失败和无效会话保留，不从分母删除。
+
+## 执行与证据
+
+```sh
+npm run build
+node scripts/benchmark-reuse.mjs --preflight-only
+npm run benchmark:reuse
+```
+
+执行器复用 [已有实际会话传输](../scripts/lib/agent-runner.mjs) 和 [公共项目准备](../scripts/lib/evaluation-project.mjs)，保留本机正常配置与审批机制。非交互 JSONL 方式参照 [OpenAI Docs](https://learn.chatgpt.com/docs/non-interactive-mode)。该实验不使用其他 agent 协作实现任务。运行时不并行执行工程测试；模型实验不进入 CI。可用 --codex 指定已登录 CLI，--repetitions 1..10 设置配对次数，改变条件后创建新的观测目录。
+
+本地 `.terse/reuse-agent-*/` 保存预登记 plan、全部提示/事件/日志、独立验收、源码补丁及完整 Terse 记录。父评测器重新执行全部三个验收文件，核对配置、测试和源夹具哈希，并独立调用相同 token/清理分析器以便两组可比。删除任务的未完成起点会通过行为验收，其他五个任务必须失败；预检明确断言这一区别。
+
+实际 agent 结束后，在该目录写 functional-reviews.json，为每次运行填写 artifactId、patchHash、functional 布尔值和 reason。用现有导出器发布到新目录：
+
+```sh
+node scripts/export-agent-benchmark.mjs --input .terse/reuse-agent-<id> --output benchmarks/reuse/<new-observation>
+```
+
+导出器验证每份审查与运行补丁标识一致，再发布审查、补丁和重复证据，省略原始事件、最终自由文本和机器路径。报告 kind 为 controlled-agent-comparison，区别于外部开源项目数据；本夹具无额外依赖锁，不生成虚构的第三方锁文件。耗时和配对仍记录，但不作为主要通过门槛。
+
+## 已确认的检测边界
+
+受控评测增加 rewritten-copy：付费接口另写一套 owner 过滤、金额校验和 CSV 编码，但更换循环结构、变量名和字符串拼接形式。它通过与原复用版本相同的行为验收，新增 token 重复为 0，Terse 为 pass，人工预期仍为冗余。该案例固定在 [自动回归](../test/evaluation.test.mjs)，不将其包装为检测成功。
+
+这说明当前 M3 只能证明给定 token 阈值下没有新增克隆，不能保证没有职责重复。降低阈值也可能增加误报，后续改进应以此反例及合理新增、独立权限职责等负例共同验收。当前真实 agent 对照仍是小型可见测试夹具，不代表任意仓库、模型或一般误报/漏报率。
+
+实际观测及逐份补丁审查完成后，结果另行记录在本节下方，保留正面结果和未达标项。

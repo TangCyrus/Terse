@@ -14,7 +14,7 @@ test('project evaluation compares paired behavior and keeps legitimate additions
   const stored = JSON.parse(fs.readFileSync(summary.report, 'utf8'));
   assert.deepEqual(stored.results, summary.results);
   assert.equal(summary.scenarios, 6);
-  assert.equal(summary.variants, 10);
+  assert.equal(summary.variants, 11);
   assert.equal(summary.tokenUsage, null);
   const result = (scenario, variant) => summary.results.find(r => r.scenario === scenario && r.variant === variant);
   for (const scenario of ['modify', 'refactor']) {
@@ -27,6 +27,11 @@ test('project evaluation compares paired behavior and keeps legitimate additions
     assert(copy.newDuplications > reuse.newDuplications);
     assert.equal(reuse.newDuplications, 0);
   }
+  const rewritten = result('modify', 'rewritten-copy');
+  assert.equal(rewritten.behavior, 'passed');
+  assert.equal(rewritten.status, 'pass');
+  assert.equal(rewritten.newDuplications, 0);
+  assert.equal(rewritten.authoredReview.functional, false);
   assert.equal(result('delete', 'retained').behavior, 'passed');
   assert.equal(result('delete', 'retained').status, 'fail');
   assert.equal(result('delete', 'dangling').behavior, 'failed');
