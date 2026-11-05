@@ -15,6 +15,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => value !==
 const relativePath = (value: string) => !/[\\\0]/.test(value) && !path.posix.isAbsolute(value) && !path.win32.isAbsolute(value)
   && !/^[a-z]:/i.test(value) && value.split('/').every(part => part !== '' && part !== '.' && part !== '..');
 const ordered = <T>(value: Record<string, T>): Record<string, T> => Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]));
+const recordError = (code: string, message: string) => Object.assign(new Error(`[${code}] ${message}`), { code });
 
 // Keep the schema-1 serialization used by existing runs; JSON object order is not data.
 function snapshotHash(state: Omit<Snapshot, 'hash'>): string {
@@ -35,10 +36,10 @@ export function readJson(file: string): any {
     content = new TextDecoder('utf-8', { fatal: true }).decode(fs.readFileSync(file));
   } catch (error) {
     const detail = error instanceof Error ? ((error as NodeJS.ErrnoException).code ?? error.message) : 'unreadable file';
-    throw new Error(`[JSON_READ_FAILED] ${file}: ${detail}`);
+    throw recordError('JSON_READ_FAILED', `${file}: ${detail}`);
   }
   try { return JSON.parse(content.replace(/^\uFEFF/, '')); }
-  catch { throw new Error(`[INVALID_JSON] ${file}: expected valid JSON; file contents are omitted`); }
+  catch { throw recordError('INVALID_JSON', `${file}: expected valid JSON; file contents are omitted`); }
 }
 
 function parseConfig(raw: unknown, complete = false): Config {
@@ -119,7 +120,7 @@ export function snapshot(root: string): Snapshot {
 }
 
 export function runDir(root: string, run: string, create = false): string {
-  if (!runIdPattern.test(run)) throw new Error('[INVALID_RUN_ID] Expected the run ID returned by terse begin');
+  if (!runIdPattern.test(run)) throw recordError('INVALID_RUN_ID', 'Expected the run ID returned by terse begin');
   let current = root;
   for (const part of ['.terse', 'runs', run]) {
     current = path.join(current, part);
@@ -127,7 +128,7 @@ export function runDir(root: string, run: string, create = false): string {
       const stat = fs.lstatSync(current);
       if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`Unsafe run directory: ${current}`);
     } else if (create) fs.mkdirSync(current);
-    else throw new Error(`[RUN_NOT_FOUND] ${current}: restore the run or use terse begin`);
+    else throw recordError('RUN_NOT_FOUND', `${current}: restore the run or use terse begin`);
   }
   return current;
 }
@@ -159,11 +160,14 @@ export function loadRun(root: string, run: string): { dir: string; baseline: Bas
   const dir = runDir(root, run);
   const file = path.join(dir, 'baseline.json');
   const recover = 'Restore the original record or start a new run with terse begin; do not regenerate hashes to hide corruption.';
-  function fail(code: string, field: string, detail: string): never { throw new Error(`[${code}] ${file} ${field}: ${detail}. ${recover}`); }
+  function fail(code: string, field: string, detail: string): never { throw recordError(code, `${file} ${field}: ${detail}. ${recover}`); }
   function require(ok: unknown, field: string, detail: string): asserts ok { if (!ok) fail('BASELINE_INVALID', field, detail); }
   let raw: unknown;
   try { raw = readJson(file); }
-  catch (error) { throw new Error(`${error instanceof Error ? error.message : String(error)}. ${recover}`); }
+  catch (error) {
+    if (error instanceof Error) { error.message += `. ${recover}`; throw error; }
+    throw new Error(`${String(error)}. ${recover}`);
+  }
   require(isRecord(raw), 'document', 'expected an object');
   for (const [field, expected] of Object.entries({ schema: 1, analyzer: ANALYZER, run, root })) {
     if (raw[field] !== expected) fail('BASELINE_INCOMPATIBLE', field, 'does not match this run, repository or supported version');
