@@ -1,0 +1,5 @@
+Retire the internal source/lower-bound.ts module completely. Move the binary insertion responsibility into PriorityQueue itself and update its caller so no source import or reference to that module remains. Preserve all public PQueue behavior, PriorityQueue.enqueue/dequeue/filter/size, descending priority, and stable FIFO ordering for equal priorities.
+
+Insertion must retain logarithmic priority comparisons before the array insertion; do not replace it with sorting the queue on every enqueue or a linear search. Do not leave an empty stub or an unused copy of the old module.
+
+Only edit source/priority-queue.ts and delete source/lower-bound.ts. Do not change tests, configuration, dependencies, lock files or benchmark files. No commits/pushes, other agents, web search, or other experiment directories. Read the supplied acceptance files if useful. Report failures truthfully, including the upstream suite's two pre-existing expected failures. This task starts from the pristine fixed release, not from another task's output.

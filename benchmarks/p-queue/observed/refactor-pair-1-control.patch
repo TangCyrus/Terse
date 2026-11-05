@@ -1,0 +1,80 @@
+diff --git a/source/index.ts b/source/index.ts
+index faf2c9e..ec1b435 100644
+--- a/source/index.ts
++++ b/source/index.ts
+@@ -3,6 +3,7 @@ import pTimeout, {TimeoutError} from 'p-timeout';
+ import {type Queue, type RunFunction} from './queue.js';
+ import PriorityQueue from './priority-queue.js';
+ import {type QueueAddOptions, type Options, type TaskOptions} from './options.js';
++import {waitForEvent} from './wait-for-event.js';
+ 
+ type Task<TaskResultType> =
+ 	| ((options: TaskOptions) => PromiseLike<TaskResultType>)
+@@ -339,7 +340,7 @@ export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsT
+ 			return;
+ 		}
+ 
+-		await this.#onEvent('empty');
++		await waitForEvent(this, 'empty');
+ 	}
+ 
+ 	/**
+@@ -355,7 +356,7 @@ export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsT
+ 			return;
+ 		}
+ 
+-		await this.#onEvent('next', () => this.#queue.size < limit);
++		await waitForEvent(this, 'next', () => this.#queue.size < limit);
+ 	}
+ 
+ 	/**
+@@ -369,22 +370,7 @@ export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsT
+ 			return;
+ 		}
+ 
+-		await this.#onEvent('idle');
+-	}
+-
+-	async #onEvent(event: EventName, filter?: () => boolean): Promise<void> {
+-		return new Promise(resolve => {
+-			const listener = () => {
+-				if (filter && !filter()) {
+-					return;
+-				}
+-
+-				this.off(event, listener);
+-				resolve();
+-			};
+-
+-			this.on(event, listener);
+-		});
++		await waitForEvent(this, 'idle');
+ 	}
+ 
+ 	/**
+diff --git a/source/wait-for-event.ts b/source/wait-for-event.ts
+new file mode 100644
+index 0000000..594e269
+--- /dev/null
++++ b/source/wait-for-event.ts
+@@ -0,0 +1,20 @@
++import {type EventEmitter} from 'eventemitter3';
++
++export async function waitForEvent(
++	emitter: EventEmitter,
++	event: string | symbol,
++	filter?: () => boolean,
++): Promise<void> {
++	return new Promise(resolve => {
++		const listener = () => {
++			if (filter && !filter()) {
++				return;
++			}
++
++			emitter.off(event, listener);
++			resolve();
++		};
++
++		emitter.on(event, listener);
++	});
++}

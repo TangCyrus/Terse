@@ -60,3 +60,55 @@ test('published agent results bind task, tests, dependency lock and implementati
     assert(!Object.hasOwn(report, 'artifactDirectory'));
   }
 });
+
+test('multi-task agent pairs never combine different tasks with the same repetition', () => {
+  const base = {repetition: 1, baselineHash: 'same', acceptanceHash: 'same', protocolValid: true, agentMs: 10, correct: true, newDuplications: 0};
+  const runs = [{...base, taskId: 'modify', arm: 'control'}, {...base, taskId: 'delete', arm: 'terse'},
+    {...base, taskId: 'modify', arm: 'terse', agentMs: 20}];
+  assert.deepEqual(pairedSummary(runs), [
+    {taskId: 'modify', repetition: 1, comparable: true, correctness: {control: true, terse: true},
+      duplicateGroups: {control: 0, terse: 0}, agentMs: {control: 10, terse: 20}, terseMinusControlMs: 10},
+    {taskId: 'delete', repetition: 1, comparable: false, reason: 'Missing arm'},
+  ]);
+});
+
+test('published p-queue experiment binds every task, shared oracle, lock and new/deleted file patch', () => {
+  const directory = new URL('../benchmarks/p-queue/', import.meta.url);
+  const read = file => fs.readFileSync(new URL(file, directory));
+  const hash = value => createHash('sha256').update(value).digest('hex');
+  const report = JSON.parse(read('observed/comparison.json'));
+  assert.equal(report.schemaVersion, 2);
+  assert.deepEqual(report.project, JSON.parse(read('project.json')));
+  assert.equal(report.dependencyLockHash, hash(gunzipSync(read('observed/dependency-lock.json.gz'))));
+  assert.equal(report.results.length, report.tasks.length * report.repetitions * 2);
+  assert.deepEqual(report.pairs, pairedSummary(report.results));
+  assert.equal(report.preparation.kind, 'equivalent-flat-tsconfig');
+  assert.equal(report.preparation.configuration.compilerOptions.strict, true);
+  assert.equal(report.preflight.upstream.passed, true);
+  assert.equal(report.preflight.build.passed, true);
+  for (const task of report.tasks) {
+    assert.equal(task.taskHash, hash(read(task.taskFile)));
+    assert.equal(task.typeAcceptanceHash, hash(read(task.typeAcceptance)));
+    const hashes = Object.fromEntries([task.acceptance, 'support.mjs'].sort().map(file => [file, hash(read(file))]));
+    assert.deepEqual(task.acceptanceHashes, hashes);
+    assert.equal(task.acceptanceHash, hash(JSON.stringify(hashes)));
+    assert.equal(report.preflight.tasks.find(item => item.id === task.id).before.passed, false);
+    for (const arm of ['control', 'terse']) {
+      const runs = report.results.filter(run => run.taskId === task.id && run.arm === arm);
+      assert.deepEqual(runs.map(run => run.repetition), [1, 2]);
+      for (const run of runs) {
+        assert.equal(run.acceptanceHash, task.acceptanceHash);
+        assert.equal(hash(read(`observed/${run.patch}`)), run.evidence.patchHash);
+        const patch = read(`observed/${run.patch}`).toString('utf8');
+        for (const file of run.changed) assert(patch.includes(`diff --git a/${file} b/${file}`), `${run.artifactId}: missing patch for ${file}`);
+        if (run.duplications) assert.equal(JSON.parse(read(`observed/${run.duplications}`)).length, run.newDuplications);
+        else assert.equal(run.newDuplications, null);
+        assert.equal(run.correct, Object.values(run.checks).every(check => check.passed) && run.tampered.length === 0);
+        assert.equal(run.checks.upstream.passed, run.checks.upstream.exitCode === 0 && !run.checks.upstream.error
+          && JSON.stringify(run.checks.upstream.counts) === JSON.stringify(report.project.upstreamCounts));
+        assert(!Object.hasOwn(run.events, 'finalMessage'));
+      }
+    }
+  }
+  assert(!Object.hasOwn(report, 'artifactDirectory'));
+});

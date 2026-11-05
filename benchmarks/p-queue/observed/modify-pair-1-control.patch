@@ -1,0 +1,123 @@
+diff --git a/readme.md b/readme.md
+index bf148e1..7ffff9c 100644
+--- a/readme.md
++++ b/readme.md
+@@ -186,13 +186,15 @@ Start (or resume) executing enqueued tasks within concurrency limit. No need to
+ 
+ Returns `this` (the instance).
+ 
+-#### .onEmpty()
++#### .onEmpty(options?)
+ 
+ Returns a promise that settles when the queue becomes empty.
+ 
+ Can be called multiple times. Useful if you for example add additional items at a later time.
+ 
+-#### .onIdle()
++Both `.onEmpty()` and `.onIdle()` accept an optional `{signal: AbortSignal}` to cancel only that wait. Aborting rejects with `signal.reason` without affecting queued or running tasks or other waiters. An already-aborted signal rejects even if the queue is already empty or idle. The wait's queue and abort listeners are removed when it settles.
++
++#### .onIdle(options?)
+ 
+ Returns a promise that settles when the queue becomes empty, and all promises have completed; `queue.size === 0 && queue.pending === 0`.
+ 
+diff --git a/source/index.ts b/source/index.ts
+index faf2c9e..17f7232 100644
+--- a/source/index.ts
++++ b/source/index.ts
+@@ -2,7 +2,7 @@ import {EventEmitter} from 'eventemitter3';
+ import pTimeout, {TimeoutError} from 'p-timeout';
+ import {type Queue, type RunFunction} from './queue.js';
+ import PriorityQueue from './priority-queue.js';
+-import {type QueueAddOptions, type Options, type TaskOptions} from './options.js';
++import {type QueueAddOptions, type Options, type TaskOptions, type WaitOptions} from './options.js';
+ 
+ type Task<TaskResultType> =
+ 	| ((options: TaskOptions) => PromiseLike<TaskResultType>)
+@@ -333,13 +333,15 @@ export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsT
+ 
+ 	@returns A promise that settles when the queue becomes empty.
+ 	*/
+-	async onEmpty(): Promise<void> {
++	async onEmpty({signal}: WaitOptions = {}): Promise<void> {
++		signal?.throwIfAborted();
++
+ 		// Instantly resolve if the queue is empty
+ 		if (this.#queue.size === 0) {
+ 			return;
+ 		}
+ 
+-		await this.#onEvent('empty');
++		await this.#onEvent('empty', undefined, signal);
+ 	}
+ 
+ 	/**
+@@ -363,27 +365,40 @@ export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsT
+ 
+ 	@returns A promise that settles when the queue becomes empty, and all promises have completed; `queue.size === 0 && queue.pending === 0`.
+ 	*/
+-	async onIdle(): Promise<void> {
++	async onIdle({signal}: WaitOptions = {}): Promise<void> {
++		signal?.throwIfAborted();
++
+ 		// Instantly resolve if none pending and if nothing else is queued
+ 		if (this.#pending === 0 && this.#queue.size === 0) {
+ 			return;
+ 		}
+ 
+-		await this.#onEvent('idle');
++		await this.#onEvent('idle', undefined, signal);
+ 	}
+ 
+-	async #onEvent(event: EventName, filter?: () => boolean): Promise<void> {
+-		return new Promise(resolve => {
++	async #onEvent(event: EventName, filter?: () => boolean, signal?: AbortSignal): Promise<void> {
++		return new Promise((resolve, reject) => {
++			const cleanup = () => {
++				this.off(event, listener);
++				signal?.removeEventListener('abort', onAbort);
++			};
++
++			const onAbort = () => {
++				cleanup();
++				reject(signal!.reason);
++			};
++
+ 			const listener = () => {
+ 				if (filter && !filter()) {
+ 					return;
+ 				}
+ 
+-				this.off(event, listener);
++				cleanup();
+ 				resolve();
+ 			};
+ 
+ 			this.on(event, listener);
++			signal?.addEventListener('abort', onAbort, {once: true});
+ 		});
+ 	}
+ 
+@@ -420,4 +435,4 @@ export default class PQueue<QueueType extends Queue<RunFunction, EnqueueOptionsT
+ }
+ 
+ export type {Queue} from './queue.js';
+-export {type QueueAddOptions, type Options} from './options.js';
++export {type QueueAddOptions, type Options, type WaitOptions} from './options.js';
+diff --git a/source/options.ts b/source/options.ts
+index 8e8bf7b..41e2bd5 100644
+--- a/source/options.ts
++++ b/source/options.ts
+@@ -71,6 +71,13 @@ export type QueueAddOptions = {
+ 	readonly priority?: number;
+ } & TaskOptions & TimeoutOptions;
+ 
++export type WaitOptions = {
++	/**
++	Abort the wait with `signal.reason` without affecting queued or running tasks.
++	*/
++	readonly signal?: AbortSignal;
++};
++
+ export type TaskOptions = {
+ 	/**
+ 	[`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) for cancellation of the operation. When aborted, it will be removed from the queue and the `queue.add()` call will reject with an `AbortError`. If the operation is already running, the signal will need to be handled by the operation itself.
