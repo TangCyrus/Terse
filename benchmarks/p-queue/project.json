@@ -1,0 +1,33 @@
+{
+  "repository": "https://github.com/sindresorhus/p-queue.git",
+  "commit": "47a4f19ab3d4422e06cb1b618f4c45a11b5def30",
+  "tag": "v8.0.1",
+  "license": "MIT",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "repetitions": 2,
+  "timeoutMs": 600000,
+  "flattenTsconfig": true,
+  "exclude": ["test", "test-d", "bench.ts"],
+  "loaderArguments": ["--import=tsx/esm"],
+  "buildArguments": ["node_modules/typescript/bin/tsc", "--noEmit"],
+  "upstreamArguments": ["node_modules/ava/entrypoints/cli.mjs"],
+  "upstreamCounts": {"passed": 45, "knownFailures": 2},
+  "tasks": [
+    {
+      "id": "modify", "taskFile": "modify.md", "acceptance": "modify.mjs", "typeAcceptance": "modify-types.mts",
+      "query": "PQueue onIdle onEmpty #onEvent abort signal",
+      "editable": ["source/index.ts", "source/options.ts", "readme.md"], "remove": []
+    },
+    {
+      "id": "delete", "taskFile": "delete.md", "acceptance": "delete.mjs", "typeAcceptance": "delete-types.mts",
+      "query": "PriorityQueue enqueue lowerBound priority insertion",
+      "editable": ["source/priority-queue.ts", "source/lower-bound.ts"], "remove": [{"path": "source/lower-bound.ts"}]
+    },
+    {
+      "id": "refactor", "taskFile": "refactor.md", "acceptance": "refactor.mjs", "typeAcceptance": "refactor-types.mts",
+      "query": "PQueue #onEvent onIdle onEmpty onSizeLessThan listener",
+      "editable": ["source/index.ts", "source/wait-for-event.ts"], "remove": [{"path": "source/index.ts", "symbol": "PQueue.#onEvent"}]
+    }
+  ]
+}

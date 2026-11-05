@@ -23,15 +23,18 @@ export function summarizeEvents(text) {
 }
 
 export function pairedSummary(results) {
-  const pairIds = [...new Set(results.map(result => result.repetition))];
-  return pairIds.map(repetition => {
-    const control = results.find(result => result.repetition === repetition && result.arm === 'control');
-    const terse = results.find(result => result.repetition === repetition && result.arm === 'terse');
-    if (!control || !terse) return { repetition, comparable: false, reason: 'Missing arm' };
+  const pairIds = [...new Set(results.map(result => JSON.stringify([result.taskId ?? null, result.repetition])))];
+  return pairIds.map(key => {
+    const [taskId, repetition] = JSON.parse(key);
+    const identity = { ...(taskId ? {taskId} : {}), repetition };
+    const inPair = result => (result.taskId ?? null) === taskId && result.repetition === repetition;
+    const control = results.find(result => inPair(result) && result.arm === 'control');
+    const terse = results.find(result => inPair(result) && result.arm === 'terse');
+    if (!control || !terse) return { ...identity, comparable: false, reason: 'Missing arm' };
     const comparable = control.protocolValid && terse.protocolValid && control.baselineHash === terse.baselineHash
       && typeof control.acceptanceHash === 'string' && control.acceptanceHash === terse.acceptanceHash
       && [control, terse].every(run => Number.isFinite(run.agentMs) && run.agentMs >= 0 && Number.isInteger(run.newDuplications) && run.newDuplications >= 0);
-    return { repetition, comparable,
+    return { ...identity, comparable,
       correctness: { control: control.correct, terse: terse.correct },
       duplicateGroups: { control: control.newDuplications, terse: terse.newDuplications },
       agentMs: { control: control.agentMs, terse: terse.agentMs },

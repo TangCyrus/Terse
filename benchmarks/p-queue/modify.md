@@ -1,0 +1,5 @@
+Extend PQueue.onEmpty and PQueue.onIdle with an optional `{signal?: AbortSignal}` argument. Preserve their existing no-argument behavior and all other public queue behavior.
+
+An already-aborted signal must reject with exactly signal.reason, even when the queue is already empty or idle. Aborting a pending wait must reject only that wait, not remove or cancel queued/running jobs. Remove the wait's queue event listener and signal listener when the wait resolves or rejects, preserving other listeners. Multiple independent waiters must work. Preserve onSizeLessThan filtering. Update the TypeScript surface and a short README explanation.
+
+Only edit source/index.ts, source/options.ts and readme.md. Do not modify tests, configuration, dependencies, lock files or benchmark files. No commits/pushes, other agents, web search, or other experiment directories. Read the supplied acceptance files if useful. Use existing installed dependencies and report remaining failures truthfully. Do not implement unrelated fixes; the upstream suite has two pre-existing expected failures. This task starts from the pristine fixed release, not from any other task's output.

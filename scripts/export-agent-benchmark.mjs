@@ -13,9 +13,11 @@ assert.equal(report.kind, 'open-source-agent-comparison');
 assert(report.results.length > 0);
 fs.mkdirSync(target); // Never overwrite a previously published experiment.
 const results = report.results.map(result => {
-  const label = `pair-${result.repetition}-${result.arm}`;
+  const label = result.artifactId ?? `pair-${result.repetition}-${result.arm}`;
+  assert(/^[a-z0-9-]+$/.test(label), 'Artifact label must be a single portable directory name');
   fs.copyFileSync(path.join(source, label, 'implementation.patch'), path.join(target, `${label}.patch`));
-  if (fs.existsSync(path.join(source, label, 'duplications.json'))) {
+  const hasDuplications = fs.existsSync(path.join(source, label, 'duplications.json'));
+  if (hasDuplications) {
     fs.copyFileSync(path.join(source, label, 'duplications.json'), path.join(target, `${label}.duplications.json`));
   }
   const { finalMessage, ...events } = result.events;
@@ -23,7 +25,7 @@ const results = report.results.map(result => {
     : /Reconnecting/.test(message) ? 'Transport reconnect'
       : /Falling back/.test(message) ? 'Transport fallback'
         : 'Other CLI diagnostic; raw message retained locally');
-  return { ...result, events, patch: `${label}.patch`, duplications: `${label}.duplications.json` };
+  return { ...result, events, patch: `${label}.patch`, duplications: hasDuplications ? `${label}.duplications.json` : null };
 });
 const { artifactDirectory, ...portable } = report;
 fs.writeFileSync(path.join(target, 'dependency-lock.json.gz'), gzipSync(fs.readFileSync(path.join(source, 'package-lock.json'))));

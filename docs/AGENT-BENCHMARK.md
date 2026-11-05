@@ -6,6 +6,8 @@
 
 后续 M5 命令式接入的独立复测见下文，原始手写记录组的数据保留不变。
 
+多文件 TypeScript 的修改、删除、重构任务已扩展到 [p-queue 对照评测](COMPLEX-AGENT-BENCHMARK.md)。它继续使用本脚本和优化后的命令式接入，单独保存新项目的任务与观测，不替换本文历史数据。
+
 ## 实际观测
 
 [比较结果](../benchmarks/p-map/observed/comparison.json) 来自 2026-11-05 的四次有效 CLI 会话，按执行顺序：
