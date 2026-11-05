@@ -142,6 +142,115 @@ test('declared removal is checked against baseline and current symbols', async t
   assert.equal((await check(p.root, run)).status, 'pass');
 });
 
+test('deleted files retain import evidence including new consumers and re-exports', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/legacy.ts': 'export function legacy() { return 1; }',
+    'src/consumer.ts': "import { legacy } from './legacy.js';" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.ts' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  p.write('src/new.ts', "export * from './legacy.js';\nconst load = () => import('./legacy.js');");
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'fail');
+  const references = result.findings.filter(f => f.rule === 'REMOVAL_REFERENCE_REMAINS');
+  assert.equal(references.length, 3);
+  assert(references.some(f => f.locations[0].path === 'src/new.ts' && f.locations[0].line === 2));
+  const processResult = spawnSync(process.execPath, [cli, 'check', '--cwd', p.root, '--run', run, '--json'], { encoding: 'utf8' });
+  assert.equal(processResult.status, 1);
+  assert(JSON.parse(processResult.stdout).findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS'));
+  p.write('src/consumer.ts', 'export const migrated = 1;');
+  p.write('src/new.ts', 'export const migrated = 2;');
+  assert.equal((await check(p.root, run)).status, 'pass');
+});
+
+test('symbol removal follows named aliases and default exports but permits replacement exports', async t => {
+  for (const kind of ['named', 'alias', 'default', 'type', 're-export']) {
+    await t.test(kind, async t => {
+      const declaration = kind === 'type' ? 'export interface obsolete { value: number }' : kind === 'default'
+        ? 'export default function obsolete() { return 1; }' : kind === 'alias'
+        ? 'function obsolete() { return 1; }\nexport { obsolete as legacy };' : 'export function obsolete() { return 1; }';
+      const consumer = kind === 'default' ? "import local from './legacy';" : kind === 're-export'
+        ? "export { obsolete as local } from './legacy';" : `import ${kind === 'type' ? 'type ' : ''}{ ${kind === 'alias' ? 'legacy' : 'obsolete'} as local } from './legacy';`;
+      const p = project(t, { 'src/calculate.js': body, 'src/legacy.ts': declaration, 'src/use.ts': consumer });
+      const run = ready(p.root, { remove: [{ path: 'src/legacy.ts', symbol: 'obsolete' }] });
+      p.write('src/legacy.ts', 'export const other = 1;');
+      const result = await check(p.root, run);
+      assert.equal(result.status, 'fail');
+      assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS' && f.locations[0].path === 'src/use.ts'));
+      const publicName = kind === 'alias' ? 'legacy' : kind === 'default' ? 'default' : 'obsolete';
+      p.write('src/legacy.ts', `function replacement() { return 2; }\nexport { replacement as ${publicName} };`);
+      assert.equal((await check(p.root, run)).status, 'pass');
+    });
+  }
+});
+
+test('local residual calls fail while comments, unrelated names and shadowed calls do not', async t => {
+  const p = project(t, { 'src/calculate.js': body + '\nexport function obsolete() { return 1; }\n',
+    'src/unrelated.js': 'function obsolete() {}\nobsolete();' });
+  const run = ready(p.root, { remove: [{ path: 'src/calculate.js', symbol: 'obsolete' }] });
+  p.write('src/calculate.js', body + '\nobsolete();\n');
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'fail');
+  assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS' && f.locations[0].symbol === 'obsolete'));
+  p.write('src/calculate.js', body + '\n// obsolete();\nfunction caller(obsolete) { return obsolete(); }\n');
+  assert.equal((await check(p.root, run)).status, 'pass');
+});
+
+test('namespace, dynamic and alias references explicitly need cleanup review', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/legacy.js': 'export function obsolete() { return 1; }',
+    'src/use.js': "import * as api from './legacy.js';\nrequire('./legacy.js');\nimport(name);\nimport { obsolete } from '@app/legacy';\nimport 'node:fs';" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.js', symbol: 'obsolete' }] });
+  p.write('src/legacy.js', 'export const other = 2;');
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'needs-review');
+  assert.equal(result.findings.filter(f => f.rule === 'REMOVAL_REFERENCE_UNCERTAIN').length, 2);
+  assert.deepEqual(result.findings.find(f => f.rule === 'REMOVAL_REFERENCE_UNRESOLVED').locations.map(l => l.line), [3, 4]);
+});
+
+test('current replacement paths take precedence over deleted baseline modules', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/legacy.js': 'export const value = 1;', 'src/use.js': "import './legacy';" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.js' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.js'));
+  p.write('src/legacy/index.js', 'export const value = 2;');
+  assert.equal((await check(p.root, run)).status, 'pass');
+});
+
+test('removal outside source coverage and member removal cannot silently pass', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/legacy.js': 'export function obsolete() { return 1; }',
+    'src/member.js': 'export class Service {\n  obsolete() { return 1; }\n}' });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.js' }, { path: 'src/member.js', symbol: 'Service.obsolete' }] });
+  p.write('src/legacy.js', '// ' + 'x'.repeat(1024 * 1024));
+  p.write('src/member.js', 'export class Service {}');
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'needs-review');
+  assert(result.findings.some(f => f.rule === 'REMOVAL_NOT_VERIFIED'));
+  assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_UNCERTAIN'));
+});
+
+test('forwarding replacements and custom require calls are reviewed rather than declared broken', async t => {
+  const p = project(t, { 'src/calculate.js': body, 'src/legacy.js': 'export function obsolete() { return 1; }',
+    'src/new.js': 'export function replacement() { return 2; }',
+    'src/use.js': "import { obsolete } from './legacy.js';\nfunction loader(require) { return require('./legacy.js'); }" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.js', symbol: 'obsolete' }] });
+  p.write('src/legacy.js', "export { replacement as obsolete } from './new.js';");
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'needs-review');
+  assert.equal(result.findings.filter(f => f.rule === 'REMOVAL_REFERENCE_UNCERTAIN').length, 2);
+  assert(!result.findings.some(f => f.severity === 'fail'));
+  p.write('src/new.js', 'export function obsolete() { return 2; }');
+  p.write('src/legacy.js', "export { obsolete } from './new.js';");
+  assert.equal((await check(p.root, run)).status, 'needs-review');
+});
+
+test('removing a symbol together with its file checks all remaining module imports', async t => {
+  const p = project(t, { 'src/calculate.js': body,
+    'src/legacy.js': 'export function obsolete() {}\nexport const other = 2;',
+    'src/use.js': "import { other } from './legacy.js';" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.js', symbol: 'obsolete' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.js'));
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'fail');
+  assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS' && f.locations[0].path === 'src/use.js'));
+});
+
 test('new strict-policy duplication fails even when verification passes', async t => {
   const p = project(t, undefined, { duplicatePolicy: 'fail' });
   const run = ready(p.root);

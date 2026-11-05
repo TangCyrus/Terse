@@ -6,9 +6,9 @@ import { Tokenizer, tokenize } from '@jscpd/tokenizer';
 import { digest, loadRun, readJson, snapshot, writeJson } from './project.js';
 import type { Snapshot, SymbolInfo } from './types.js';
 
-export function indexSources(state: Snapshot) {
+export function indexSources(state: Snapshot, fallbackFiles: Snapshot['files'] = {}) {
   const symbols: SymbolInfo[] = [];
-  const imports: { from: string; specifier: string; target?: string; line: number }[] = [];
+  const imports: { from: string; specifier: string; target?: string; line: number; names?: string[]; dynamic?: boolean; requireCall?: boolean }[] = [];
   const errors: string[] = [];
   for (const [file, source] of Object.entries(state.files)) {
     const ast = ts.createSourceFile(file, source.content, ts.ScriptTarget.Latest, true);
@@ -31,18 +31,37 @@ export function indexSources(state: Snapshot) {
           signature: source.content.slice(start, body?.getStart(ast) ?? Math.min(node.end, start + 200)).trim(),
           text: source.content.slice(node.getFullStart(), node.end).trim() });
       }
-      let specifier: string | undefined;
-      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) specifier = node.moduleSpecifier.text;
-      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || node.expression.getText(ast) === 'require') && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) specifier = node.arguments[0].text;
-      if (specifier) {
+      let expression: ts.Expression | undefined;
+      let names: string[] | undefined;
+      if (ts.isImportDeclaration(node)) {
+        expression = node.moduleSpecifier;
+        const clause = node.importClause;
+        if (!clause) names = [];
+        else if (!clause.namedBindings || ts.isNamedImports(clause.namedBindings)) names = [
+          ...(clause.name ? ['default'] : []),
+          ...(clause.namedBindings && ts.isNamedImports(clause.namedBindings) ? clause.namedBindings.elements.map(e => (e.propertyName ?? e.name).text) : []),
+        ];
+      }
+      if (ts.isExportDeclaration(node)) {
+        expression = node.moduleSpecifier;
+        if (node.exportClause && ts.isNamedExports(node.exportClause)) names = node.exportClause.elements.map(e => (e.propertyName ?? e.name).text);
+      }
+      if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) expression = node.moduleReference.expression;
+      if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) expression = node.argument.literal;
+      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || node.expression.getText(ast) === 'require')) expression = node.arguments[0];
+      if (expression) {
+        const dynamic = !ts.isStringLiteralLike(expression);
+        const specifier = ts.isStringLiteralLike(expression) ? expression.text : expression.getText(ast);
         let target: string | undefined;
-        if (specifier.startsWith('.')) {
+        if (!dynamic && specifier.startsWith('.')) {
           const base = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
           const stem = base.replace(/\.[cm]?jsx?$/, '');
           const candidates = [base, ...['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs', '.cts', '.cjs'].flatMap(ext => [`${base}${ext}`, `${stem}${ext}`, `${base}/index${ext}`])];
-          target = candidates.find(p => Object.hasOwn(state.files, p));
+          target = candidates.find(p => Object.hasOwn(state.files, p)) ?? candidates.find(p => Object.hasOwn(fallbackFiles, p));
         }
-        imports.push({ from: file, specifier, target, line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1 });
+        imports.push({ from: file, specifier, target, names, dynamic,
+          requireCall: ts.isCallExpression(node) && node.expression.getText(ast) === 'require',
+          line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1 });
       }
       ts.forEachChild(node, visit);
     }
