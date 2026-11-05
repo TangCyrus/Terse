@@ -44,6 +44,47 @@ candidate 在 input 模式下是校验断言，文件仍是完整决策；未知
 
 这是确定性 CLI 回放，不是新的自主 agent 会话，也不是提速或普遍消除重试的证据。历史观测及原事件保持不变；本地回放记录在 `.terse/m5-input-replay-byyHpO/replay.json`，绑定原始事件与输入文件哈希。离线回归覆盖候选断言、每候选处置、符号删除、失败不覆盖记录、基线检索和禁止混合覆盖参数。
 
+## 优化后真实 agent 复测
+
+本轮产品实现固定为 `1320bcb`，包含 M4 外部依赖清理 #12 和 M5 复杂决策接入 #13；新增统计代码以本复测 PR 提交为准。继续使用同一 p-queue 提交、任务、验收哈希、依赖锁、平铺配置、Node/CLI 版本、请求模型和时限，每类任务每组两个独立会话，共 12 次。重新运行 control；不复用历史补丁或会话，不对模型实现作人工修正，也不因失败或速度重启任务。计时期间不运行工程测试。
+
+新观测单独发布为 [optimized-observed/comparison.json](../benchmarks/p-queue/optimized-observed/comparison.json)。原 observed 保持不变，历史决策统计单独保存在 [observed-decisions.json](../benchmarks/p-queue/observed-decisions.json)，绑定旧报告文件哈希和每次原始事件哈希。两组仍由父进程执行相同编译、任务运行时、上游和类型验证，最终 Terse 状态与行为正确性分开报告。
+
+本轮 12 次会话、6 个配对均有效，两组各 **6/6 行为正确、新增 token 重复为 0**，没有超时、保护文件变动或编辑越界。逐份查看补丁后，两组仍均在现有职责处修改、删除旧模块或提取一份共享 helper，没有观察到 Terse 进一步减少重复实现。
+
+耗时按 control / Terse 列出，单位为秒：
+
+- 修改：133.600 / 155.724、103.155 / 116.096；本轮均值 **118.4 / 135.9**，历史均值 104.0 / 113.9。
+- 删除：72.672 / 104.997、71.780 / 122.995；本轮均值 **72.2 / 114.0**，历史均值 68.1 / 99.3。
+- 重构：95.262 / 109.330、80.065 / 114.277；本轮均值 **87.7 / 111.8**，历史均值 98.9 / 148.8。
+
+总体均值为 **92.8 / 120.6 秒**，历史为 90.3 / 120.7 秒。Terse 的整体墙钟耗时基本持平；当前配对的平均额外耗时为 27.8 秒，历史为 30.3 秒。重构样本变快，修改与删除样本变慢，不能只选重构的变化来声称普遍提速。每次 preparation 为 3.593–5.039 秒，evaluation 为 7.132–8.049 秒，均单列且不计入 agentMs。
+
+六次 Terse 决策均一次保存成功：**6 次成功写入、0 次拒绝、0 次重试**，历史为 6 次成功、1 次拒绝、1 次重试。人工核对实际命令：修改/删除的四次使用参数模式，重构的两次直接使用 input 模式，未额外附加 candidate。新样本没有重现参数混用摩擦；它没有再次触发 input+candidate 的兼容分支，该分支的直接回放证据见上文 M5 小节，不能将两种证据混为一谈。
+
+最终 Terse 状态从历史的 2 个 pass / 4 个 needs-review，变为 **4 个 pass / 2 个 needs-review**。两个删除任务不再出现外部依赖复核，两个重构仅保留 REMOVAL_REFERENCE_UNCERTAIN，均没有省略私有成员删除声明。普通外部依赖提示消失不等于静态分析已能证明所有成员引用安全。
+
+新原始记录保留于本地 `.terse/agent-benchmark-P9dwOa`；本轮没有环境试跑中止或任务重启。每次 Windows 测试初始化错误后的审批重试按实际计时，它们属于执行环境成本，不计作 decide 重试。所有上游复验均为 45 项通过及 2 项既有预期失败。上述小样本观察说明接入/复核摩擦有所改善，尚未显示重复或总体速度收益。
+
+决策统计口径为 `terse-decisions/1`，新观测位于 `events.decisions`：
+
+- attempts / successfulWrites / failedAttempts：实际记录调用及其 CLI JSON 结果；帮助查询不算记录调用，也不按 shell 退出码猜测格式错误。helpCalls 另计识别到的 decide 帮助查询。
+- retries：在一次记录失败后、恢复成功前的后续记录调用数。连续两次成功修改决策不是重试；最后失败没有再次调用时，失败次数为 1、重试次数为 0，并标记 unrecoveredFailure。
+- complete / evidence：保留工具 item ID、响应序号和诊断/issue code。会话未完成或响应截断/无法识别时，retries 为 null，不能记作 0。原始提示、事件和日志仍留本地供核对，不上传最终自由文本。
+
+工具日志可能含 PowerShell 路径转义或一个命令中的多份 JSON，统计器有相应离线回归；统计用于这些受控 CLI 会话，不是任意 shell 的语义解释器。发布前同时核对实际决策调用与事件证据。相同解析器回算历史六次 Terse 会话：6 次成功保存、1 次拒绝、1 次后续重试，后两项均在 refactor-pair-2-terse，帮助查询另列。
+
+两轮既有产品、指南及接入提示同时变化，也没有隔离全部背景负载；相同模型请求名不保证服务端完全相同。即使观察到耗时或重试变化，也不能独立归因于某个优化或外推为普遍收益。父进程预建 run，故不测量 begin --query 合并起步的收益。原始三类任务的明确职责和可见验收同样限制结论。
+
+同口径复算命令（不调用模型，只写新文件）：
+
+```sh
+node scripts/measure-agent-decisions.mjs --report benchmarks/p-queue/observed/comparison.json --events .terse/agent-benchmark-hpetfT --output .terse/history-decisions-new.json
+node scripts/measure-agent-decisions.mjs --report benchmarks/p-queue/optimized-observed/comparison.json --events .terse/agent-benchmark-<new-id> --output .terse/optimized-decisions-new.json
+```
+
+CLI 的 JSONL 执行方式参照 [Codex 非交互模式文档](https://learn.chatgpt.com/docs/non-interactive-mode)。这里的 decisions 是 Terse 评测器从实际 CLI 响应提取的指标，不是 CLI 原生用量字段。
+
 ## 固定任务和独立验收
 
 [project.json](../benchmarks/p-queue/project.json) 固定源码、模型请求名 `gpt-6.1-sol`、medium 推理、每会话 600 秒、每任务两次配对及编辑范围。每个任务、每组、每次重复都从同一原版独立复制，不叠加前一个任务的实现。

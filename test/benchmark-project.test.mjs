@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
 import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts} from '../scripts/lib/benchmark-project.mjs';
 
 function workspace(t) {
@@ -81,4 +82,26 @@ test('agent publication uses task-specific artifacts and preserves unknown dupli
   assert.deepEqual(report.results[0].events.errors, ['Transport reconnect']);
   assert(!Object.hasOwn(report, 'artifactDirectory'));
   assert.throws(() => execFileSync(process.execPath, [script, '--input', parent, '--output', target], {stdio: 'pipe'}));
+});
+
+test('retrospective decision measurements refuse altered raw events and never overwrite observations', t => {
+  const parent = workspace(t);
+  const label = 'pair-1-terse';
+  fs.mkdirSync(path.join(parent, label));
+  const raw = JSON.stringify({type: 'turn.completed'}) + '\n';
+  fs.writeFileSync(path.join(parent, label, 'agent.jsonl'), raw);
+  const report = {kind: 'open-source-agent-comparison', results: [{repetition: 1, arm: 'terse', evidence: {
+    eventHash: createHash('sha256').update(raw).digest('hex')}, events: {commandCount: 0}}]};
+  const reportPath = path.join(parent, 'comparison.json');
+  fs.writeFileSync(reportPath, JSON.stringify(report));
+  const output = path.join(parent, 'measured.json');
+  const script = fileURLToPath(new URL('../scripts/measure-agent-decisions.mjs', import.meta.url));
+  const args = [script, '--report', reportPath, '--events', parent, '--output', output];
+  execFileSync(process.execPath, args, {stdio: 'pipe'});
+  assert.equal(JSON.parse(fs.readFileSync(output, 'utf8')).results[0].decisions.retries, 0);
+  assert.throws(() => execFileSync(process.execPath, args, {stdio: 'pipe'}));
+  fs.appendFileSync(path.join(parent, label, 'agent.jsonl'), '{}\n');
+  assert.throws(() => execFileSync(process.execPath, [...args.slice(0, -1), path.join(parent, 'altered.json')], {stdio: 'pipe'}));
+  assert(!fs.existsSync(path.join(parent, 'altered.json')));
+  assert.equal(fs.readFileSync(reportPath, 'utf8'), JSON.stringify(report));
 });

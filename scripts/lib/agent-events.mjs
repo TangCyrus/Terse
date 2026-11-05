@@ -1,5 +1,5 @@
 // Keep protocol parsing separate from execution so CI never needs credentials or a live model.
-export function summarizeEvents(text) {
+export function summarizeEvents(text, terseCli) {
   const events = [];
   let malformed = 0;
   for (const line of text.split(/\r?\n/).filter(Boolean)) {
@@ -16,10 +16,74 @@ export function summarizeEvents(text) {
     if (typeof value === 'number' && Number.isFinite(value) && value >= 0) measuredUsage[name] = (measuredUsage[name] ?? 0) + value;
   }
   const usage = Object.keys(measuredUsage).length ? measuredUsage : null;
-  return { completed: completions.length > 0 && !failed && malformed === 0, malformed, usage,
+  const completed = completions.length > 0 && !failed && malformed === 0;
+  return { completed, malformed, usage,
     errors: events.filter(event => event.type === 'error' || event.item?.type === 'error').map(event => event.message ?? event.item.message),
     commandCount: events.filter(event => event.type === 'item.completed' && event.item?.type === 'command_execution').length,
-    finalMessage: events.filter(event => event.item?.type === 'agent_message').at(-1)?.item.text ?? null };
+    finalMessage: events.filter(event => event.item?.type === 'agent_message').at(-1)?.item.text ?? null,
+    ...(terseCli ? {decisions: decisionActivity(events, terseCli, completed)} : {}) };
+}
+
+// Tool output may contain several pretty-printed CLI objects and shell preambles.
+// Do not count help, source reads, decision-input filenames or ordinary successful revisions as retries.
+function jsonObjects(text) {
+  const objects = [];
+  for (let start = 0; start < text.length; start++) {
+    if (text[start] !== '{') continue;
+    let depth = 0, quoted = false, escaped = false;
+    for (let end = start; end < text.length; end++) {
+      const character = text[end];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (character === '\\') escaped = true;
+        else if (character === '"') quoted = false;
+      } else if (character === '"') quoted = true;
+      else if (character === '{') depth++;
+      else if (character === '}' && --depth === 0) {
+        try { objects.push(JSON.parse(text.slice(start, end + 1))); start = end; } catch { /* Try later JSON starts. */ }
+        break;
+      }
+    }
+  }
+  return objects;
+}
+
+function decisionActivity(events, terseCli, completed) {
+  const normalize = value => value.replace(/['"]/g, '').replaceAll('\\', '/').replace(/\/+/g, '/');
+  const escapedCli = normalize(terseCli).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const invocation = new RegExp(`${escapedCli}[/'"\\s]*decide\\s+(?=--)`, 'g');
+  const attempts = [];
+  let helpCalls = 0;
+  for (const event of events) {
+    const item = event.item;
+    if (event.type !== 'item.completed' || item?.type !== 'command_execution') continue;
+    const command = normalize(item.command ?? '');
+    const calls = [...command.matchAll(invocation)];
+    if (!calls.length && !/\bdecide\s+--/.test(command)) continue;
+    const responses = jsonObjects(item.aggregated_output ?? '').filter(value => value.schemaVersion === 1 && value.command === 'decide');
+    const helps = calls.length ? calls.filter((call, index) => /--(?:help|version)\b/.test(command.slice(call.index + call[0].length, calls[index + 1]?.index))).length
+      : /--(?:help|version)\b/.test(command) ? 1 : 0;
+    helpCalls += helps;
+    for (const [index, response] of responses.entries()) {
+      const outcome = response.outputKind === 'result' && response.exitCode === 0 && response.status === 'pass' ? 'saved'
+        : response.outputKind === 'error' && response.exitCode === 3 ? 'rejected' : 'unknown';
+      attempts.push({itemId: item.id, responseIndex: index, outcome, exitCode: response.exitCode ?? null,
+        diagnosticCodes: (response.diagnostics ?? []).map(diagnostic => diagnostic.causeCode ?? diagnostic.code),
+        issueCodes: (response.diagnostics ?? []).flatMap(diagnostic => (diagnostic.issues ?? []).map(issue => issue.code))});
+    }
+    for (let missing = responses.length; missing < Math.max(calls.length, 1) - helps; missing++) {
+      attempts.push({itemId: item.id, outcome: 'unknown', exitCode: item.exit_code ?? null, diagnosticCodes: [], issueCodes: []});
+    }
+  }
+  const complete = completed && attempts.every(attempt => attempt.outcome !== 'unknown');
+  let pending = false, retries = 0;
+  for (const attempt of attempts) {
+    if (pending) retries++;
+    pending = attempt.outcome !== 'saved';
+  }
+  return {complete, attempts: attempts.length, successfulWrites: attempts.filter(attempt => attempt.outcome === 'saved').length,
+    failedAttempts: attempts.filter(attempt => attempt.outcome === 'rejected').length,
+    retries: complete ? retries : null, unrecoveredFailure: complete ? pending : null, helpCalls, evidence: attempts};
 }
 
 export function pairedSummary(results) {

@@ -129,7 +129,7 @@ async function runAgent(project, prompt, directory) {
   });
   clearTimeout(timeout); clearInterval(heartbeat);
   await Promise.all([new Promise(resolve => stdout.end(resolve)), new Promise(resolve => stderr.end(resolve))]);
-  const events = summarizeEvents(fs.readFileSync(path.join(directory, 'agent.jsonl'), 'utf8'));
+  const events = summarizeEvents(fs.readFileSync(path.join(directory, 'agent.jsonl'), 'utf8'), terseCli);
   const blockedByPolicy = /blocked by policy/.test(fs.readFileSync(path.join(directory, 'agent.stderr.log'), 'utf8'));
   return { ...exit, timedOut, blockedByPolicy, agentMs: Math.round(performance.now() - start), events };
 }
@@ -208,7 +208,8 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
           && task.remove.every(removal => decision.remove.some(actual => actual.path === removal.path && actual.symbol === removal.symbol));
       } catch { /* Missing or stale workflow evidence remains false. */ }
     }
-    const controlUsedTerse = arm === 'control' && ['context.json', 'report.json'].some(file => fs.existsSync(path.join(path.dirname(run.decisionPath), file)));
+    const controlUsedTerse = arm === 'control' && (agent.events.decisions.attempts > 0
+      || ['context.json', 'report.json'].some(file => fs.existsSync(path.join(path.dirname(run.decisionPath), file))));
     const result = { ...(multiTask ? {taskId: task.id} : {}), artifactId, repetition, arm, baselineHash: before.hash, acceptanceHash: task.acceptanceHash,
       preparationMs, terseStatus, terseRules,
       agentMs: agent.agentMs, evaluationMs: Math.round(performance.now() - checkStart), agentExitCode: agent.exitCode,

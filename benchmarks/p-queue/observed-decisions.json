@@ -1,0 +1,274 @@
+{
+  "measurement": "terse-decisions/1",
+  "reportHash": "3430564dd5c645582b310224f36dc7cbd160cc529cc4e73561b901cbb57fed23",
+  "results": [
+    {
+      "artifactId": "modify-pair-1-control",
+      "taskId": "modify",
+      "repetition": 1,
+      "arm": "control",
+      "eventHash": "9aec8dae4e1391e2630f084b0afab4bde5e6e83134b35fdc5186cb167b42ab10",
+      "decisions": {
+        "complete": true,
+        "attempts": 0,
+        "successfulWrites": 0,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": []
+      }
+    },
+    {
+      "artifactId": "modify-pair-1-terse",
+      "taskId": "modify",
+      "repetition": 1,
+      "arm": "terse",
+      "eventHash": "562e4f71d5d429d1aead32e6646a3b4700f44a0f3200f664582505287d264cd2",
+      "decisions": {
+        "complete": true,
+        "attempts": 1,
+        "successfulWrites": 1,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": [
+          {
+            "itemId": "item_5",
+            "responseIndex": 0,
+            "outcome": "saved",
+            "exitCode": 0,
+            "diagnosticCodes": [],
+            "issueCodes": []
+          }
+        ]
+      }
+    },
+    {
+      "artifactId": "modify-pair-2-terse",
+      "taskId": "modify",
+      "repetition": 2,
+      "arm": "terse",
+      "eventHash": "97dc2c9f77643db698fb6fb6441c6046143f4dcea0fe677cf91f0d5c69f49c15",
+      "decisions": {
+        "complete": true,
+        "attempts": 1,
+        "successfulWrites": 1,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": [
+          {
+            "itemId": "item_7",
+            "responseIndex": 0,
+            "outcome": "saved",
+            "exitCode": 0,
+            "diagnosticCodes": [],
+            "issueCodes": []
+          }
+        ]
+      }
+    },
+    {
+      "artifactId": "modify-pair-2-control",
+      "taskId": "modify",
+      "repetition": 2,
+      "arm": "control",
+      "eventHash": "812bc99ed27fcd4fe39c57609ee717dca279fdbe583abfd2c4c15b65cefc9411",
+      "decisions": {
+        "complete": true,
+        "attempts": 0,
+        "successfulWrites": 0,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": []
+      }
+    },
+    {
+      "artifactId": "delete-pair-1-terse",
+      "taskId": "delete",
+      "repetition": 1,
+      "arm": "terse",
+      "eventHash": "416cf4ad44d243fe3a25100ad4364395c1e3a92a6f833c172539011397180e4e",
+      "decisions": {
+        "complete": true,
+        "attempts": 1,
+        "successfulWrites": 1,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": [
+          {
+            "itemId": "item_6",
+            "responseIndex": 0,
+            "outcome": "saved",
+            "exitCode": 0,
+            "diagnosticCodes": [],
+            "issueCodes": []
+          }
+        ]
+      }
+    },
+    {
+      "artifactId": "delete-pair-1-control",
+      "taskId": "delete",
+      "repetition": 1,
+      "arm": "control",
+      "eventHash": "11542d1039caab919cffb015b27a5cb2ea199d28f67b99dc6ec14f905c58794a",
+      "decisions": {
+        "complete": true,
+        "attempts": 0,
+        "successfulWrites": 0,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": []
+      }
+    },
+    {
+      "artifactId": "delete-pair-2-control",
+      "taskId": "delete",
+      "repetition": 2,
+      "arm": "control",
+      "eventHash": "ae3b991358b1e8f1051c053d6b317fb3cdde099fcb9ab4a17a3055360a7cb479",
+      "decisions": {
+        "complete": true,
+        "attempts": 0,
+        "successfulWrites": 0,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": []
+      }
+    },
+    {
+      "artifactId": "delete-pair-2-terse",
+      "taskId": "delete",
+      "repetition": 2,
+      "arm": "terse",
+      "eventHash": "a9a60318ad8221b758719e5ff38deb317be313d4f51875b4b88278cb41ef9c33",
+      "decisions": {
+        "complete": true,
+        "attempts": 1,
+        "successfulWrites": 1,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": [
+          {
+            "itemId": "item_6",
+            "responseIndex": 0,
+            "outcome": "saved",
+            "exitCode": 0,
+            "diagnosticCodes": [],
+            "issueCodes": []
+          }
+        ]
+      }
+    },
+    {
+      "artifactId": "refactor-pair-1-control",
+      "taskId": "refactor",
+      "repetition": 1,
+      "arm": "control",
+      "eventHash": "a2890a2f9c43d529d8ac721d6ebf693c77a5a84e37f6de43f4ef3e029a0e57f0",
+      "decisions": {
+        "complete": true,
+        "attempts": 0,
+        "successfulWrites": 0,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": []
+      }
+    },
+    {
+      "artifactId": "refactor-pair-1-terse",
+      "taskId": "refactor",
+      "repetition": 1,
+      "arm": "terse",
+      "eventHash": "3cc85b59d6e54607e9bc5dc71d25b4cf1b247bae47bbbe47e107348311d9d796",
+      "decisions": {
+        "complete": true,
+        "attempts": 1,
+        "successfulWrites": 1,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": [
+          {
+            "itemId": "item_6",
+            "responseIndex": 0,
+            "outcome": "saved",
+            "exitCode": 0,
+            "diagnosticCodes": [],
+            "issueCodes": []
+          }
+        ]
+      }
+    },
+    {
+      "artifactId": "refactor-pair-2-terse",
+      "taskId": "refactor",
+      "repetition": 2,
+      "arm": "terse",
+      "eventHash": "6203d5dfd33fefa324032eb99b92d7e7be029f839ce6406e50149e2725865eaa",
+      "decisions": {
+        "complete": true,
+        "attempts": 2,
+        "successfulWrites": 1,
+        "failedAttempts": 1,
+        "retries": 1,
+        "unrecoveredFailure": false,
+        "helpCalls": 1,
+        "evidence": [
+          {
+            "itemId": "item_9",
+            "responseIndex": 0,
+            "outcome": "rejected",
+            "exitCode": 3,
+            "diagnosticCodes": [
+              "INVALID_ARGUMENT"
+            ],
+            "issueCodes": []
+          },
+          {
+            "itemId": "item_10",
+            "responseIndex": 0,
+            "outcome": "saved",
+            "exitCode": 0,
+            "diagnosticCodes": [],
+            "issueCodes": []
+          }
+        ]
+      }
+    },
+    {
+      "artifactId": "refactor-pair-2-control",
+      "taskId": "refactor",
+      "repetition": 2,
+      "arm": "control",
+      "eventHash": "8977e80f7bf137c3bb94b093971258e6a0647e0945d568b817de52880355d2e7",
+      "decisions": {
+        "complete": true,
+        "attempts": 0,
+        "successfulWrites": 0,
+        "failedAttempts": 0,
+        "retries": 0,
+        "unrecoveredFailure": false,
+        "helpCalls": 0,
+        "evidence": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,1559 @@
+{
+  "schemaVersion": 2,
+  "kind": "open-source-agent-comparison",
+  "project": {
+    "repository": "https://github.com/sindresorhus/p-queue.git",
+    "commit": "47a4f19ab3d4422e06cb1b618f4c45a11b5def30",
+    "tag": "v8.0.1",
+    "license": "MIT",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "repetitions": 2,
+    "timeoutMs": 600000,
+    "flattenTsconfig": true,
+    "exclude": [
+      "test",
+      "test-d",
+      "bench.ts"
+    ],
+    "loaderArguments": [
+      "--import=tsx/esm"
+    ],
+    "buildArguments": [
+      "node_modules/typescript/bin/tsc",
+      "--noEmit"
+    ],
+    "upstreamArguments": [
+      "node_modules/ava/entrypoints/cli.mjs"
+    ],
+    "upstreamCounts": {
+      "passed": 45,
+      "knownFailures": 2
+    },
+    "tasks": [
+      {
+        "id": "modify",
+        "taskFile": "modify.md",
+        "acceptance": "modify.mjs",
+        "typeAcceptance": "modify-types.mts",
+        "query": "PQueue onIdle onEmpty #onEvent abort signal",
+        "editable": [
+          "source/index.ts",
+          "source/options.ts",
+          "readme.md"
+        ],
+        "remove": []
+      },
+      {
+        "id": "delete",
+        "taskFile": "delete.md",
+        "acceptance": "delete.mjs",
+        "typeAcceptance": "delete-types.mts",
+        "query": "PriorityQueue enqueue lowerBound priority insertion",
+        "editable": [
+          "source/priority-queue.ts",
+          "source/lower-bound.ts"
+        ],
+        "remove": [
+          {
+            "path": "source/lower-bound.ts"
+          }
+        ]
+      },
+      {
+        "id": "refactor",
+        "taskFile": "refactor.md",
+        "acceptance": "refactor.mjs",
+        "typeAcceptance": "refactor-types.mts",
+        "query": "PQueue #onEvent onIdle onEmpty onSizeLessThan listener",
+        "editable": [
+          "source/index.ts",
+          "source/wait-for-event.ts"
+        ],
+        "remove": [
+          {
+            "path": "source/index.ts",
+            "symbol": "PQueue.#onEvent"
+          }
+        ]
+      }
+    ]
+  },
+  "repetitions": 2,
+  "workflow": "commands",
+  "cliVersion": "codex-cli 0.166.0-alpha.6",
+  "runtime": {
+    "node": "v24.20.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "terseRevision": "1320bcb8ab88816238d49d505c6770b4690b794a",
+  "tasks": [
+    {
+      "id": "modify",
+      "taskFile": "modify.md",
+      "acceptance": "modify.mjs",
+      "typeAcceptance": "modify-types.mts",
+      "query": "PQueue onIdle onEmpty #onEvent abort signal",
+      "editable": [
+        "source/index.ts",
+        "source/options.ts",
+        "readme.md"
+      ],
+      "remove": [],
+      "taskHash": "c78e19afbefc0fc396e6893cc4e61ec55057d5b7f46c585465d54c38d0bd58a8",
+      "acceptanceHashes": {
+        "modify.mjs": "05192e1e7272b80541d98fd97a76266d2a71b9fa66df2cb27498f2365cbc454e",
+        "support.mjs": "91c4676ce70f5d5560d1032e8dc673b0a7fd6cb7d175d82e6d1bfb65058b0533"
+      },
+      "acceptanceHash": "f4af5bd23f9a5a77772b81f21f34a14461f9fe7d05491dcc12d89c62636745ba",
+      "typeAcceptanceHash": "127eba1d001dcd6ee753afd74ad054681767921f368b1c8f9683664aac059ef6"
+    },
+    {
+      "id": "delete",
+      "taskFile": "delete.md",
+      "acceptance": "delete.mjs",
+      "typeAcceptance": "delete-types.mts",
+      "query": "PriorityQueue enqueue lowerBound priority insertion",
+      "editable": [
+        "source/priority-queue.ts",
+        "source/lower-bound.ts"
+      ],
+      "remove": [
+        {
+          "path": "source/lower-bound.ts"
+        }
+      ],
+      "taskHash": "1f2629e519a7581c74736ef93c3172da86de9e0213bf3db5b7980f83234d81ae",
+      "acceptanceHashes": {
+        "delete.mjs": "1066b96a0d533d37205a2d0b279eca6f383747f89bc264c88ee1193630d33e14",
+        "support.mjs": "91c4676ce70f5d5560d1032e8dc673b0a7fd6cb7d175d82e6d1bfb65058b0533"
+      },
+      "acceptanceHash": "9b673f8e17234a3e9c0c2c5a228d242ccf46d35a134d21aa30653b88f2aa1c1c",
+      "typeAcceptanceHash": "49bcc06ea4969d40579d4535c4c66048a943b50d569a5fd2966c650bbf5d5e81"
+    },
+    {
+      "id": "refactor",
+      "taskFile": "refactor.md",
+      "acceptance": "refactor.mjs",
+      "typeAcceptance": "refactor-types.mts",
+      "query": "PQueue #onEvent onIdle onEmpty onSizeLessThan listener",
+      "editable": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "remove": [
+        {
+          "path": "source/index.ts",
+          "symbol": "PQueue.#onEvent"
+        }
+      ],
+      "taskHash": "671dcd67f11169ee8585122796ba64f9ab25c68f546f098f28a5d065129871eb",
+      "acceptanceHashes": {
+        "refactor.mjs": "b093bd34797d9c5dfaf45ac48f94ca0614219f95e1d8485632d53150bd942cd8",
+        "support.mjs": "91c4676ce70f5d5560d1032e8dc673b0a7fd6cb7d175d82e6d1bfb65058b0533"
+      },
+      "acceptanceHash": "ece0b6e307c30794fcd980cc660be689c692117d7e4d5ff0ae37ab1553068c15",
+      "typeAcceptanceHash": "5b0cecb10e3f856ebe5c8ab7cd3f4cc6d65be5f522b2a1a8d56d844dedaea780"
+    }
+  ],
+  "preparation": {
+    "kind": "equivalent-flat-tsconfig",
+    "originalHash": "4915654479be2c4167fab9c589a877731b7b26e2d31d2db3ed0abf34bd00a115",
+    "configuration": {
+      "compilerOptions": {
+        "module": "node16",
+        "moduleResolution": "node16",
+        "moduleDetection": "force",
+        "target": "es2022",
+        "lib": [
+          "dom",
+          "dom.iterable",
+          "es2022"
+        ],
+        "resolveJsonModule": false,
+        "jsx": "react",
+        "declaration": true,
+        "newLine": "lf",
+        "stripInternal": true,
+        "strict": true,
+        "noImplicitReturns": true,
+        "noImplicitOverride": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noEmitOnError": true,
+        "useDefineForClassFields": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
+        "outDir": "./dist",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "resolvePackageJsonExports": true,
+        "resolvePackageJsonImports": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "strictBuiltinIteratorReturn": true,
+        "alwaysStrict": true,
+        "useUnknownInCatchVariables": true
+      },
+      "include": [
+        "source"
+      ],
+      "exclude": [
+        "dist"
+      ]
+    }
+  },
+  "dependencyLockHash": "7b8a942b4606345bd51f5eea912c0f4c43d9bc05c6274ae93e048b7a3393ab4c",
+  "preflight": {
+    "upstream": {
+      "exitCode": 0,
+      "error": null,
+      "passed": true,
+      "elapsedMs": 6238,
+      "logHash": "cae18ebabcd93dd0641e72861018ab275a500e0556368843cf013b2a29089e7d",
+      "counts": {
+        "passed": 45,
+        "knownFailures": 2
+      }
+    },
+    "tasks": [
+      {
+        "id": "modify",
+        "before": {
+          "exitCode": 1,
+          "error": null,
+          "passed": false,
+          "elapsedMs": 1942,
+          "logHash": "9862c33f1270e4041b2ad446f67e3d300ab474134c834c33a209c8e87f372bd4"
+        }
+      },
+      {
+        "id": "delete",
+        "before": {
+          "exitCode": 1,
+          "error": null,
+          "passed": false,
+          "elapsedMs": 451,
+          "logHash": "aed66d31780fdbe66c46f6c73f1e571f080a7b212f4b3115ee2765209eed7d9f"
+        }
+      },
+      {
+        "id": "refactor",
+        "before": {
+          "exitCode": 1,
+          "error": null,
+          "passed": false,
+          "elapsedMs": 524,
+          "logHash": "00c04e2f019b04781db574273b048f9a0878b668fa8c9551270267ba6d5fd3ae"
+        }
+      }
+    ],
+    "build": {
+      "exitCode": 0,
+      "error": null,
+      "passed": true,
+      "elapsedMs": 784,
+      "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    }
+  },
+  "results": [
+    {
+      "taskId": "modify",
+      "artifactId": "modify-pair-1-control",
+      "repetition": 1,
+      "arm": "control",
+      "baselineHash": "2d1adcb122b3f36f6936790e7bc3d334e9053fdfccd75e64d7ab690143c95fea",
+      "acceptanceHash": "f4af5bd23f9a5a77772b81f21f34a14461f9fe7d05491dcc12d89c62636745ba",
+      "preparationMs": 4901,
+      "terseStatus": null,
+      "terseRules": [],
+      "agentMs": 133600,
+      "evaluationMs": 8049,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 169687,
+          "cached_input_tokens": 134016,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1899,
+          "reasoning_output_tokens": 111
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 581,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 478,
+          "logHash": "bf1408884d8c7f4ee67c00901b94fe3867bdf5d513d813f1490e21cfa14bbdf5"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 6206,
+          "logHash": "277f4de8e23ba89676db756e47996543478f72c6682e2930380e4dfb00056297",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 635,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "readme.md",
+        "source/index.ts",
+        "source/options.ts"
+      ],
+      "evidence": {
+        "patchHash": "b8f424d832d808ea3a91b46624b138451bd8ddde0288815614a46284cc5aed8d",
+        "eventHash": "2f79fe4b144b1492ba1a7267be16352d39aea05721b34802e1b1367de424bc3d"
+      },
+      "patch": "modify-pair-1-control.patch",
+      "duplications": "modify-pair-1-control.duplications.json"
+    },
+    {
+      "taskId": "modify",
+      "artifactId": "modify-pair-1-terse",
+      "repetition": 1,
+      "arm": "terse",
+      "baselineHash": "2d1adcb122b3f36f6936790e7bc3d334e9053fdfccd75e64d7ab690143c95fea",
+      "acceptanceHash": "f4af5bd23f9a5a77772b81f21f34a14461f9fe7d05491dcc12d89c62636745ba",
+      "preparationMs": 4502,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "agentMs": 155724,
+      "evaluationMs": 7492,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 309735,
+          "cached_input_tokens": 276096,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2655,
+          "reasoning_output_tokens": 135
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 14,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 556,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 400,
+          "logHash": "9aa5cffa1bbc2225284c2aebc1f7964728bc921a739d6ef55c6e2a5bcfa7c155"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5772,
+          "logHash": "b7585115c592c7d08033bf78ea0bd2145a27bce7f888fd4713900ae16e45a6d3",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 593,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "readme.md",
+        "source/index.ts",
+        "source/options.ts"
+      ],
+      "evidence": {
+        "patchHash": "ded810750d1fb17f0f91f66b217f55678269401667b3248750808d457971e67e",
+        "eventHash": "4fd8cbf3f74480aa0a440f48b213b3f20ff4917e46fe9a6726905dd6384951cf"
+      },
+      "patch": "modify-pair-1-terse.patch",
+      "duplications": "modify-pair-1-terse.duplications.json"
+    },
+    {
+      "taskId": "modify",
+      "artifactId": "modify-pair-2-terse",
+      "repetition": 2,
+      "arm": "terse",
+      "baselineHash": "2d1adcb122b3f36f6936790e7bc3d334e9053fdfccd75e64d7ab690143c95fea",
+      "acceptanceHash": "f4af5bd23f9a5a77772b81f21f34a14461f9fe7d05491dcc12d89c62636745ba",
+      "preparationMs": 4400,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "agentMs": 116096,
+      "evaluationMs": 7453,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 280705,
+          "cached_input_tokens": 244992,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2473,
+          "reasoning_output_tokens": 121
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 14,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 582,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 392,
+          "logHash": "be30de3c6c747d23c70a8e589854637e8af3e4c60e3a04fc9ab91c9c1c2c1fe9"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5785,
+          "logHash": "f12b4fc6cf35f9098cf54d7e7f7a857739317eaf527a18b44ec3654aa70e9883",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 538,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "readme.md",
+        "source/index.ts",
+        "source/options.ts"
+      ],
+      "evidence": {
+        "patchHash": "ef9aed1770befcb86c46eec31e0e9b207d7113e5c7b6a787dc84e5f9a66b0bed",
+        "eventHash": "56f6f3f0702760588fdb3294af91a4185aec6be5d9c34715342d57bab015bbb9"
+      },
+      "patch": "modify-pair-2-terse.patch",
+      "duplications": "modify-pair-2-terse.duplications.json"
+    },
+    {
+      "taskId": "modify",
+      "artifactId": "modify-pair-2-control",
+      "repetition": 2,
+      "arm": "control",
+      "baselineHash": "2d1adcb122b3f36f6936790e7bc3d334e9053fdfccd75e64d7ab690143c95fea",
+      "acceptanceHash": "f4af5bd23f9a5a77772b81f21f34a14461f9fe7d05491dcc12d89c62636745ba",
+      "preparationMs": 3593,
+      "terseStatus": null,
+      "terseRules": [],
+      "agentMs": 103155,
+      "evaluationMs": 7132,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 171334,
+          "cached_input_tokens": 133248,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1927,
+          "reasoning_output_tokens": 213
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 583,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 397,
+          "logHash": "df1e3a3abd353e3162a471b0688be30ce0a535f421517e025e9392bb4654c286"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5488,
+          "logHash": "8d75789c74e6a99e85392798cdd7f4fa4fce3f1424d67bdaf0da967c29d6dbc9",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 525,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "readme.md",
+        "source/index.ts",
+        "source/options.ts"
+      ],
+      "evidence": {
+        "patchHash": "678911cdc6dba2ad21c1262d55f7bd56e581a180eda68ab7b68c2fbec6b543fe",
+        "eventHash": "f31cd61aeef70525f89d0ff373c5f4ee2c28fc8ce0dae1c6cee6507225f83009"
+      },
+      "patch": "modify-pair-2-control.patch",
+      "duplications": "modify-pair-2-control.duplications.json"
+    },
+    {
+      "taskId": "delete",
+      "artifactId": "delete-pair-1-terse",
+      "repetition": 1,
+      "arm": "terse",
+      "baselineHash": "353c2b54e525ad78bafb2fbf462ddc7fffb2db0e5b78249db188651812f2c3e5",
+      "acceptanceHash": "9b673f8e17234a3e9c0c2c5a228d242ccf46d35a134d21aa30653b88f2aa1c1c",
+      "preparationMs": 3667,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "agentMs": 104997,
+      "evaluationMs": 7453,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 233929,
+          "cached_input_tokens": 184832,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1851,
+          "reasoning_output_tokens": 87
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 13,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 556,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 429,
+          "logHash": "e54a121c979870e64dc82f5f498bb7029a5718113e742d08a99aa2152a3632d7"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5785,
+          "logHash": "73751d2d20527e52ecfd8408a0c247d57f6b767b806f72eccb0f068e3e3fed10",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 536,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/lower-bound.ts",
+        "source/priority-queue.ts"
+      ],
+      "evidence": {
+        "patchHash": "ddaee34b84890e6d57ff7ea936a2d34614cf6ac06d3702518f33f6bd2328d47e",
+        "eventHash": "99a767999a6233d34b434cbc3490095906ea489962fae19925582b4f69cf6586"
+      },
+      "patch": "delete-pair-1-terse.patch",
+      "duplications": "delete-pair-1-terse.duplications.json"
+    },
+    {
+      "taskId": "delete",
+      "artifactId": "delete-pair-1-control",
+      "repetition": 1,
+      "arm": "control",
+      "baselineHash": "353c2b54e525ad78bafb2fbf462ddc7fffb2db0e5b78249db188651812f2c3e5",
+      "acceptanceHash": "9b673f8e17234a3e9c0c2c5a228d242ccf46d35a134d21aa30653b88f2aa1c1c",
+      "preparationMs": 4184,
+      "terseStatus": null,
+      "terseRules": [],
+      "agentMs": 72672,
+      "evaluationMs": 7815,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 169099,
+          "cached_input_tokens": 142592,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1351,
+          "reasoning_output_tokens": 132
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 560,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 430,
+          "logHash": "23fda3dfada0fc56d9bfc919b59f9da399d601ff9b19673a10e07d1d3d1013ee"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 6182,
+          "logHash": "be2c4bf755dfd506bdbb881444be823717c985a39cb7182b997e9b5b7f0626ab",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 520,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/lower-bound.ts",
+        "source/priority-queue.ts"
+      ],
+      "evidence": {
+        "patchHash": "137857e49f903f6b5307e3f40d8ee6929e030dd03743be3a002eb96f17bf6725",
+        "eventHash": "18f55e9b2482d5516d9c8f4ce1fb7a217179ac32f5018d01d0d58e0f0f6052d6"
+      },
+      "patch": "delete-pair-1-control.patch",
+      "duplications": "delete-pair-1-control.duplications.json"
+    },
+    {
+      "taskId": "delete",
+      "artifactId": "delete-pair-2-control",
+      "repetition": 2,
+      "arm": "control",
+      "baselineHash": "353c2b54e525ad78bafb2fbf462ddc7fffb2db0e5b78249db188651812f2c3e5",
+      "acceptanceHash": "9b673f8e17234a3e9c0c2c5a228d242ccf46d35a134d21aa30653b88f2aa1c1c",
+      "preparationMs": 3630,
+      "terseStatus": null,
+      "terseRules": [],
+      "agentMs": 71780,
+      "evaluationMs": 7909,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 127535,
+          "cached_input_tokens": 100864,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1224,
+          "reasoning_output_tokens": 74
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 544,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 438,
+          "logHash": "12e97b589dfe10090c3f5b205df3a739b562cd1e67282c56c0407503c591af77"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 6261,
+          "logHash": "2daf3db356d0161cbf289ddac8ae6ce5d0998f5a5e2696918a5be13ce3039ea0",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 543,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/lower-bound.ts",
+        "source/priority-queue.ts"
+      ],
+      "evidence": {
+        "patchHash": "ddaee34b84890e6d57ff7ea936a2d34614cf6ac06d3702518f33f6bd2328d47e",
+        "eventHash": "1bfe46b3760f8114c04b25d3fafb831cb9dde38d3f9f69446b43ae18de6b6757"
+      },
+      "patch": "delete-pair-2-control.patch",
+      "duplications": "delete-pair-2-control.duplications.json"
+    },
+    {
+      "taskId": "delete",
+      "artifactId": "delete-pair-2-terse",
+      "repetition": 2,
+      "arm": "terse",
+      "baselineHash": "353c2b54e525ad78bafb2fbf462ddc7fffb2db0e5b78249db188651812f2c3e5",
+      "acceptanceHash": "9b673f8e17234a3e9c0c2c5a228d242ccf46d35a134d21aa30653b88f2aa1c1c",
+      "preparationMs": 3711,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "agentMs": 122995,
+      "evaluationMs": 7264,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 283545,
+          "cached_input_tokens": 228224,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1923,
+          "reasoning_output_tokens": 176
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 14,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 541,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 421,
+          "logHash": "701815fda146628dbbe1f246be34e6e1be53928b487c9dc79ecc8a3a4eeb7e67"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5429,
+          "logHash": "11c1a257af980ad84651f623ae13c45023db09b689a1b147cdfe7cc5d2e41776",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 655,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/lower-bound.ts",
+        "source/priority-queue.ts"
+      ],
+      "evidence": {
+        "patchHash": "17e562d89af65f4f0b33b2b13e31e942c37dbfd35756514acf283afe2d6a2741",
+        "eventHash": "a67d554d54b3d1093dc9adaaccb9042751211b89399c969606c8fa888a74fa88"
+      },
+      "patch": "delete-pair-2-terse.patch",
+      "duplications": "delete-pair-2-terse.duplications.json"
+    },
+    {
+      "taskId": "refactor",
+      "artifactId": "refactor-pair-1-control",
+      "repetition": 1,
+      "arm": "control",
+      "baselineHash": "84ae7cf249d6f526399459847d9d93b180a656f4d71d8f2c101ed7cc8889fb57",
+      "acceptanceHash": "ece0b6e307c30794fcd980cc660be689c692117d7e4d5ff0ae37ab1553068c15",
+      "preparationMs": 4561,
+      "terseStatus": null,
+      "terseRules": [],
+      "agentMs": 95262,
+      "evaluationMs": 7734,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 228078,
+          "cached_input_tokens": 193792,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1771,
+          "reasoning_output_tokens": 185
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 10,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 787,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 523,
+          "logHash": "48e96d4814849559a4217c2456be999c290830053d748227081a75eb71d4932e"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5601,
+          "logHash": "d5c46cf7f6d15d26f91a991f5775522f58c482c32d1aedebe4658fa4280fb7f4",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 630,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "evidence": {
+        "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+        "eventHash": "3e0ec784aabd59c434d09a4819dce73fd7e4d3f128069bad72818eb1ff48ce31"
+      },
+      "patch": "refactor-pair-1-control.patch",
+      "duplications": "refactor-pair-1-control.duplications.json"
+    },
+    {
+      "taskId": "refactor",
+      "artifactId": "refactor-pair-1-terse",
+      "repetition": 1,
+      "arm": "terse",
+      "baselineHash": "84ae7cf249d6f526399459847d9d93b180a656f4d71d8f2c101ed7cc8889fb57",
+      "acceptanceHash": "ece0b6e307c30794fcd980cc660be689c692117d7e4d5ff0ae37ab1553068c15",
+      "preparationMs": 5039,
+      "terseStatus": "needs-review",
+      "terseRules": [
+        "REMOVAL_REFERENCE_UNCERTAIN"
+      ],
+      "agentMs": 109330,
+      "evaluationMs": 7909,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 283590,
+          "cached_input_tokens": 255232,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2221,
+          "reasoning_output_tokens": 96
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 13,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 575,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 440,
+          "logHash": "a251e3ebd8a1f39ab01d4e383aa06aeae535ed271878efe6eeb9aa3e38a90ba7"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 6146,
+          "logHash": "0cd7ed57c709b97a16c84202ad0544b7452b62c5bb0d75d4d19071f693238a60",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 557,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "evidence": {
+        "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+        "eventHash": "610a267190d81e54d61189a2be047f9e6d19066e7d84b23d826ef0d1436d355f"
+      },
+      "patch": "refactor-pair-1-terse.patch",
+      "duplications": "refactor-pair-1-terse.duplications.json"
+    },
+    {
+      "taskId": "refactor",
+      "artifactId": "refactor-pair-2-terse",
+      "repetition": 2,
+      "arm": "terse",
+      "baselineHash": "84ae7cf249d6f526399459847d9d93b180a656f4d71d8f2c101ed7cc8889fb57",
+      "acceptanceHash": "ece0b6e307c30794fcd980cc660be689c692117d7e4d5ff0ae37ab1553068c15",
+      "preparationMs": 3913,
+      "terseStatus": "needs-review",
+      "terseRules": [
+        "REMOVAL_REFERENCE_UNCERTAIN"
+      ],
+      "agentMs": 114277,
+      "evaluationMs": 7201,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 303878,
+          "cached_input_tokens": 271872,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2448,
+          "reasoning_output_tokens": 238
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 13,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 576,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 430,
+          "logHash": "c2706e52df071f2fea65f688561cbbbfe384d8fed82c2df09e1e3bb71bde116c"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5474,
+          "logHash": "f7837070095885548ef6ed4a9ef23b4f5373d9a213862ea2cb2768acdd320625",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 546,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": true,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "evidence": {
+        "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+        "eventHash": "83a588ee3e0ee299280c26ac9ab87ae72deb62ac94fb617f08ea590185a93825"
+      },
+      "patch": "refactor-pair-2-terse.patch",
+      "duplications": "refactor-pair-2-terse.duplications.json"
+    },
+    {
+      "taskId": "refactor",
+      "artifactId": "refactor-pair-2-control",
+      "repetition": 2,
+      "arm": "control",
+      "baselineHash": "84ae7cf249d6f526399459847d9d93b180a656f4d71d8f2c101ed7cc8889fb57",
+      "acceptanceHash": "ece0b6e307c30794fcd980cc660be689c692117d7e4d5ff0ae37ab1553068c15",
+      "preparationMs": 3773,
+      "terseStatus": null,
+      "terseRules": [],
+      "agentMs": 80065,
+      "evaluationMs": 7165,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "controlUsedTerse": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 164479,
+          "cached_input_tokens": 148480,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1161,
+          "reasoning_output_tokens": 98
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 11,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        }
+      },
+      "checks": {
+        "build": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 628,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        "acceptance": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 412,
+          "logHash": "870634d15d50b478cd951cb506502acdef6e459b3670b7afb3191dce3ef0a350"
+        },
+        "upstream": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 5443,
+          "logHash": "e976960b11908b7ffc381e63ecb1542046d848f306988c4e4bb18db8905719de",
+          "counts": {
+            "passed": 45,
+            "knownFailures": 2
+          }
+        },
+        "types": {
+          "exitCode": 0,
+          "error": null,
+          "passed": true,
+          "elapsedMs": 525,
+          "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        }
+      },
+      "workflow": null,
+      "tampered": [],
+      "outsideScope": [],
+      "protocolValid": true,
+      "correct": true,
+      "newDuplications": 0,
+      "duplicationError": null,
+      "changed": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "evidence": {
+        "patchHash": "99c663fd3677d05715ab990c4aefaa7bc1767bd3225912073ffbf9d57aa4ff41",
+        "eventHash": "298645ec5169a8ed55e07b021923682b0cd7a72431904038c3dae0de9a8ad55f"
+      },
+      "patch": "refactor-pair-2-control.patch",
+      "duplications": "refactor-pair-2-control.duplications.json"
+    }
+  ],
+  "pairs": [
+    {
+      "taskId": "modify",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 133600,
+        "terse": 155724
+      },
+      "terseMinusControlMs": 22124
+    },
+    {
+      "taskId": "modify",
+      "repetition": 2,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 103155,
+        "terse": 116096
+      },
+      "terseMinusControlMs": 12941
+    },
+    {
+      "taskId": "delete",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 72672,
+        "terse": 104997
+      },
+      "terseMinusControlMs": 32325
+    },
+    {
+      "taskId": "delete",
+      "repetition": 2,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 71780,
+        "terse": 122995
+      },
+      "terseMinusControlMs": 51215
+    },
+    {
+      "taskId": "refactor",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 95262,
+        "terse": 109330
+      },
+      "terseMinusControlMs": 14068
+    },
+    {
+      "taskId": "refactor",
+      "repetition": 2,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 80065,
+        "terse": 114277
+      },
+      "terseMinusControlMs": 34212
+    }
+  ],
+  "exportedAt": "2026-11-05T08:09:50.164Z",
+  "publication": "Raw event streams and process logs remain local; SHA-256 hashes identify those artifacts. Final agent prose and machine-local artifact paths are omitted. Patches and duplicate evidence are included."
+}
