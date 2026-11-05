@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { begin, snapshot } from '../dist/project.js';
-import { context } from '../dist/analyze.js';
+import { context, indexSources } from '../dist/analyze.js';
 import { check } from '../dist/check.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
@@ -80,6 +80,102 @@ test('context finds TS/JS/JSX/TSX symbols, relative importers and Chinese commen
   assert(result.candidates.some(c => c.symbol === 'View'));
   assert(result.candidates.some(c => c.symbol === 'Other'));
   assert.equal(context(p.root, b.run, 'notPresentAnywhereXYZ', 5).candidates.length, 0);
+});
+
+test('context resolves aliases, fallback targets and re-exports through inherited config', t => {
+  const p = project(t, {
+    'config/tsconfig.base.json': JSON.stringify({ compilerOptions: { baseUrl: '..', paths: { '@lib/*': ['missing/*', 'src/lib/*'], exact: ['src/lib/calculate'] } } }),
+    'tsconfig.json': '{ "extends": "./config/tsconfig.base.json", /* JSONC */ }',
+    'src/lib/calculate.ts': body.replace('(items)', '(items: any[])'),
+    'src/consumer.ts': `import { calculate } from '@lib/calculate';
+export { calculate } from 'exact';
+const lazy = () => import('@lib/calculate');
+const common = require('exact');
+import legacy = require('exact');
+type Shape = typeof import('exact');
+export const consumer = () => calculate([]);`,
+  });
+  const b = begin(p.root, 'reuse calculate');
+  const result = context(p.root, b.run, 'calculate', 10);
+  assert.deepEqual(result.errors, []);
+  const target = result.candidates.find(c => c.symbol === 'calculate');
+  assert.equal(target.importedBy.length, 6);
+  assert(target.importedBy.every(i => i.target === 'src/lib/calculate.ts' && i.config === 'tsconfig.json'));
+  assert.deepEqual(result.unresolvedImports, []);
+});
+
+test('nearest jsconfig and tsconfig aliases stay isolated and work without baseUrl', t => {
+  const p = project(t, {
+    'tsconfig.json': JSON.stringify({ compilerOptions: { paths: { shared: ['./root.ts'] } } }),
+    'root.ts': 'export const calculate = () => 1;',
+    'consumer.ts': "import { calculate } from 'shared'; export const rootConsumer = () => calculate();",
+    'nested/jsconfig.json': JSON.stringify({ compilerOptions: { paths: { shared: ['./local.js'] } } }),
+    'nested/local.js': 'export const local = () => 2;',
+    'nested/consumer.js': "export { local } from 'shared';",
+    'nested/deeper/tsconfig.json': JSON.stringify({ compilerOptions: { baseUrl: '../..' } }),
+    'nested/deeper/consumer.ts': "export { calculate } from 'root';",
+  });
+  const result = context(p.root, begin(p.root, 'reuse').run, 'calculate local', 10);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.candidates.find(c => c.symbol === 'local').importedBy.map(i => i.from), ['nested/consumer.js']);
+  assert.deepEqual(result.candidates.find(c => c.symbol === 'calculate').importedBy.map(i => i.from), ['consumer.ts', 'nested/deeper/consumer.ts']);
+});
+
+test('unresolved imports remain visible even with no matching symbols', t => {
+  const p = project(t, {
+    'src/consumer.ts': "import './missing'; import 'node:fs'; import './hidden'; import(name); require(`./${name}`);",
+    'src/hidden.ts': 'export const hidden = 1;',
+  }, { exclude: ['src/hidden.ts'] });
+  const b = begin(p.root, 'reuse');
+  const result = context(p.root, b.run, 'noSymbol', 5);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.candidates.length, 0);
+  assert.equal(result.unresolvedImports.length, 5);
+  assert.equal(result.unresolvedImports.filter(i => i.reason === 'dynamic-expression').length, 2);
+  assert.equal(result.unresolvedImports.find(i => i.specifier === './hidden').reason, 'outside-source-snapshot');
+  assert(result.unresolvedImports.every(i => !i.target && i.from === 'src/consumer.ts' && i.line === 1));
+});
+
+test('invalid and unsupported config inheritance cannot produce successful context evidence', async t => {
+  for (const config of ['{bad', '{"extends":"./tsconfig.missing.json"}', '{"extends":"./tsconfig.json"}', '{"extends":"./base.json"}', '{"compilerOptions":{"paths":12}}']) {
+    await t.test(config, async t => {
+      const p = project(t, { 'src/calculate.js': body, 'tsconfig.json': config, 'base.json': '{}' });
+      const run = ready(p.root);
+      const result = context(p.root, run, 'calculate', 5);
+      assert(result.errors.some(e => e.startsWith('IMPORT_CONFIG:')));
+      assert((await check(p.root, run)).findings.some(f => f.rule === 'CONTEXT_MISSING'));
+      const cliResult = spawnSync(process.execPath, [cli, 'context', '--cwd', p.root, '--run', run, '--query', 'calculate', '--json'], { encoding: 'utf8' });
+      assert.equal(cliResult.status, 3);
+      assert(JSON.parse(cliResult.stdout).errors.length > 0);
+    });
+  }
+});
+
+test('NodeNext distinguishes ESM extension requirements from CommonJS', t => {
+  const p = project(t, {
+    'tsconfig.json': '{"compilerOptions":{"module":"NodeNext"}}',
+    'src/calculate.ts': body,
+    'src/esm.mts': "import './calculate'; import './calculate.js';",
+    'src/common.cts': "const value = require('./calculate');",
+  });
+  const result = context(p.root, begin(p.root, 'reuse').run, 'calculate', 5);
+  assert.deepEqual(result.errors, []);
+  const target = result.candidates.find(c => c.symbol === 'calculate');
+  assert.equal(target.importedBy.length, 2);
+  assert.equal(result.unresolvedImports.length, 1);
+  assert.equal(result.unresolvedImports[0].from, 'src/esm.mts');
+});
+
+test('config changes cannot be attributed to a previously captured snapshot', t => {
+  const p = project(t, {
+    'tsconfig.json': '{"compilerOptions":{"paths":{"shared":["./calculate.js"]}}}',
+    'calculate.js': body,
+    'consumer.js': "import { calculate } from 'shared';",
+  });
+  const state = snapshot(p.root);
+  p.write('tsconfig.json', '{"compilerOptions":{"paths":{"shared":["./different.js"]}}}');
+  assert(indexSources(state, p.root).errors.some(e => /changed since snapshot/.test(e)));
+  assert.deepEqual(indexSources(state).errors, []); // Historical checks never consult live configs.
 });
 
 test('new copy is reported, existing clone remains baseline, and identical movement is not new', async t => {
@@ -249,6 +345,90 @@ test('removing a symbol together with its file checks all remaining module impor
   const result = await check(p.root, run);
   assert.equal(result.status, 'fail');
   assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS' && f.locations[0].path === 'src/use.js'));
+});
+
+test('cleanup resolves inherited and nearest aliases for deleted files and new consumers', async t => {
+  const p = project(t, {
+    'src/calculate.js': body,
+    'config/tsconfig.base.json': '{"compilerOptions":{"baseUrl":"..","paths":{"@lib/*":["src/*"]}}}',
+    'tsconfig.json': '{"extends":"./config/tsconfig.base.json"}',
+    'src/legacy.ts': 'export function obsolete() { return 1; }',
+    'src/use.ts': "import { obsolete } from '@lib/legacy';",
+    'nested/jsconfig.json': '{"compilerOptions":{"paths":{"legacy":["../src/legacy.ts"]}}}',
+    'nested/use.js': "export * from 'legacy';",
+  });
+  const before = snapshot(p.root);
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.ts' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  p.write('src/new.ts', "const load = () => import('@lib/legacy');");
+  const indexed = indexSources(snapshot(p.root), p.root, before.files);
+  assert.deepEqual(indexed.errors, []);
+  assert.equal(indexed.imports.length, 3);
+  assert(indexed.imports.every(i => i.target === 'src/legacy.ts' && i.targetSnapshot === 'baseline'));
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'fail');
+  assert.equal(result.findings.filter(f => f.rule === 'REMOVAL_REFERENCE_REMAINS').length, 3);
+  // Context describes only current files, never restored baseline targets.
+  const searched = context(p.root, run, 'load', 5);
+  assert.equal(searched.unresolvedImports.length, 3);
+  assert(searched.unresolvedImports.every(i => !i.target));
+});
+
+test('cleanup resolves named aliases for symbol removal without treating every file import as broken', async t => {
+  const p = project(t, { 'src/calculate.js': body,
+    'tsconfig.json': '{"compilerOptions":{"paths":{"legacy":["./src/legacy.ts"]}}}',
+    'src/legacy.ts': 'export function obsolete() {}\nexport function keep() {}',
+    'src/use.ts': "import { obsolete as old } from 'legacy';\nimport { keep } from 'legacy';" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.ts', symbol: 'obsolete' }] });
+  p.write('src/legacy.ts', 'export function keep() {}');
+  const result = await check(p.root, run);
+  assert.deepEqual(result.errors, []);
+  const references = result.findings.filter(f => f.rule === 'REMOVAL_REFERENCE_REMAINS');
+  assert.equal(references.length, 1);
+  assert.equal(references[0].locations[0].line, 1);
+  p.write('src/use.ts', "import { keep } from 'legacy';");
+  assert.equal((await check(p.root, run)).status, 'pass');
+});
+
+test('current alias fallback and remapping take precedence over deleted baseline targets', async t => {
+  const p = project(t, { 'src/calculate.js': body,
+    'tsconfig.json': '{"compilerOptions":{"paths":{"legacy":["./src/legacy.ts","./src/replacement.ts"]}}}',
+    'src/legacy.ts': 'export const value = 1;', 'src/use.ts': "import { value } from 'legacy';" });
+  const before = snapshot(p.root);
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.ts' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  p.write('src/replacement.ts', 'export const value = 2;');
+  const reference = indexSources(snapshot(p.root), p.root, before.files).imports[0];
+  assert.equal(reference.target, 'src/replacement.ts');
+  assert.equal(reference.targetSnapshot, 'current');
+  assert.equal((await check(p.root, run)).status, 'pass');
+  p.write('tsconfig.json', '{"compilerOptions":{"paths":{"legacy":["./src/replacement.ts"]}}}');
+  assert.equal((await check(p.root, run)).status, 'pass');
+});
+
+test('invalid alias config makes cleanup incomplete before verification', async t => {
+  const p = project(t, { 'src/calculate.js': body,
+    'tsconfig.json': '{"compilerOptions":{"paths":{"legacy":["./src/legacy.ts"]}}}',
+    'src/legacy.ts': 'export const value = 1;', 'src/use.ts': "import 'legacy';" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.ts' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  p.write('tsconfig.json', '{"extends":"./tsconfig.missing.json"}');
+  const result = await check(p.root, run);
+  assert.equal(result.status, 'incomplete');
+  assert(result.errors.some(e => e.includes('IMPORT_CONFIG')));
+  assert.deepEqual(result.verification, []);
+});
+
+test('cleanup preserves NodeNext resolution rules for deleted alias targets', async t => {
+  const p = project(t, { 'src/calculate.js': body,
+    'tsconfig.json': '{"compilerOptions":{"module":"NodeNext","paths":{"legacy":["./src/legacy.mjs"]}}}',
+    'src/legacy.mts': 'export const value = 1;', 'src/use.mts': "import { value } from 'legacy';\nimport './legacy';" });
+  const run = ready(p.root, { remove: [{ path: 'src/legacy.mts' }] });
+  fs.unlinkSync(path.join(p.root, 'src/legacy.mts'));
+  const result = await check(p.root, run);
+  assert.deepEqual(result.errors, []);
+  assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_REMAINS' && f.locations[0].line === 1));
+  assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_UNRESOLVED' && f.locations[0].line === 2));
 });
 
 test('new strict-policy duplication fails even when verification passes', async t => {
