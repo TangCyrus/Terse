@@ -7,11 +7,11 @@ import { digest, loadRun, readJson, snapshot, writeJson } from './project.js';
 import type { Snapshot, SymbolInfo } from './types.js';
 import { importResolver, type ImportReference } from './imports.js';
 
-export function indexSources(state: Snapshot, root?: string) {
+export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snapshot['files'] = {}) {
   const symbols: SymbolInfo[] = [];
   const imports: ImportReference[] = [];
   const errors: string[] = [];
-  const resolver = importResolver(state, errors, root);
+  const resolver = importResolver(state, errors, root, fallbackFiles);
   for (const [file, source] of Object.entries(state.files)) {
     const ast = ts.createSourceFile(file, source.content, ts.ScriptTarget.Latest, true);
     const resolve = resolver(file, ast);
@@ -34,13 +34,28 @@ export function indexSources(state: Snapshot, root?: string) {
           signature: source.content.slice(start, body?.getStart(ast) ?? Math.min(node.end, start + 200)).trim(),
           text: source.content.slice(node.getFullStart(), node.end).trim() });
       }
-      let specifier: ts.Expression | undefined;
-      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) specifier = node.moduleSpecifier;
-      if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) specifier = node.moduleReference.expression;
-      if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) specifier = node.argument.literal;
-      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || node.expression.getText(ast) === 'require')) specifier = node.arguments[0];
-      if (specifier) {
-        imports.push({ from: file, ...resolve(specifier), line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1 });
+      let expression: ts.Expression | undefined;
+      let names: string[] | undefined;
+      if (ts.isImportDeclaration(node)) {
+        expression = node.moduleSpecifier;
+        const clause = node.importClause;
+        if (!clause) names = [];
+        else if (!clause.namedBindings || ts.isNamedImports(clause.namedBindings)) names = [
+          ...(clause.name ? ['default'] : []),
+          ...(clause.namedBindings && ts.isNamedImports(clause.namedBindings) ? clause.namedBindings.elements.map(e => (e.propertyName ?? e.name).text) : []),
+        ];
+      }
+      if (ts.isExportDeclaration(node)) {
+        expression = node.moduleSpecifier;
+        if (node.exportClause && ts.isNamedExports(node.exportClause)) names = node.exportClause.elements.map(e => (e.propertyName ?? e.name).text);
+      }
+      if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) expression = node.moduleReference.expression;
+      if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) expression = node.argument.literal;
+      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || node.expression.getText(ast) === 'require')) expression = node.arguments[0];
+      if (expression) {
+        imports.push({ from: file, ...resolve(expression), names,
+          requireCall: ts.isCallExpression(node) && node.expression.getText(ast) === 'require',
+          line: ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1 });
       }
       ts.forEachChild(node, visit);
     }

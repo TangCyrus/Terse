@@ -6,11 +6,12 @@ import type { Snapshot } from './types.js';
 
 export interface ImportReference {
   from: string; specifier: string; line: number; target?: string; config?: string;
+  names?: string[]; requireCall?: boolean; targetSnapshot?: 'current' | 'baseline';
   reason?: 'dynamic-expression' | 'config-error' | 'not-found-in-snapshot' | 'outside-source-snapshot';
 }
 
 // The resolver sees snapshot paths only. Historical indexes never read live config.
-export function importResolver(state: Snapshot, errors: string[], root?: string) {
+export function importResolver(state: Snapshot, errors: string[], root?: string, fallbackFiles: Snapshot['files'] = {}) {
   const base = (root ?? path.resolve('/__terse_snapshot__')).replaceAll('\\', '/');
   const relative = (file: string) => path.relative(base, file).replaceAll('\\', '/');
   const known = new Set([...Object.keys(state.files), ...Object.keys(state.metadata), ...state.skipped.map(s => s.path)]);
@@ -39,6 +40,11 @@ export function importResolver(state: Snapshot, errors: string[], root?: string)
         return undefined;
       }
     },
+  };
+  // Only source existence falls back. Config and package metadata always belong to state.
+  const fallbackHost: ts.ModuleResolutionHost = {
+    ...host,
+    fileExists: file => host.fileExists(file) || Object.hasOwn(fallbackFiles, relative(file)),
   };
   const configs = new Map<string, { options: ts.CompilerOptions; invalid: boolean }>();
   return (file: string, ast: ts.SourceFile) => {
@@ -71,16 +77,20 @@ export function importResolver(state: Snapshot, errors: string[], root?: string)
     const { options, invalid } = settings;
     const containingFile = path.posix.join(base, file);
     ast.impliedNodeFormat = ts.getImpliedNodeFormatForFile(containingFile, undefined, host, options);
-    return (expression: ts.Expression): Pick<ImportReference, 'specifier' | 'target' | 'reason' | 'config'> => {
+    return (expression: ts.Expression): Pick<ImportReference, 'specifier' | 'target' | 'reason' | 'config' | 'targetSnapshot'> => {
       const literal = ts.isStringLiteralLike(expression);
       const specifier = literal ? expression.text : expression.getText(ast);
       if (!literal) return { specifier, config, reason: 'dynamic-expression' };
       if (invalid) return { specifier, config, reason: 'config-error' };
-      const resolved = ts.resolveModuleName(specifier, containingFile, options, host, undefined, undefined,
-        ts.getModeForUsageLocation(ast, expression, options)).resolvedModule;
+      const mode = ts.getModeForUsageLocation(ast, expression, options);
+      const resolve = (resolutionHost: ts.ModuleResolutionHost) => ts.resolveModuleName(specifier, containingFile, options, resolutionHost, undefined, undefined, mode).resolvedModule;
+      const current = resolve(host);
+      const resolved = current ?? resolve(fallbackHost);
       if (!resolved) return { specifier, config, reason: 'not-found-in-snapshot' };
       const target = relative(resolved.resolvedFileName);
-      return Object.hasOwn(state.files, target) ? { specifier, config, target } : { specifier, config, reason: 'outside-source-snapshot' };
+      if (Object.hasOwn(state.files, target)) return { specifier, config, target, targetSnapshot: 'current' };
+      if (!current && Object.hasOwn(fallbackFiles, target)) return { specifier, config, target, targetSnapshot: 'baseline' };
+      return { specifier, config, reason: 'outside-source-snapshot' };
     };
   };
 }
