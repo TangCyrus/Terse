@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Terse CLI output v1",
+  "type": "object",
+  "required": ["schemaVersion", "toolVersion", "command", "outputKind", "status", "exitCode", "errors", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "toolVersion": { "type": "string" },
+    "command": { "enum": ["begin", "context", "check", "help", "version", null] },
+    "outputKind": { "enum": ["result", "error"] },
+    "status": { "enum": ["pass", "fail", "needs-review", "incomplete"] },
+    "exitCode": { "enum": [0, 1, 2, 3] },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message", "stage"],
+        "properties": {
+          "code": { "enum": ["INVALID_ARGUMENT", "PROJECT_ERROR", "COMMAND_ERROR", "CONTEXT_INCOMPLETE", "CHECK_INCOMPLETE"] },
+          "message": { "type": "string" },
+          "stage": { "enum": ["arguments", "project", "command"] },
+          "causeCode": { "type": "string" }
+        }
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "status": { "const": "pass" } } }, "then": { "properties": { "exitCode": { "const": 0 } } } },
+    { "if": { "properties": { "status": { "const": "fail" } } }, "then": { "properties": { "exitCode": { "const": 1 } } } },
+    { "if": { "properties": { "status": { "const": "needs-review" } } }, "then": { "properties": { "exitCode": { "const": 2 } } } },
+    { "if": { "properties": { "status": { "const": "incomplete" } } }, "then": { "properties": { "exitCode": { "const": 3 }, "errors": { "minItems": 1 }, "diagnostics": { "minItems": 1 } } } },
+    { "if": { "properties": { "outputKind": { "const": "error" } } }, "then": { "properties": { "status": { "const": "incomplete" } } } },
+    {
+      "if": { "properties": { "outputKind": { "const": "result" } } },
+      "then": {
+        "oneOf": [
+          { "properties": { "command": { "const": "begin" } }, "required": ["run", "root", "snapshotHash", "scannedFiles", "decisionPath"] },
+          { "properties": { "command": { "const": "context" } }, "required": ["run", "query", "snapshotHash", "scannedFiles", "candidates", "fileMatches", "unresolvedImports"] },
+          { "properties": { "command": { "const": "check" } }, "required": ["run", "baselineHash", "snapshotHash", "findings", "verification", "changes"] },
+          { "properties": { "command": { "const": "help" }, "help": { "type": "string" } }, "required": ["help"] },
+          { "properties": { "command": { "const": "version" } } }
+        ]
+      }
+    }
+  ]
+}

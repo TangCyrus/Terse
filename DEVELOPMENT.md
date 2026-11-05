@@ -2,7 +2,16 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前基线为 v0.1：三个 CLI 命令已经跑通，已有 17 项自动化测试及订单导出对比示例。模块下的“下一步”均为待开发范围，不表示已经实现。
+当前版本为 v0.1.0。本文按 `main` 的 `393e54e` 核对，M1–M6 的首轮开发切片均已合并；Windows/Linux 的 Node 24 CI 各通过 90 项测试（含子用例）及打包预检。此数量对应该提交，后续以 CI 结果为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+
+| 模块 | 已合并的首轮交付 | PR |
+| --- | --- | --- |
+| M1 | 持久化基线结构、整体哈希校验与错误诊断 | [#3](https://github.com/jinyangtang33-sys/Terse/pull/3) |
+| M2 | 导入与路径别名解析 | [#4](https://github.com/jinyangtang33-sys/Terse/pull/4) |
+| M3 | 重复片段边界校验与 token 出现次数归因 | [#5](https://github.com/jinyangtang33-sys/Terse/pull/5) |
+| M4 | 声明删除与残留引用检查，适配 M2 | [#6](https://github.com/jinyangtang33-sys/Terse/pull/6) |
+| M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
+| M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
 ## 开发原则与任务范围
 
@@ -33,33 +42,39 @@
 
 现有约束：`.terse` 缓存不参与自身分析；不跟随源文件符号链接；单个文件超过 1 MiB 等覆盖缺口要显式记录；无 HEAD 的空仓库也能开始任务。存储与解析失败不能悄悄当作空结果。
 
-下一步：完善持久化记录的读取校验、可诊断的错误和基线一致性检查。验收应覆盖合法记录、损坏记录、错误仓库/版本、未提交文件和不支持的文件，保持成功场景兼容。
+已完成：`loadRun(root, run)` 返回 `{ dir, baseline }` 前校验身份、配置、路径、源码哈希、metadata、排除记录及整体快照哈希。`parseConfig` 和 `snapshotHash` 是内部共用实现；合法 schema-1 记录保持兼容，对象键重排不会改变校验结果。路径按片段校验，允许 `version..backup.js`。
+
+读取失败会抛出带 `code` 的异常，CLI 通过 M5 的 `diagnostics[].causeCode` 提供 `JSON_READ_FAILED`、`INVALID_JSON`、`BASELINE_INVALID`、`BASELINE_INCOMPATIBLE`、`BASELINE_INTEGRITY`、`INVALID_RUN_ID` 或 `RUN_NOT_FOUND`。恢复方式见 [基线校验与恢复](README.md#基线校验与恢复)。损坏基线在分析和验证执行前被拒绝，不生成新报告。哈希用于一致性校验；受信任 CI 凭据、迁移工具等仍待后续需求明确。
 
 ### M2 上下文检索与代码结构
 
-代码归属：[src/analyze.ts](src/analyze.ts) 中的 `indexSources` 与 `context`。
+代码归属：[src/analyze.ts](src/analyze.ts) 中的 `indexSources` 与 `context`，模块解析集中在 [src/imports.ts](src/imports.ts)。
 
-`indexSources(snapshot)` 返回符号、静态导入关系和解析错误；`context(root, run, query, limit)` 对当前快照进行检索，返回候选、代码位置、片段、源码哈希、导入关系、按名称匹配的测试与能力限制，并保存检索记录。
+`indexSources(state, root?, fallbackFiles = {})` 返回 `{ symbols, imports, errors }`。`importResolver(state, errors, root?, fallbackFiles = {})` 创建解析器，由索引流程调用。`context(root, run, query, limit)` 检索当前快照，返回候选、位置、片段、源码哈希、导入关系、相关测试、`unresolvedImports`、错误与限制，并保存检索历史。
 
-这里负责让 agent 找到并检查已有能力。当前使用名称、路径和源码内容进行词法排序，TypeScript API 提供语法结构；相对路径导入可以被解析。`importedBy` 表示文件级导入关系，不是精确函数调用图；测试关联也是候选线索。
+这里使用名称、路径和源码内容进行词法排序，TypeScript API 提供语法结构与模块解析。传入 `root` 时查找最近的 `tsconfig.json`/`jsconfig.json`，支持 `baseUrl`、`paths`、限定范围的继承与 NodeNext ESM/CJS 区别。元数据仅在快照覆盖且实时哈希一致时读取；继承暂限仓库内 `tsconfig*.json`/`jsconfig.json`，不遍历 project references 或 bundler 自定义别名。
 
-下一步：先增加路径别名和导入解析的覆盖，再根据真实任务检查排序质量。保持现有候选字段的含义，解析不了的关系必须保留为未解析状态。不要把“查无候选”解释成“没有可复用实现”，也不要用读取事件证明模型已理解源码。
+`ImportReference` 包含 `from`、`specifier`、`line`，以及可选的 `target`、`config`、`names`、`requireCall`、`targetSnapshot` 和 `reason`。未解析原因包括 `dynamic-expression`、`config-error`、`not-found-in-snapshot`、`outside-source-snapshot`。配置问题记录为 `IMPORT_CONFIG`/`IMPORT_METADATA`，不能成为成功检索证据。
+
+M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析优先，失败后才以基线源码存在性定位删除目标，`targetSnapshot` 标记 `current`/`baseline`；配置和包元数据不会回退到旧版本。历史符号索引使用 `indexSources(before)`，不读取当前配置。`context` 只展示当前目标，不传基线 fallback。`importedBy` 是文件级导入关系，测试关联是候选线索；检索排序质量与更广解析范围仍可按真实案例改进。
 
 ### M3 重复检测与增量归因
 
 代码归属：[src/analyze.ts](src/analyze.ts) 中的 `clones` 与 `newClones`。当前和 M2 共用文件。
 
-`clones(snapshot)` 异步返回重复片段的指纹和两侧代码位置；`newClones(before, after)` 比较两个检测结果，返回本次新增或扩大的匹配。检测复用固定版本的 jscpd core/tokenizer；规则阈值来自快照中的配置。
+`clones(state): Promise<Clone[]>` 返回含 `fingerprint`、完整 token 序列 `tokens` 和 `locations` 的匹配；使用完整文件的词法上下文校验两侧，修正检测窗口多带的末尾 token，再核对长度与行数阈值。检测复用固定版本的 jscpd core/tokenizer；规则阈值来自快照配置。
 
-这里负责可复现的 token 重复证据，不判断相似实现是否具有相同业务职责。当前保留标识符和字面量，通过指纹与数量排除未变化或移动的旧重复。编辑导致的片段边界变化可能影响归因，属于要用评测改进的边界。
+`newClones(before, after, current)` 的前两个参数是 `Snapshot`，第三个是当前 `Clone[]`。它用 KMP 统计当前片段在前后完整 token 流中的出现次数；次数不增长时抑制历史片段，增长时按序列合并发现并返回 `attribution`。`check` 仍分析前后两份源码，不复用历史检测缓存。
 
-下一步：增加片段拆分、扩展、移动及多个副本的增量回归案例；用失败案例驱动归因修正。验收既要发现新增文件之间的重复，也要避免把仅移动的历史重复当成新增。没有实测证据时，不扩展为语义相似度判断。
+报告以 `attributionAlgorithm: "token-occurrences/1"` 标记算法。`newDuplications` 是新增序列组数，`baselineClones`/`currentClones` 是匹配对数，三者不能直接相减。`Finding.attribution` 提供 `kind`（`new-or-expanded`/`additional-copy`）、`baselineOccurrences`、`currentOccurrences` 和涉及文件的 `added`/`modified`/`unchanged` 类型；`locations` 可超过两处。
+
+已覆盖拆分、缩短、扩展、多副本、移动和同文件复制。计数包含重叠出现，不等于函数数或作者归因；删除再复制且净次数不变时与移动无法区分。检测忽略空白与注释，保留标识符与字面量，不处理改名后的语义等价；跨 tokenizer 格式可能漏报，大型仓库性能尚待实测。
 
 若后续需要拆文件，应移动既有检测实现并更新调用与测试，确保 M2/M3 使用同一份快照和配置，不复制另一套扫描逻辑。
 
 ### M4 决策检查与行为验证
 
-代码归属：[src/check.ts](src/check.ts)，主要入口为 `check(root, run, skipVerification)`。
+代码归属：[src/check.ts](src/check.ts) 与 [src/cleanup.ts](src/cleanup.ts)，主要入口为异步 `check(root, run, skipVerification = false)`。
 
 输入是任务基线、当前快照、检索记录、`decision.json` 和基线中的验证配置。输出是发现列表、错误、验证执行结果、文件变化、快照标识与最终状态，落盘到 `report.json`。
 
@@ -67,25 +82,31 @@
 
 状态优先级为 `incomplete` → `fail` → `needs-review` → `pass`。解析失败、验证启动失败、超时、任务期间策略变化和检查期间内容变化不能报告通过。缺少验证或显式跳过验证需要评估；已配置且正常执行的验证返回非零退出码则失败。
 
-下一步：把清理检查从“声明位置是否还存在”逐步扩展到可解析的残留引用。先依赖 M2 的引用证据，对动态调用和外部消费者保留不确定性。例外管理是后续单独任务，不能让填写一句理由直接抹除检测结果。
+`cleanupFindings(before, after, oldIndex, current, removals): Finding[]` 复用 M2 索引，检查 `Decision.remove` 声明。目标仍存在、删除文件的残留导入、可确认的命名/默认导出引用及同文件未绑定直接调用产生失败发现；同名局部绑定或当前替代导出不会简单判为残留。
+
+命名空间、require、动态表达式、转发链、嵌套声明及成员访问等不能确定的引用保留 review；未覆盖目标和未解析导入不能静默通过。没有完整调用图或外部消费者保证，也不自动发现全部死代码。验证命令采用基线配置，以参数数组和 `shell: false` 执行；策略变化或检查中快照变化使结果未完成。例外管理仍为后续任务。
 
 ### M5 CLI 与 agent 接入
 
-代码归属：[src/cli.ts](src/cli.ts)。
+代码归属：[src/cli.ts](src/cli.ts) 与 [src/output.ts](src/output.ts)。外部契约见 [docs/CLI.md](docs/CLI.md) 和 [JSON Schema](docs/cli-output.schema.json)。
 
 输入是命令行参数，输出是文本或 JSON，以及进程退出码。负责参数校验、调用核心能力和结果呈现；业务规则留在对应核心模块。所有路径都从目标项目的 Git 根目录处理。
 
-当前三个命令为 `begin`、`context`、`check`。`check` 的退出码分别为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。`context` 返回解析错误时退出码为 `3`。参数或加载失败时，CLI 返回带 `status: incomplete` 和 `errors` 的错误对象，该对象不保证具有完整检查报告的字段。
+三个业务命令为 `begin`、`context`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
 
-下一步：在明确外部调用需求后固定输出契约和错误结构，再考虑 MCP 适配。未来适配层调用同一组核心能力，不另写一套检测器。首版没有强制宿主执行约束，PR 文案和文档不能宣称已阻止所有绕过。
+`resultOutput(command, payload)` 包装业务结果；`errorOutput(command, stage, error)` 包装异常，供 CLI 共用。`outputKind: error` 不保证有业务字段；`result` 也可能 `incomplete`。执行诊断使用 `code`、`message`、`stage` 和可选 `causeCode`；规则发现继续位于 `findings`。M1 代码经 `causeCode` 传出，避免解析消息文本。持久化报告不添加 CLI 公共包装字段。
+
+MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现有核心能力。当前没有强制宿主执行约束。
 
 ### M6 测试、示例与工程自动化
 
-代码归属：[test/terse.test.mjs](test/terse.test.mjs)、[scripts/demo.mjs](scripts/demo.mjs)、[examples/orders](examples/orders)、[package.json](package.json) 与 [tsconfig.json](tsconfig.json)。
+代码归属：[test/terse.test.mjs](test/terse.test.mjs)、[scripts/demo.mjs](scripts/demo.mjs)、[examples/orders](examples/orders)、[package.json](package.json)、[tsconfig.json](tsconfig.json) 与 [CI 工作流](.github/workflows/ci.yml)。
 
 测试验证模块协作和失败路径；示例通过真实 CLI，在两个独立 Git 工作区中比较复制实现与复用实现。两个版本使用相同的行为验收测试。测试数据和真实业务实现分开，不能用移除功能或放松测试换取更少的重复。
 
-下一步首先增加 GitHub Actions，为 PR 提供自动构建和测试结果；之后再扩展真实结构的评测任务。工程检查应复用现有 npm 脚本，避免 CI 和本地各维护一套验证命令。
+已完成 GitHub Actions：面向 main 的 PR、main 推送及手动触发，在 `ubuntu-latest`/`windows-latest` 上使用 Node 24，执行 `npm ci`、`npm test`、`npm pack --dry-run`。工作流只读仓库权限、固定 action 提交，自动取消旧运行；打包预检不发布包。当前存在工作流，不表示已配置仓库强制合并保护。
+
+测试辅助函数以 `rootOf` 规范化 Git 根目录，兼容 Windows TEMP 的短路径；清理前核对隔离目录范围。后续优先扩展真实结构评测与性能样本，继续复用 npm 脚本。
 
 基线案例要包含“合理新增”“相似代码应保持独立”“没有可复用候选”等反例。示例表现只说明具体案例，不直接外推为跨模型的收益比例。
 
@@ -98,10 +119,11 @@ CLI begin   → M1 工作区快照 → baseline.json + decision.json 初始模�
 CLI context → M1 读取任务与当前快照 → M2 检索 → context.json
 CLI check   → M4 编排
                → M1 基线/当前快照与配置
-               → M2 符号及语法错误
-               → M3 前后重复匹配
-               → 决策/删除目标检查与项目验证
+               → M2 历史符号索引/当前导入解析（可回退基线源码目标）
+               → M3 边界校验与前后 token 出现次数归因
+               → M4 决策/声明删除/残留引用检查与项目验证
                → 再次采集状态 → report.json + 退出码
+M5          → 包装结果或异常 → 文本 / CLI JSON v1
 ```
 
 共享结构以 [src/types.ts](src/types.ts) 为准，保持一处定义：
@@ -109,11 +131,15 @@ CLI check   → M4 编排
 - `Source`、`Snapshot`、`Baseline` 描述源码、工作区与任务起点；基线的 `schema` 当前为 `1`。
 - `SymbolInfo`、`Location` 描述源码位置和符号内容；行号从 1 开始。
 - `Decision` 描述策略、理由、候选处置和计划删除对象。
-- `Finding`、`VerificationResult`、`Status` 描述检查证据及验证结果。
+- `Finding`、`DuplicationAttribution`、`VerificationResult`、`Status` 描述检查证据及验证结果。
+
+`ImportReference` 在 `src/imports.ts` 定义，`Clone` 在 `src/analyze.ts` 定义，`CliOutput`、`Diagnostic`、`ErrorStage` 和退出码映射在 `src/output.ts` 定义，消费者直接复用这些定义。
 
 路径使用相对于 Git 根目录的 `/` 分隔形式，运行数据目录为 `.terse/runs/<id>/`。基线保存源码内容；项目清单的 `metadata` 保存哈希，不应把它描述成完整仓库备份。该目录包含源码，排除在 Git 提交之外。
 
-`context` 和完整 `check` 返回值当前主要由实现推导类型，尚无独立、稳定的外部 JSON schema。增加字段前检查 CLI、示例和测试的消费位置；删除或改变字段语义时，应在同一 PR 中说明兼容策略并更新消费者。需要稳定外部接口时，再将相应类型提取到共享定义。
+区分三个版本边界：`Baseline.schema: 1` 是持久化基线格式，`schemaVersion: 1` 是 CLI 输出公共契约，`attributionAlgorithm: "token-occurrences/1"` 是 M3 归因含义。CLI schema 约束公共字段和必需业务字段，未穷举或冻结所有嵌套字段；核心函数返回值仍主要由实现推导，不是稳定库 API。`baseline.json`、`context.json`、`decision.json`、`report.json` 不能当作 CLI 包装对象解析。
+
+增加字段前检查 CLI、示例和测试消费者；CLI 公共字段的删除或含义变化需升级 schemaVersion，其他兼容策略按对应格式说明并更新消费者。内容与算法变更不能只更新版本字符串而不验证旧 run。
 
 修改持久化格式或检测含义时，要考虑 `Baseline.schema`、`ANALYZER` 和旧 run 的处理。当前加载逻辑会拒绝分析器标识不匹配的运行；需要迁移时必须明确实现，不能假设历史缓存自动兼容。配置和分析器依赖变化也必须进入相应的回归验证。
 
@@ -139,33 +165,30 @@ node --test --test-name-pattern="context finds" test/terse.test.mjs
 
 当前测试名称可直接用于筛选：
 
-- M1：`baseline captures`、`unreadable source coverage`、`corrupted baseline`。
-- M2：`context finds`、`retrieval recorded only after edits`。
-- M3：`new copy is reported`、`checks duplicates between two newly added files`。
-- M4：`declared removal`、`verification failures`、`policy change`、`parse errors`、`verification that changes source`。
-- M5：`CLI JSON`；M6：`example comparison`。
+- M1：`M1 rejects`、`M1 CLI`、`baseline captures`、`unreadable source coverage`。
+- M2：`context resolves`、`nearest jsconfig`、`NodeNext distinguishes`、`config changes`。
+- M3：`splitting or shortening`、`expanded duplicates`、`occurrence attribution`、`new copies of a historical subfragment`。
+- M4：`cleanup resolves`、`local residual calls`、`current alias fallback`、`verification failures`。
+- M5：`CLI v1`、`CLI distinguishes`、`CLI contract preserves`；M6：`example comparison`。
 
 缺陷修复应补能复现该缺陷的回归案例；功能变更应覆盖目标行为与重要失败路径。测试断言可观察结果，避免仅复制内部实现步骤。临时 Git 工作区和生成报告使用已隔离的目录，不提交缓存、依赖或构建产物。
 
 新增依赖前先检查现有 Node、TypeScript 和 jscpd 能力。确需依赖时，在 PR 中说明用途和替代方案，同步锁文件与相关分析器标识，避免运行依赖与版本标识不一致。
 
-## 按模块交付的开发顺序
+## 后续交付顺序
 
-下面按依赖安排下一批任务，每个编号先作为一个独立开发切片。范围变大时再拆 PR，任务未完成前保持待开发状态；不要预先建立大量空分支或未实现文件。
+首轮完成记录见开头表格。以下是建议的后续切片，均为待开发，不代表已创建 PR 或确定排期：
 
-1. **开发文档与 PR 约定（本次文档 PR）。** 交付模块归属、接口说明、验证方法和 PR 模板。验收为路径、接口与当前源码一致，文档区分现有能力和计划能力。
-2. **M6 自动化检查。** 增加 PR 的 Node 24 构建与测试工作流，优先覆盖 Windows 和 Linux。复用 `npm ci`、`npm test`。验收为成功任务有可见结果、失败能阻断检查成功状态；仓库强制合并规则单独处理，不能把存在工作流当作已启用保护。
-3. **M1 基线记录校验。** 完善运行记录结构和一致性校验，改进损坏或不兼容记录的诊断。验收为坏记录不能得到正常报告，已有合法 run 和未提交修改场景仍可使用。
-4. **M2 导入解析。** 实现一个有边界的路径别名解析切片，保持现有相对路径行为和未解析关系的透明度。验收为新增正例和失败反例通过，候选输出兼容。
-5. **M3 增量归因。** 用移动、片段扩展和多个副本案例定位误报，修正有证据的问题。验收为历史重复不会因无关移动被计为新增，真实新增仍被发现。
-6. **M4 清理检查。** 在 M2 可提供的引用证据范围内发现已删除或替代符号的残留使用。验收为具体残留位置可复核，动态引用不会被错误声称已排除。
-7. **M5 外部接入与 M6 扩展评测。** 输出契约稳定后再做 MCP 等适配；真实项目评测可以按已完成模块逐步增加。分别交付独立 PR，不把适配、模型评测和核心分析重写绑在一起。
+1. **M6 真实结构评测。** 从当前示例扩展到修改、删除、重构和合理新增任务，覆盖不能合并的相似实现、无可复用候选和动态引用。分别记录正确性、误报/漏报、额外耗时与 token，不承诺未经实测的节省比例。
+2. **由评测驱动 M2/M3/M4 改进。** 每次选择一个可复现的检索、归因或清理问题，补失败案例后修正，并记录覆盖与性能边界。不要同时重写扫描器或扩大到完整语义分析。
+3. **M5 外部适配。** 在具体接入需求明确后做 MCP 或宿主适配，复用 CLI 契约和核心能力，验收成功、待评估、失败与异常路径。
+4. **受信任 CI 与例外策略。** 仓库必需检查、策略来源、可审查例外和宿主写入约束需独立设计与授权；现有构建 CI 不构成产品的防篡改验收凭据。
 
-后续任务优先从第 2 项开始。每项完成时在相关 PR 记录验证结果；若顺序、模块边界或验收条件发生变化，同步更新本文，不把计划描述成已完成状态。
+每个切片交付独立 PR；模块边界、接口或验收条件变化时同步更新本文。文档 PR #1 的状态以 GitHub 为准，不因本文更新就视为已合并。
 
 ## 分支、PR 与完成标准
 
-功能、修复和文档改动都从最新 `main` 创建短期分支。例如 `docs/development-guide`、`ci/module-checks`、`fix/baseline-validation`、`feat/context-path-aliases`。一个 PR 可以包含多次提交；开发过程中的修复继续推送原分支。
+功能、修复和文档改动都从最新 `main` 创建短期分支，新分支默认用 `codex/` 前缀，例如 `codex/docs-module-progress`。已存在 PR 继续更新原分支；适配 main 时保留已有模块接口并处理冲突，不另开重复 PR。一个 PR 可以包含多次提交。
 
 开发顺序为：明确主模块与验收条件 → 检查已有实现 → 修改及清理 → 运行适当验证 → 更新相关文档 → 提交 PR。PR 采用仓库的 [描述模板](.github/PULL_REQUEST_TEMPLATE.md)，写清具体问题、完成后的行为、模块边界、复用与清理、验证结果和仍有的限制。
 

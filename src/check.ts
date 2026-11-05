@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { clones, indexSources, newClones } from './analyze.js';
 import { loadRun, readJson, snapshot, writeJson } from './project.js';
 import { ANALYZER, type Decision, type Finding, type Status, type VerificationResult } from './types.js';
+import { cleanupFindings } from './cleanup.js';
 
 function readDecision(file: string): Decision | null {
   const d = readJson(file);
@@ -30,8 +31,8 @@ export async function check(root: string, run: string, skipVerification = false)
   };
   if (JSON.stringify(before.config) !== JSON.stringify(after.config)) errors.push('terse.config.json changed during this run; start a new run after reviewing the policy change');
   const oldIndex = indexSources(before);
-  const newIndex = indexSources(after);
-  errors.push(...oldIndex.errors.map(e => `Baseline parse error: ${e}`), ...newIndex.errors.map(e => `Current parse error: ${e}`));
+  const newIndex = indexSources(after, root, before.files);
+  errors.push(...oldIndex.errors.map(e => `Baseline parse error: ${e}`), ...newIndex.errors.map(e => `Current analysis error: ${e}`));
   if (!Object.keys(after.files).length) add('NO_SOURCE_FILES', 'No supported source files remain; deletion requires explicit review.');
   const gaps = after.skipped.filter(s => !['excluded', 'unsupported-or-declaration'].includes(s.reason));
   if (gaps.length) add('COVERAGE_GAP', 'Some source files could not be scanned; see skipped files.', gaps.map(s => ({ path: s.path })));
@@ -49,12 +50,7 @@ export async function check(root: string, run: string, skipVerification = false)
     for (const c of decision.considered) {
       if (!oldIndex.symbols.some(s => s.path === c.path && s.symbol === c.symbol)) add('CANDIDATE_NOT_FOUND', `Baseline candidate not found: ${c.symbol}`, [{ path: c.path, symbol: c.symbol }]);
     }
-    for (const target of decision.remove) {
-      const existed = target.symbol ? oldIndex.symbols.some(s => s.path === target.path && s.symbol === target.symbol) : Object.hasOwn(before.files, target.path);
-      if (!existed) { add('REMOVAL_TARGET_UNKNOWN', 'Removal target was not present in the scanned baseline.', [target]); continue; }
-      const remains = target.symbol ? newIndex.symbols.some(s => s.path === target.path && s.symbol === target.symbol) : Object.hasOwn(after.files, target.path);
-      if (remains) add('REMOVAL_REMAINS', 'An implementation declared for removal is still present.', [target], 'fail');
-    }
+    if (decision.remove.length && !errors.length) findings.push(...cleanupFindings(before, after, oldIndex, newIndex, decision.remove));
   }
 
   let baselineClones = 0;
@@ -65,8 +61,9 @@ export async function check(root: string, run: string, skipVerification = false)
       const current = await clones(after);
       baselineClones = previous.length;
       currentClones = current.length;
-      for (const clone of newClones(previous, current)) {
-        add('NEW_DUPLICATION', 'A new or expanded token clone needs a reuse decision; similarity alone does not prove these responsibilities should be merged.', clone.locations, before.config.duplicatePolicy === 'fail' ? 'fail' : 'review');
+      for (const clone of newClones(before, after, current)) {
+        findings.push({ rule: 'NEW_DUPLICATION', message: `Token occurrences increased from ${clone.attribution.baselineOccurrences} to ${clone.attribution.currentOccurrences}; review reuse before retaining these implementations.`,
+          locations: clone.locations, attribution: clone.attribution, severity: before.config.duplicatePolicy === 'fail' ? 'fail' : 'review' });
       }
     } catch (error) { errors.push(`Duplicate detector failed: ${error instanceof Error ? error.message : String(error)}`); }
   }
@@ -91,12 +88,12 @@ export async function check(root: string, run: string, skipVerification = false)
   if (snapshot(root).hash !== after.hash) errors.push('Project changed during check; results are stale. Run check again on a stable workspace.');
   const status: Status = errors.length ? 'incomplete' : findings.some(f => f.severity === 'fail') ? 'fail' : findings.length ? 'needs-review' : 'pass';
   const report = { command: 'check', run, task: baseline.task, status, analyzer: ANALYZER, checkedAt: new Date().toISOString(),
-    baselineHash: before.hash, snapshotHash: after.hash, scannedFiles: Object.keys(after.files).length,
+    baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', scannedFiles: Object.keys(after.files).length,
     baselineFiles: Object.keys(before.files).length, changes, baselineClones, currentClones,
     newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length, findings, errors, verification, skipped: after.skipped,
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
-      'Clone fingerprints and counts suppress unchanged/moved matches; edited clone boundaries can require manual review.',
-      'Removal checks cover declared file/symbol locations only, not external consumers or all stale references.',
+      'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
+      'Removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports need review. No complete call graph or external consumer analysis.',
       'This report applies only to the recorded snapshot. Local evidence is not a tamper-proof CI attestation.'],
   };
   writeJson(dir, 'report.json', report);

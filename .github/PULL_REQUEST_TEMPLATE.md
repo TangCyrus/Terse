@@ -6,7 +6,7 @@
 
 ## 模块与接口影响
 
-<!-- 主模块 M1–M6；关联模块、数据字段或 CLI 输出的兼容影响。 -->
+<!-- 主模块 M1–M6；关联消费者、内部接口及 Baseline.schema / CLI schemaVersion / attributionAlgorithm 的兼容影响（如涉及）。 -->
 
 ## 复用与清理
 

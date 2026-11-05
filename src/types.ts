@@ -32,6 +32,12 @@ export interface Decision {
 export interface Finding {
   rule: string; severity: 'review' | 'fail'; message: string;
   locations: { path: string; line?: number; endLine?: number; symbol?: string }[];
+  attribution?: DuplicationAttribution;
+}
+export interface DuplicationAttribution {
+  kind: 'new-or-expanded' | 'additional-copy';
+  baselineOccurrences: number; currentOccurrences: number;
+  files: { path: string; change: 'added' | 'modified' | 'unchanged' }[];
 }
 export interface VerificationResult {
   command: VerificationCommand; exitCode: number | null;
