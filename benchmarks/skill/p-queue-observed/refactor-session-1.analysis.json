@@ -1,0 +1,21 @@
+{
+  "duplications": [],
+  "newDuplications": 0,
+  "similarities": [],
+  "possibleDuplications": 0,
+  "similarityAlgorithm": "implementation-anchors/1",
+  "duplicationError": null,
+  "cleanup": [
+    {
+      "rule": "REMOVAL_REFERENCE_UNCERTAIN",
+      "severity": "review",
+      "message": "Member removal requires reviewing instance and computed property accesses.",
+      "locations": [
+        {
+          "path": "source/index.ts",
+          "symbol": "PQueue.#onEvent"
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import {snapshot, loadRun, readJson} from '../../dist/project.js';
 import {validateDecision} from '../../dist/decision.js';
 import {jsonObjects, checkInvocationCount} from './agent-events.mjs';
 import assert from 'node:assert/strict';
+import {inScope} from './benchmark-project.mjs';
 
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 export const write = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n', {flag: 'wx'});
@@ -15,7 +16,12 @@ export const list = (root, directory = '') => fs.readdirSync(path.join(root, dir
 export const hashFiles = (root, files) => Object.fromEntries(files.map(file => [file, hash(fs.readFileSync(path.join(root, file)))]));
 const normal = text => text.replaceAll('\r\n', '\n').trim();
 
-export function skillObserver(project, protectedHashes) {
+export function scopeHash(project, editable) {
+  return hash(JSON.stringify(list(project).filter(file => inScope(file, editable)).map(file => [file,
+    fs.lstatSync(path.join(project, file)).isFile() ? hash(fs.readFileSync(path.join(project, file))) : 'non-regular'])));
+}
+
+export function skillObserver(project, protectedHashes, {editable = ['src/']} = {}) {
   const observations = [];
   const skill = normal(fs.readFileSync(path.join(project, '.agents/skills/terse/SKILL.md'), 'utf8'));
   return {observations, observe(event) {
@@ -46,7 +52,7 @@ export function skillObserver(project, protectedHashes) {
     }).map(([file]) => file);
     const sourceEdits = (item.changes ?? []).map(change => ({path: path.relative(project, path.resolve(project, change.path)).replaceAll('\\', '/'), kind: change.kind}));
     observations.push({sequence: observations.length, event: event.type, itemId: item.id, itemType: item.type,
-      sourceHash: state.hash, runStates, responses, tampered, sourceEdits,
+      sourceHash: state.hash, scopeHash: scopeHash(project, editable), runStates, responses, tampered, sourceEdits,
       checkAttempts: event.type === 'item.completed' ? Math.max(checkInvocationCount(item.command ?? ''), responses.filter(item => item.command === 'check').length) : 0,
       skillRead: normal(commandOutput).includes(skill),
       ...(item.command ? {commandHash: hash(item.command)} : {})});
@@ -55,10 +61,11 @@ export function skillObserver(project, protectedHashes) {
 
 // This grades observed ordering conservatively. Same-command writes may not
 // expose an unchanged checkpoint; absence of that evidence is not success.
-export function skillWorkflow(observations, {initialHash, finalHash, verification, removals = [], traceComplete}) {
+export function skillWorkflow(observations, {initialHash, finalHash, verification, removals = [], traceComplete, editable = ['src/'], initialScopeHash, finalScopeHash}) {
   const runIds = [...new Set(observations.flatMap(item => item.runStates.map(run => run.run)))];
   const singleRun = runIds.length === 1, run = singleRun ? runIds[0] : null;
-  const firstEdit = observations.find(item => item.sourceHash !== initialHash || item.sourceEdits.some(edit => edit.path.startsWith('src/')));
+  const firstEdit = observations.find(item => item.sourceHash !== initialHash
+    || initialScopeHash && item.scopeHash !== initialScopeHash || item.sourceEdits.some(edit => inScope(edit.path, editable)));
   const beforeEdit = observations.filter(item => !firstEdit || item.sequence < firstEdit.sequence);
   const validRun = state => state.run === run && !state.invalid && state.baselineHash === initialHash;
   const beginning = beforeEdit.find(item => item.responses.some(response => response.command === 'begin' && response.outputKind === 'result'
@@ -71,10 +78,20 @@ export function skillWorkflow(observations, {initialHash, finalHash, verificatio
     const attempts = Math.max(item.checkAttempts ?? 0, responses.length);
     // Missing responses make a multi-call command ambiguous. A later separately
     // observed full check can recover; an old pass cannot hide this attempt.
-    return attempts ? [{sequence: item.sequence, response: attempts > responses.length ? null : responses.at(-1)}] : [];
+    if (!attempts) return [];
+    const start = observations.findLast(candidate => candidate.sequence < item.sequence && candidate.itemId === item.itemId
+      && candidate.event === 'item.started' && candidate.itemType === 'command_execution');
+    // A completed command may contain edits after check. Bind new scoped traces
+    // to the entire observed command interval, withholding credit if ambiguous.
+    // Legacy cohorts have no scope checkpoints and keep their original grading.
+    const scopeStable = finalScopeHash === undefined || !!start && typeof item.scopeHash === 'string'
+      && observations.filter(candidate => candidate.sequence >= start.sequence && candidate.sequence <= item.sequence)
+        .every(candidate => candidate.scopeHash === item.scopeHash);
+    return [{sequence: item.sequence, scopeHash: item.scopeHash, scopeStable, response: attempts > responses.length ? null : responses.at(-1)}];
   }).at(-1);
-  const fullFinalCheck = !!lastCheck?.response && lastCheck.response.outputKind === 'result' && lastCheck.response.run === run
+  const fullFinalCheck = !!lastCheck?.response && lastCheck.scopeStable && lastCheck.response.outputKind === 'result' && lastCheck.response.run === run
     && lastCheck.response.baselineHash === initialHash && lastCheck.response.snapshotHash === finalHash
+    && (finalScopeHash === undefined || lastCheck.scopeHash === finalScopeHash)
     && verification.length > 0 && JSON.stringify(lastCheck.response.verification.map(item => item.command)) === JSON.stringify(verification)
     && lastCheck.response.verification.every(item => ['passed', 'failed', 'error'].includes(item.status));
   const stages = {skillReadObserved: beforeEdit.some(item => item.skillRead), singleRun,

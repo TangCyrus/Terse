@@ -2,15 +2,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { spawnSync, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 import { repository } from './lib/workspace.mjs';
 import { pairedSummary } from './lib/agent-events.mjs';
 import { runAgent } from './lib/agent-runner.mjs';
-import { begin, rootOf, snapshot } from '../dist/project.js';
+import { begin, snapshot } from '../dist/project.js';
 import { clones, newClones, indexSources } from '../dist/analyze.js';
-import { showConfiguration, flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts } from './lib/benchmark-project.mjs';
+import { showConfiguration, flattenConfiguration, collectChanges, verifyCommand } from './lib/benchmark-project.mjs';
+import { prepareOpenSourceProject } from './lib/open-source-project.mjs';
 
 const { values } = parseArgs({ options: { source: { type: 'string' }, codex: { type: 'string', default: 'codex' }, repetitions: { type: 'string' }, workflow: { type: 'string' },
   suite: {type: 'string', default: 'p-map'}, 'preflight-only': {type: 'boolean'} } });
@@ -59,14 +60,7 @@ const flattened = originalConfiguration ? flattenConfiguration(originalConfigura
 const preparation = flattened ? { kind: 'equivalent-flat-tsconfig', originalHash: digest(fs.readFileSync(path.join(source, 'tsconfig.json'))), configuration: flattened } : null;
 
 function verify(project, label, args, directory) {
-  const start = performance.now();
-  const check = spawnSync(process.execPath, args, { cwd: project, env, encoding: 'utf8', timeout: 120_000, maxBuffer: 4 * 1024 * 1024 });
-  const log = `${check.stdout ?? ''}\n${check.stderr ?? ''}`;
-  fs.writeFileSync(path.join(directory, `${label}.log`), log);
-  const counts = label.startsWith('upstream') && specification.upstreamCounts ? upstreamCounts(log) : undefined;
-  return { exitCode: check.status, error: check.error?.message ?? null,
-    passed: check.status === 0 && !check.error && (!counts || JSON.stringify(counts) === JSON.stringify(specification.upstreamCounts)),
-    elapsedMs: Math.round(performance.now() - start), logHash: digest(log), ...(counts ? {counts} : {}) };
+  return verifyCommand(project, label, args, directory, {env, expectedCounts: label.startsWith('upstream') ? specification.upstreamCounts : undefined});
 }
 
 function checksFor(task) {
@@ -77,32 +71,9 @@ function checksFor(task) {
 }
 
 function prepareProject(directory, task) {
-  const project = path.join(directory, 'project');
-  fs.mkdirSync(project, {recursive: true});
-  for (const file of files) {
-    fs.mkdirSync(path.dirname(path.join(project, file)), {recursive: true});
-    fs.copyFileSync(path.join(source, file), path.join(project, file));
-  }
-  fs.writeFileSync(path.join(project, 'package-lock.json'), dependencyLock);
-  fs.cpSync(path.join(source, 'node_modules'), path.join(project, 'node_modules'), {recursive: true});
-  if (flattened) {
-    write(path.join(project, 'tsconfig.json'), flattened);
-    verifyConfiguration(originalConfiguration, showConfiguration(project), source, project);
-  }
-  fs.appendFileSync(path.join(project, '.gitignore'), '\n.terse/\n');
-  execFileSync('git', ['init', '-q'], {cwd: project});
-  execFileSync('git', ['add', '.'], {cwd: project, stdio: 'pipe'});
-  const root = rootOf(project);
-  fs.copyFileSync(path.join(fixture, task.typeAcceptance), path.join(directory, 'acceptance-types.mts'));
   const commands = checksFor(task);
-  write(path.join(root, 'terse.config.json'), {exclude: specification.exclude ?? ['test.js', 'index.test-d.ts'], minTokens: 50, minLines: 5, duplicatePolicy: 'review',
-    verification: Object.values(commands).map(args => ({command: 'node', args, timeoutMs: 120_000}))});
-  // This is prepared baseline input, not an untracked file created by the agent.
-  execFileSync('git', ['add', 'terse.config.json'], {cwd: root, stdio: 'pipe'});
-  const state = snapshot(root);
-  assert.deepEqual(indexSources(state, root).errors, [], 'Prepared project must be analyzable by Terse before starting agents');
-  assert.deepEqual(collectChanges(root, task.editable), {changed: [], outsideScope: [], patch: ''}, 'Prepared inputs must be clean before starting agents');
-  return {root, commands, before: state};
+  return prepareOpenSourceProject({source, directory, files, dependencyLock, flattened, originalConfiguration, task, specification, commands,
+    setup: () => fs.copyFileSync(path.join(fixture, task.typeAcceptance), path.join(directory, 'acceptance-types.mts'))});
 }
 
 // Verify the upstream start and the same prepared project before any model is called.

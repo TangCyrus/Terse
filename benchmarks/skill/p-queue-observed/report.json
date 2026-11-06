@@ -1,0 +1,1951 @@
+{
+  "schemaVersion": 1,
+  "kind": "agent-skill-integration",
+  "terseRevision": "915f95c1ff7f2599cea82e25d1989feaeade1d52",
+  "specification": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "timeoutMs": 600000
+  },
+  "repetitions": 2,
+  "cliVersion": "codex-cli 0.166.0-alpha.6",
+  "suite": "p-queue",
+  "upstream": {
+    "repository": "https://github.com/sindresorhus/p-queue.git",
+    "commit": "47a4f19ab3d4422e06cb1b618f4c45a11b5def30",
+    "tag": "v8.0.1",
+    "license": "MIT",
+    "inputHash": "e9d3e766fac6e3fe88c971fd97d84a395942668e7ff4b0c8d4d72613670ca872",
+    "sourceHashes": {
+      ".editorconfig": "a6c981d9e5f90048850a8a59e79372701b58489ba29cccb5c5d273db3b77c4a3",
+      ".gitattributes": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c",
+      ".github/security.md": "cf00ea7fd49f2efefb2ac6db9da3850915d1b2c8c9cc54d74eace54e9fede183",
+      ".github/workflows/main.yml": "031b54ee811aa1b0c37d55033238c65c5f8748723533fde6451bca8c63fc52f4",
+      ".gitignore": "2084c86bb16b752b5b2faa25665c61c06926e70ded5c10732a9262ae596cd5b0",
+      ".npmrc": "f3fc23758ab91be5f94a8c5eaff433d1ccd6a206cf1d381d332eb63716009337",
+      "bench.ts": "3f840b44a137267999db43dc1cd82a8ade92ab696c67b355bd0c1289958d2624",
+      "license": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+      "package.json": "fdd33694dfddcbd34f5e2331f02aef7262aa74f38ca0f56eabfb48b52fe53730",
+      "readme.md": "f05d6c7712da54dc1d5f41e8ae572230f71bf60119e468c54c6d361d40e82e3a",
+      "source/index.ts": "49acdc9e84bcbca590b71ab9a75c3df8111b6a03f2380a0f45cd17739963f912",
+      "source/lower-bound.ts": "f5da31a5384648467beab7deba908b0c729c875823f7e6e578543837306a1f0b",
+      "source/options.ts": "a8160f6ea1d4183e7e10bcf5b9784ebe0339af4ac68f3672d99de0b05b2ff37d",
+      "source/priority-queue.ts": "612c36731d0471adf72edd6f70e7beac381aec5da7e25aa04698ca2c0f021773",
+      "source/queue.ts": "5cacea3c28b4bbb77eb69ff9a120e24cba3b28b9d1cb4abf84320fe0ead8a38b",
+      "test-d/index.test-d.ts": "f1aed98f0064c0166be058b37580df06d4d976757169b6b1b456b281d6379dd7",
+      "test/test.ts": "c906c3f47b8f4ce8af49487599a2a3ca5ddbdf14a6ae0f34c2c5c9a285484cf6",
+      "tsconfig.json": "4915654479be2c4167fab9c589a877731b7b26e2d31d2db3ed0abf34bd00a115"
+    },
+    "dependencyLockHash": "7b8a942b4606345bd51f5eea912c0f4c43d9bc05c6274ae93e048b7a3393ab4c",
+    "preparation": {
+      "kind": "equivalent-flat-tsconfig",
+      "originalHash": "4915654479be2c4167fab9c589a877731b7b26e2d31d2db3ed0abf34bd00a115",
+      "configuration": {
+        "compilerOptions": {
+          "module": "node16",
+          "moduleResolution": "node16",
+          "moduleDetection": "force",
+          "target": "es2022",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "es2022"
+          ],
+          "resolveJsonModule": false,
+          "jsx": "react",
+          "declaration": true,
+          "newLine": "lf",
+          "stripInternal": true,
+          "strict": true,
+          "noImplicitReturns": true,
+          "noImplicitOverride": true,
+          "noUnusedLocals": true,
+          "noUnusedParameters": true,
+          "noFallthroughCasesInSwitch": true,
+          "noUncheckedIndexedAccess": true,
+          "noPropertyAccessFromIndexSignature": true,
+          "noEmitOnError": true,
+          "useDefineForClassFields": true,
+          "forceConsistentCasingInFileNames": true,
+          "skipLibCheck": true,
+          "outDir": "./dist",
+          "esModuleInterop": true,
+          "allowSyntheticDefaultImports": true,
+          "resolvePackageJsonExports": true,
+          "resolvePackageJsonImports": true,
+          "noImplicitAny": true,
+          "noImplicitThis": true,
+          "strictNullChecks": true,
+          "strictFunctionTypes": true,
+          "strictBindCallApply": true,
+          "strictPropertyInitialization": true,
+          "strictBuiltinIteratorReturn": true,
+          "alwaysStrict": true,
+          "useUnknownInCatchVariables": true
+        },
+        "include": [
+          "source"
+        ],
+        "exclude": [
+          "dist"
+        ]
+      }
+    },
+    "verificationLabels": [
+      "build",
+      "acceptance",
+      "upstream",
+      "types"
+    ],
+    "upstreamCounts": {
+      "passed": 45,
+      "knownFailures": 2
+    }
+  },
+  "tasks": [
+    {
+      "id": "modify",
+      "prompt": "Extend PQueue.onEmpty and PQueue.onIdle with an optional `{signal?: AbortSignal}` argument. Preserve their existing no-argument behavior and all other public queue behavior.\n\nAn already-aborted signal must reject with exactly signal.reason, even when the queue is already empty or idle. Aborting a pending wait must reject only that wait, not remove or cancel queued/running jobs. Remove the wait's queue event listener and signal listener when the wait resolves or rejects, preserving other listeners. Multiple independent waiters must work. Preserve onSizeLessThan filtering. Update the TypeScript surface and a short README explanation.\n\nOnly edit source/index.ts, source/options.ts, readme.md. Preserve tests, dependencies and configuration. You may read the acceptance/ files. Do not commit or push. Explain the changes and validation results.",
+      "promptHash": "749d02650da2813e4a3a5732cdd40aaad1df88aa698138f174dee0dc3f68a327",
+      "remove": [],
+      "editable": [
+        "source/index.ts",
+        "source/options.ts",
+        "readme.md"
+      ],
+      "acceptanceHash": "05192e1e7272b80541d98fd97a76266d2a71b9fa66df2cb27498f2365cbc454e"
+    },
+    {
+      "id": "delete",
+      "prompt": "Retire the internal source/lower-bound.ts module completely. Move the binary insertion responsibility into PriorityQueue itself and update its caller so no source import or reference to that module remains. Preserve all public PQueue behavior, PriorityQueue.enqueue/dequeue/filter/size, descending priority, and stable FIFO ordering for equal priorities.\n\nInsertion must retain logarithmic priority comparisons before the array insertion; do not replace it with sorting the queue on every enqueue or a linear search. Do not leave an empty stub or an unused copy of the old module.\n\nOnly edit source/priority-queue.ts, source/lower-bound.ts. Preserve tests, dependencies and configuration. You may read the acceptance/ files. Do not commit or push. Explain the changes and validation results.",
+      "promptHash": "8d9ee6d3fd28d9245b1c4e03dfd856ae0dfacb3bd2f53048065921cea6473e47",
+      "remove": [
+        {
+          "path": "source/lower-bound.ts"
+        }
+      ],
+      "editable": [
+        "source/priority-queue.ts",
+        "source/lower-bound.ts"
+      ],
+      "acceptanceHash": "1066b96a0d533d37205a2d0b279eca6f383747f89bc264c88ee1193630d33e14"
+    },
+    {
+      "id": "refactor",
+      "prompt": "Extract PQueue's private #onEvent waiting implementation into source/wait-for-event.ts as a named export `waitForEvent(emitter, event, filter?) => Promise<void>`. It must accept the project's EventEmitter3 instances, register a listener, keep waiting when an optional predicate is false, remove only its own listener after the predicate passes, and resolve once.\n\nImport that named export into source/index.ts and delegate onEmpty, onIdle and onSizeLessThan to it. Remove the old private #onEvent declaration and every private-name call; do not retain it as a forwarding wrapper. Preserve the three methods' current fast paths, filtered queue-size semantics, public types, other listeners and all unrelated queue behavior. The extracted helper must also work with an independent EventEmitter3 instance, not be coupled to a particular PQueue.\n\nOnly edit source/index.ts, source/wait-for-event.ts. Preserve tests, dependencies and configuration. You may read the acceptance/ files. Do not commit or push. Explain the changes and validation results.",
+      "promptHash": "935d7c2aad03a26047a518e43e1a8fec951517a2bf861133f727ff2834a56b75",
+      "remove": [
+        {
+          "path": "source/index.ts",
+          "symbol": "PQueue.#onEvent"
+        }
+      ],
+      "editable": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "acceptanceHash": "b093bd34797d9c5dfaf45ac48f94ca0614219f95e1d8485632d53150bd942cd8"
+    }
+  ],
+  "fixtureHashes": {
+    "benchmarks/p-queue/LICENSE": "fcf1a18be2e25ba82acf2c59821b030d8ee764e4e201db6ef3c51900d385515f",
+    "benchmarks/p-queue/delete-types.mts": "49bcc06ea4969d40579d4535c4c66048a943b50d569a5fd2966c650bbf5d5e81",
+    "benchmarks/p-queue/delete.md": "1f2629e519a7581c74736ef93c3172da86de9e0213bf3db5b7980f83234d81ae",
+    "benchmarks/p-queue/delete.mjs": "1066b96a0d533d37205a2d0b279eca6f383747f89bc264c88ee1193630d33e14",
+    "benchmarks/p-queue/modify-types.mts": "127eba1d001dcd6ee753afd74ad054681767921f368b1c8f9683664aac059ef6",
+    "benchmarks/p-queue/modify.md": "c78e19afbefc0fc396e6893cc4e61ec55057d5b7f46c585465d54c38d0bd58a8",
+    "benchmarks/p-queue/modify.mjs": "05192e1e7272b80541d98fd97a76266d2a71b9fa66df2cb27498f2365cbc454e",
+    "benchmarks/p-queue/project.json": "59eadf74816cdd79a6a62a7d13a9031f197a40d2b779867a9c20954552d6f75c",
+    "benchmarks/p-queue/refactor-types.mts": "5b0cecb10e3f856ebe5c8ab7cd3f4cc6d65be5f522b2a1a8d56d844dedaea780",
+    "benchmarks/p-queue/refactor.md": "671dcd67f11169ee8585122796ba64f9ab25c68f546f098f28a5d065129871eb",
+    "benchmarks/p-queue/refactor.mjs": "b093bd34797d9c5dfaf45ac48f94ca0614219f95e1d8485632d53150bd942cd8",
+    "benchmarks/p-queue/support.mjs": "91c4676ce70f5d5560d1032e8dc673b0a7fd6cb7d175d82e6d1bfb65058b0533",
+    "dist/analyze.js": "4fcc548e8e9789d38a06b201b950b10099ab0f04b22a15f604e2c9d6b7a6176a",
+    "dist/check.js": "374779d5ea9a5294a72d7aa4ec9bab2c26cbc34b2c51a56cf46826e054ce859b",
+    "dist/cleanup.js": "176e6fec7ea0f62609bc31047cba8b1c6f23e970ec01d4bb610833de1d485fba",
+    "dist/cli.js": "e19afc305022d28d006d753d15484b1f94c9e8543a13b4ecec7e9dd46f26d185",
+    "dist/decision.js": "0f8098306a657ead815c74e6ee49391478864d810a5a8a9418ea242d2dc351b0",
+    "dist/imports.js": "8447d8ad027eca2ffed9d0c45611c0e127e92d8f577fa26c2134d232a7113544",
+    "dist/init.js": "1ba4f16309f0235e3c587b8868e9d24069d66a975e784ba71176f5e7bc03d500",
+    "dist/output.js": "7d6ce0e5338a96dc53d95ae708dbabc0738928af40e95372f8aff906feacc0c3",
+    "dist/project.js": "0e57afedbbe536075a94076bed633d7bb78e3895e72ea6172ff171617aab79c7",
+    "dist/similarity.js": "87f8f5448c2e27355ea5462b9a93d41db6b8491f050ed02701521360de752f84",
+    "dist/types.js": "a517c6f91040080d849a9576a0922c3edceea50d286170eaeff229580acea3cd",
+    "examples/evaluation/add.test.mjs": "1f2889d72485724c1b7b95790235fd5e6233109b80ccac85f9f49201d03154b1",
+    "examples/evaluation/delete.test.mjs": "8da2db669649ba5651f00bec8500aa9075863c6f0b564e37b8b60de8dd01f6cd",
+    "examples/evaluation/dynamic.test.mjs": "dda586393770be26212bb8431d2ab04308a556b32571bbd73e35598188d30be4",
+    "examples/evaluation/independent.test.mjs": "75e62ffb11f25da6af752cbcddbb2f780b901d4a9ed2926bd0b4dbb6932f23df",
+    "examples/evaluation/modify.test.mjs": "9751bb774f1cc40c31989f84e53858d248db91a0448c3272085617d25bde5381",
+    "examples/evaluation/refactor.test.mjs": "15d97c2d1ba41be88896a7ab52eef6fd6a3109b63f2b7c9281fbed3d3d8497e8",
+    "examples/evaluation/routes.test.mjs": "d02be4705e97862dea941cd95d2881c5520f20decfa2c63fd96c9d344dc8e155",
+    "examples/evaluation/routes.ts": "ee14a302026ab2332ad2f926c4524ee868118b9b9b913bc3ded8b9d3c89973f7",
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "package-lock.json": "afdc6f06c001d11e8f42223e159ad00270671f74baa12986a35c1feb22d379d6",
+    "package.json": "f9ae109728746c4022d6b398b5a080d4bc3f0daabc0b9918213cceb3766296b9",
+    "scripts/benchmark-skill.mjs": "81481e4c9eca33044cc63cb1c1ee5e4589d12634e254af959bfd1dd9cccf4ce0",
+    "scripts/evaluation-cases.mjs": "09695404df2aa7038aac014eb6ac144576548d7a417d8f48638bab9fffa4ae70",
+    "scripts/export-skill-benchmark.mjs": "d35f9bebe75d18ec08b1276f5e59e95b96e71ea7a99f11702829fecd21df23d0",
+    "scripts/lib/agent-events.mjs": "f11fc020842a920deeaac4bc817350ef4421e97668170e9374d3d83e60d65057",
+    "scripts/lib/agent-runner.mjs": "2b26606c59a2cde3f5091dfed6474e7df8e821164649b79f47f6e7dd23497d5e",
+    "scripts/lib/benchmark-project.mjs": "b884a46fccf32f3c28d5607b7bf6e154d2fcad2f5ba575ed79a9c6eb1733779a",
+    "scripts/lib/evaluation-project.mjs": "7bdd4eb2e1dd597fb82e670d97c9e803b0f841da60afeba45f1c389e06e57884",
+    "scripts/lib/open-source-project.mjs": "9444ac28eca894b7df84dc8ffaa460b86ddb3974b4e6bd2d9f97dec80c26cf15",
+    "scripts/lib/pqueue-skill.mjs": "bb50419e6f3555b7269210a9d1e75a4883206f08bfe2771cc9f3c5aa5913ff15",
+    "scripts/lib/skill-evidence.mjs": "311be4e7a247140a29db33fac5cf857c72d166b17dd49f921f98f746de18cc0c",
+    "scripts/lib/workspace.mjs": "920bed9a2b0be652ea2385c4fd1eab702d12275b922d4ae14819db7ef802e60a",
+    "scripts/skill-cases.mjs": "4e1698d2f918ac0e11f76ad169a53af987519a10a8832667be7aa19a01dcb8b6",
+    "skills/terse/SKILL.md": "f871d081fbde329ef4e47fd19b26409e70d838b57520747b43296874cf817e66",
+    "skills/terse/agents/openai.yaml": "d9ef3372e04c488b227009cd14ef0ed84fa4335056d48219bc6cbf8a80a970bd",
+    "skills/terse/scripts/run.mjs": "27ab2ee119a2c4953dca76129d83bb278634ab7a3285668fc812afebb9a81894",
+    "src/analyze.ts": "376150708312d387e637bb8acfcf743e6897da2ff740ba71e21957c682f3734c",
+    "src/check.ts": "d5809d8d1ae5ce10c672b1841c47999e254ff9db735dd3aa16e00b6bf4546d9f",
+    "src/cleanup.ts": "5d740ab59d49595159846cc1baa73bfe17725735023bd9e16d0b7c9b841b857b",
+    "src/cli.ts": "f383b33f67d2342f1425a8edf24e03cf5f85cd5a2c88207982c7dfcc874f4552",
+    "src/decision.ts": "8ae9b64fad719f84c5d3d7e64f0c6c5621edbdce10d8823492d290c61b184ad8",
+    "src/imports.ts": "b342ac0968c60a706c2dbdfef765df41a27c3bd551b1af18ddd8db8f4a680bc9",
+    "src/init.ts": "1a9990eaede3440271d7cc00066995c32981c814970e8c3fce5c03a688543e17",
+    "src/output.ts": "416e97c1238fbcbfa679c95748cb11735093a9cb7aeafd436b2b12c1b08d365f",
+    "src/project.ts": "fbaf760e3610b3ae8a832ccb40bbbf672349b190849512abcc2f4110c1eefcb1",
+    "src/similarity.ts": "524ae6dad65d3d77241c1030f0020ad621013d7b8d8c6dc7e0907eb5fdfacabf",
+    "src/types.ts": "39099ef126619aa7806b501a5ce12649551ec1852b59de280cadc43c9f5f018f",
+    "test/pqueue-skill.test.mjs": "2a0445366b9dcd9a761e05a478eba3d9ca6ca62c6200cae92da41049ae102bc0",
+    "test/skill-agent.test.mjs": "371e91c5b72bb0f9f509cf7611adecc21f4858b03568d4005578a993d21a8d5a"
+  },
+  "preflight": [
+    {
+      "taskId": "modify",
+      "supportedBaseline": true,
+      "initial": {
+        "passed": false,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 575,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 1,
+            "error": null,
+            "passed": false,
+            "elapsedMs": 1694,
+            "logHash": "9e9aa843350b91a784a56b002e5ca53bcde1365cb7db575ace8fa9dc20233a25",
+            "testCounts": {
+              "tests": 5,
+              "pass": 1,
+              "fail": 4,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 6251,
+            "logHash": "4fa44100bfc5ca4b549aca4e271cf8308a2beeb03561b111028731e33263505d",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 2,
+            "error": null,
+            "passed": false,
+            "elapsedMs": 558,
+            "logHash": "e4de635a9965e136aa1b1cbb05e9dfa19bba34570d94a927a81a8503e5c5d852"
+          }
+        }
+      },
+      "referencePass": true,
+      "reference": {
+        "cohort": "p-queue/optimized-observed",
+        "patch": "modify-pair-1-terse.patch",
+        "patchHash": "ded810750d1fb17f0f91f66b217f55678269401667b3248750808d457971e67e"
+      }
+    },
+    {
+      "taskId": "delete",
+      "supportedBaseline": true,
+      "initial": {
+        "passed": false,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 553,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 1,
+            "error": null,
+            "passed": false,
+            "elapsedMs": 686,
+            "logHash": "a00b2cd92ec36c09653a4eedcfca04ffa0a94d78ed100a25c6d7727c8c67867e",
+            "testCounts": {
+              "tests": 4,
+              "pass": 3,
+              "fail": 1,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 5954,
+            "logHash": "0b5ab4e39ed34dadfa1f38bedcb65e11ebd6ce1cad36f1b3c2f9c9a596c5f3ad",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 548,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          }
+        }
+      },
+      "referencePass": true,
+      "reference": {
+        "cohort": "p-queue/optimized-observed",
+        "patch": "delete-pair-1-terse.patch",
+        "patchHash": "ddaee34b84890e6d57ff7ea936a2d34614cf6ac06d3702518f33f6bd2328d47e"
+      }
+    },
+    {
+      "taskId": "refactor",
+      "supportedBaseline": true,
+      "initial": {
+        "passed": false,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 550,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 1,
+            "error": null,
+            "passed": false,
+            "elapsedMs": 663,
+            "logHash": "ed6d23c708e6eb94030a81d8f59d5a752d6a185c0f6005ffd77a1f3940a2c7e4",
+            "testCounts": {
+              "tests": 4,
+              "pass": 2,
+              "fail": 2,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 6424,
+            "logHash": "121b567e53467f3c7da1e3c8b4653b9dca0d02a6ff99df3070c5ccb189f22576",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 2,
+            "error": null,
+            "passed": false,
+            "elapsedMs": 536,
+            "logHash": "2879e7b94ac84f4fd20cb893c92842650d7d815ccd9a6477dc84382e98847f71"
+          }
+        }
+      },
+      "referencePass": true,
+      "reference": {
+        "cohort": "p-queue/optimized-observed",
+        "patch": "refactor-pair-1-terse.patch",
+        "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48"
+      }
+    }
+  ],
+  "criteria": "Cold fresh sessions receive only ordinary development requirements. The host installs the released skill but does not begin, retrieve, decide, edit source, remind or repair. Workflow ordering and full final verification need observed evidence; behavior and source review are separate.",
+  "runtime": {
+    "node": "v24.20.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "results": [
+    {
+      "artifactId": "modify-session-1",
+      "taskId": "modify",
+      "repetition": 1,
+      "baselineHash": "84457b602ed79a6358c01c5c19bf69515d4b0f3854602d03b2a1e71d963353cb",
+      "snapshotHash": "fd40606a7ffc495fc2f24f2a70eec1a069ce8f0b875044e78c174491cd6ee5ab",
+      "editable": [
+        "source/index.ts",
+        "source/options.ts",
+        "readme.md"
+      ],
+      "initialScopeHash": "28dcde3f2a41d4e89c8cab58cbd6dc0317796d1b97fef5d04d1a8bc9873dee87",
+      "finalScopeHash": "9325f748cb5a15fa34ee72928d69ff6fa457a10e8274919665c08f0ca7cfbef0",
+      "acceptanceHash": "ee8bf49bd38405ff15d9b2c31ed4e18ffcd3ec8fdcb8239bbfa03a6bcd6d6d17",
+      "promptHash": "749d02650da2813e4a3a5732cdd40aaad1df88aa698138f174dee0dc3f68a327",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 659,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 405,
+            "logHash": "c1d41cbbe468fd881bb65ea41ccb639256f52c70c3ab79347215e402cf663edb",
+            "testCounts": {
+              "tests": 5,
+              "pass": 5,
+              "fail": 0,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 6012,
+            "logHash": "77d4ba90f440ee28bbaed0b06cd663fc55846e96420fa96223aa1afc15525367",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 527,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          }
+        }
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "--import=tsx/esm",
+            "--test",
+            "acceptance/modify.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/ava/entrypoints/cli.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--strict",
+            "--skipLibCheck",
+            "--module",
+            "NodeNext",
+            "--target",
+            "ES2022",
+            "--esModuleInterop",
+            "acceptance/modify-types.mts"
+          ],
+          "timeoutMs": 120000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793953540248-9931666e-d9f8-4123-9148-82ca72e709da",
+          "firstEditSequence": 14,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": 11,
+          "finalCheckSequence": 19
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "readme.md",
+        "source/index.ts",
+        "source/options.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 291284,
+          "cached_input_tokens": 256384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2489,
+          "reasoning_output_tokens": 243
+        },
+        "commandCount": 12,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_8",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_11",
+              "responseIndex": 0,
+              "baselineHash": "84457b602ed79a6358c01c5c19bf69515d4b0f3854602d03b2a1e71d963353cb",
+              "snapshotHash": "fd40606a7ffc495fc2f24f2a70eec1a069ce8f0b875044e78c174491cd6ee5ab",
+              "status": "fail",
+              "verification": [
+                "passed",
+                "failed",
+                "failed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_12",
+              "responseIndex": 0,
+              "baselineHash": "84457b602ed79a6358c01c5c19bf69515d4b0f3854602d03b2a1e71d963353cb",
+              "snapshotHash": "fd40606a7ffc495fc2f24f2a70eec1a069ce8f0b875044e78c174491cd6ee5ab",
+              "status": "pass",
+              "verification": [
+                "passed",
+                "passed",
+                "passed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 120858,
+      "evidence": {
+        "patchHash": "fb9a0eb02b04c0bf41c7a093e24159a6bf55734fc36518213bd4a255c3f5ae20",
+        "eventHash": "e9a8c1470644dea7b4bebd48cfee24ac721e6f206724f603cb46f8e16a48f92f",
+        "promptHash": "749d02650da2813e4a3a5732cdd40aaad1df88aa698138f174dee0dc3f68a327",
+        "observationsHash": "1e6e8dcfb04c717e6273d120cb95e223884b18c854923f53bf73a733c6a5db73",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "5ecd1e2f4e69e19fed33ffc05062f717cc3aa709dbfbd9199d37e275d8b814eb"
+      },
+      "patch": "modify-session-1.implementation.patch",
+      "observations": "modify-session-1.observations.json",
+      "analysis": "modify-session-1.analysis.json"
+    },
+    {
+      "artifactId": "delete-session-1",
+      "taskId": "delete",
+      "repetition": 1,
+      "baselineHash": "7dcf9d2e69fb611bbf46901a7411e23d84353a10302ed659ad7041da32ee164a",
+      "snapshotHash": "dbaa4025336863f0684cb34ce9156cbaee124af8103a0cfe294c4a85cc08adfa",
+      "editable": [
+        "source/priority-queue.ts",
+        "source/lower-bound.ts"
+      ],
+      "initialScopeHash": "e121fbc080592dd995142d83b1f556d4ff92993f0ac5b7883f72f621603591b6",
+      "finalScopeHash": "e484163aca86cd0ff288d6256991dafe13a0e125683dbec55cc03f0e222b2d8f",
+      "acceptanceHash": "f1761c7dc3de4344c2374f248fb97a6d49ce5d1bf570409ba08f649594351a8e",
+      "promptHash": "8d9ee6d3fd28d9245b1c4e03dfd856ae0dfacb3bd2f53048065921cea6473e47",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 515,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 407,
+            "logHash": "92c42b9c06cc2d7bffb67d1c2f9e14b7a116d7ae052d439baedb62ea3f6eb118",
+            "testCounts": {
+              "tests": 4,
+              "pass": 4,
+              "fail": 0,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 5894,
+            "logHash": "6bcb64c75fd78d465bb18caeed733bc3fcbb836f9cb3d3b60e7fb910441cc4ed",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 523,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          }
+        }
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "--import=tsx/esm",
+            "--test",
+            "acceptance/delete.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/ava/entrypoints/cli.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--strict",
+            "--skipLibCheck",
+            "--module",
+            "NodeNext",
+            "--target",
+            "ES2022",
+            "--esModuleInterop",
+            "acceptance/delete-types.mts"
+          ],
+          "timeoutMs": 120000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793953678351-cfce76cf-f6c0-4383-89e6-7d87df8e1db7",
+          "firstEditSequence": 10,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": 9,
+          "finalCheckSequence": 15
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "source/lower-bound.ts",
+        "source/priority-queue.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 184571,
+          "cached_input_tokens": 158720,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1304,
+          "reasoning_output_tokens": 99
+        },
+        "commandCount": 8,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_8",
+              "responseIndex": 0,
+              "baselineHash": "7dcf9d2e69fb611bbf46901a7411e23d84353a10302ed659ad7041da32ee164a",
+              "snapshotHash": "dbaa4025336863f0684cb34ce9156cbaee124af8103a0cfe294c4a85cc08adfa",
+              "status": "fail",
+              "verification": [
+                "passed",
+                "failed",
+                "failed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_10",
+              "responseIndex": 0,
+              "baselineHash": "7dcf9d2e69fb611bbf46901a7411e23d84353a10302ed659ad7041da32ee164a",
+              "snapshotHash": "dbaa4025336863f0684cb34ce9156cbaee124af8103a0cfe294c4a85cc08adfa",
+              "status": "pass",
+              "verification": [
+                "passed",
+                "passed",
+                "passed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 93768,
+      "evidence": {
+        "patchHash": "7fca2361ae3545ba326f9da2c12b4e01594746d8133a841ddebefac3594eaece",
+        "eventHash": "ee64581b2bc65d2a6f73eb0866f8676d1eaef52d6b1715c6f847c692db044951",
+        "promptHash": "8d9ee6d3fd28d9245b1c4e03dfd856ae0dfacb3bd2f53048065921cea6473e47",
+        "observationsHash": "f664b13a6e7e7272f0fca499a182920739ac94407ca71981caaa67b8b6319e47",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "b41b721602d01f97d9606de307eaa0bca8cb40ae75d8b117c93f10c699c93c97"
+      },
+      "patch": "delete-session-1.implementation.patch",
+      "observations": "delete-session-1.observations.json",
+      "analysis": "delete-session-1.analysis.json"
+    },
+    {
+      "artifactId": "refactor-session-1",
+      "taskId": "refactor",
+      "repetition": 1,
+      "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+      "snapshotHash": "f03018647ce2c4f493944d209b0b91cb7d99bf282fd42e835f326d2454b439a2",
+      "editable": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "initialScopeHash": "3ed3d1712ff173a0b46d8a8cfb478f436cb38494cc1a22ffd16d4439299ef7dc",
+      "finalScopeHash": "d19ea92ada6db3b28e1b8fbe9227f931fa5de9a21895effae72c2f922d345194",
+      "acceptanceHash": "e3c461f55a5e4ae3982659fd3f80e47cc9a66b1942df18b6b5c2308b0961ae5c",
+      "promptHash": "935d7c2aad03a26047a518e43e1a8fec951517a2bf861133f727ff2834a56b75",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 584,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 443,
+            "logHash": "a9d4da829f96cd3aaef98527f7db38d32fcabb123f380efe7b23ed59f473008b",
+            "testCounts": {
+              "tests": 4,
+              "pass": 4,
+              "fail": 0,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 5270,
+            "logHash": "19cfdf9ee5d7b2026c071b3e857ca4f58138c7081756a0b8f7ead3dae04c9bc6",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 539,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          }
+        }
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "--import=tsx/esm",
+            "--test",
+            "acceptance/refactor.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/ava/entrypoints/cli.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--strict",
+            "--skipLibCheck",
+            "--module",
+            "NodeNext",
+            "--target",
+            "ES2022",
+            "--esModuleInterop",
+            "acceptance/refactor-types.mts"
+          ],
+          "timeoutMs": 120000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": false,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": false,
+        "evidence": {
+          "run": "1793953784278-a90d6fb5-5a8c-48e2-a6ee-6c0b95e11243",
+          "firstEditSequence": 12,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": null,
+          "finalCheckSequence": 25
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [
+        {
+          "rule": "REMOVAL_REFERENCE_UNCERTAIN",
+          "severity": "review",
+          "message": "Member removal requires reviewing instance and computed property accesses.",
+          "locations": [
+            {
+              "path": "source/index.ts",
+              "symbol": "PQueue.#onEvent"
+            }
+          ]
+        }
+      ],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 410002,
+          "cached_input_tokens": 366208,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2371,
+          "reasoning_output_tokens": 321
+        },
+        "commandCount": 13,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_8",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_10",
+              "responseIndex": 0,
+              "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+              "snapshotHash": "5accae84dbf602d0d7b8b8be099c166c6eeb04127fda0f7414d594135f14731a",
+              "status": "fail",
+              "verification": [
+                "failed",
+                "failed",
+                "failed",
+                "failed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_12",
+              "responseIndex": 0,
+              "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+              "snapshotHash": "a6e55133129f09d81382d6867c29d14094ec04dc0714778375866e3ec8456694",
+              "status": "fail",
+              "verification": [
+                "failed",
+                "failed",
+                "failed",
+                "failed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_15",
+              "responseIndex": 0,
+              "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+              "snapshotHash": "f03018647ce2c4f493944d209b0b91cb7d99bf282fd42e835f326d2454b439a2",
+              "status": "pass",
+              "verification": [
+                "passed",
+                "passed",
+                "passed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 129390,
+      "evidence": {
+        "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+        "eventHash": "23e6f3994daaefa836b2635204777e3511c752f1b35c990ef50f531c82ba557b",
+        "promptHash": "935d7c2aad03a26047a518e43e1a8fec951517a2bf861133f727ff2834a56b75",
+        "observationsHash": "c785e9f2cd59f038888367da4116a31922779b3f0bc521d0e617d74928ade4ab",
+        "analysisHash": "fecae587af9ac55cfa2d08bbff6d653c16d0d401149436d76c1384862f797081",
+        "initializationHash": "857f1bb43ed706c038171ea52ff79a4cde450c9fc1da82642a87e56b3f67916b"
+      },
+      "patch": "refactor-session-1.implementation.patch",
+      "observations": "refactor-session-1.observations.json",
+      "analysis": "refactor-session-1.analysis.json"
+    },
+    {
+      "artifactId": "modify-session-2",
+      "taskId": "modify",
+      "repetition": 2,
+      "baselineHash": "84457b602ed79a6358c01c5c19bf69515d4b0f3854602d03b2a1e71d963353cb",
+      "snapshotHash": "48f8487c3b3995570739340dcc14f9320c2900359c7d10acd6c62915080012a3",
+      "editable": [
+        "source/index.ts",
+        "source/options.ts",
+        "readme.md"
+      ],
+      "initialScopeHash": "28dcde3f2a41d4e89c8cab58cbd6dc0317796d1b97fef5d04d1a8bc9873dee87",
+      "finalScopeHash": "c1b1b84ade5eac3e14a42899d23e560b4ce1b050419c7e163b0e3bb2066950e6",
+      "acceptanceHash": "ee8bf49bd38405ff15d9b2c31ed4e18ffcd3ec8fdcb8239bbfa03a6bcd6d6d17",
+      "promptHash": "749d02650da2813e4a3a5732cdd40aaad1df88aa698138f174dee0dc3f68a327",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 586,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 398,
+            "logHash": "092e296eedd818d4ca4805386733cdebd68044062e902e2559fc4ff132cf22be",
+            "testCounts": {
+              "tests": 5,
+              "pass": 5,
+              "fail": 0,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 5968,
+            "logHash": "5fb014deb046f8f2be235fd866eea24ca895f63bd76112ee4c962e74a06f7a46",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 534,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          }
+        }
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "--import=tsx/esm",
+            "--test",
+            "acceptance/modify.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/ava/entrypoints/cli.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--strict",
+            "--skipLibCheck",
+            "--module",
+            "NodeNext",
+            "--target",
+            "ES2022",
+            "--esModuleInterop",
+            "acceptance/modify-types.mts"
+          ],
+          "timeoutMs": 120000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793953915474-3b7280f7-899a-462e-9655-17f540d04cac",
+          "firstEditSequence": 12,
+          "beginSequence": 5,
+          "retrievalSequence": 5,
+          "decisionSequence": 11,
+          "finalCheckSequence": 19
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "readme.md",
+        "source/index.ts",
+        "source/options.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 737430,
+          "cached_input_tokens": 692352,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3581,
+          "reasoning_output_tokens": 270
+        },
+        "commandCount": 17,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_8",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_11",
+              "responseIndex": 0,
+              "baselineHash": "84457b602ed79a6358c01c5c19bf69515d4b0f3854602d03b2a1e71d963353cb",
+              "snapshotHash": "48f8487c3b3995570739340dcc14f9320c2900359c7d10acd6c62915080012a3",
+              "status": "fail",
+              "verification": [
+                "passed",
+                "failed",
+                "failed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_12",
+              "responseIndex": 0,
+              "baselineHash": "84457b602ed79a6358c01c5c19bf69515d4b0f3854602d03b2a1e71d963353cb",
+              "snapshotHash": "48f8487c3b3995570739340dcc14f9320c2900359c7d10acd6c62915080012a3",
+              "status": "pass",
+              "verification": [
+                "passed",
+                "passed",
+                "passed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 211578,
+      "evidence": {
+        "patchHash": "d272295745b0dd99c4872e64caf7870ebe90572fbf19d2a1b7c27d666f5914fc",
+        "eventHash": "0d6820054aa8e54e02f553144ab765c25368bea964328a454183a43cb16b8692",
+        "promptHash": "749d02650da2813e4a3a5732cdd40aaad1df88aa698138f174dee0dc3f68a327",
+        "observationsHash": "c609c63a22dbad99e5af9b6cd56f5e4a9443feade6acdfee2784945600051ecd",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "f6dc9525352fe6cea53590a1fac07d0829bab580cadc5c0ac9c7761542ae51ec"
+      },
+      "patch": "modify-session-2.implementation.patch",
+      "observations": "modify-session-2.observations.json",
+      "analysis": "modify-session-2.analysis.json"
+    },
+    {
+      "artifactId": "delete-session-2",
+      "taskId": "delete",
+      "repetition": 2,
+      "baselineHash": "7dcf9d2e69fb611bbf46901a7411e23d84353a10302ed659ad7041da32ee164a",
+      "snapshotHash": "5c251c901cd2c220395e839f8b516612665001cbf48786c52fed29cbfcb5be8f",
+      "editable": [
+        "source/priority-queue.ts",
+        "source/lower-bound.ts"
+      ],
+      "initialScopeHash": "e121fbc080592dd995142d83b1f556d4ff92993f0ac5b7883f72f621603591b6",
+      "finalScopeHash": "0e0a750201c2db499a789ae0cd985ae1f2ce9ac301c17054f1883fc866a207be",
+      "acceptanceHash": "f1761c7dc3de4344c2374f248fb97a6d49ce5d1bf570409ba08f649594351a8e",
+      "promptHash": "8d9ee6d3fd28d9245b1c4e03dfd856ae0dfacb3bd2f53048065921cea6473e47",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 535,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 423,
+            "logHash": "f1bbc4e4065c4144b5be5cd6e8c3c809b59e8237c722132fbd66feec0bb6b287",
+            "testCounts": {
+              "tests": 4,
+              "pass": 4,
+              "fail": 0,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 5916,
+            "logHash": "0c35fdc8bcf4fc04cdb50336a63592c99ceb9257f4d284d5cd7d0d28eca8e087",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 504,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          }
+        }
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "--import=tsx/esm",
+            "--test",
+            "acceptance/delete.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/ava/entrypoints/cli.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--strict",
+            "--skipLibCheck",
+            "--module",
+            "NodeNext",
+            "--target",
+            "ES2022",
+            "--esModuleInterop",
+            "acceptance/delete-types.mts"
+          ],
+          "timeoutMs": 120000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793954137900-a70f6be6-6cf7-4fad-ba4f-04837848a4a5",
+          "firstEditSequence": 8,
+          "beginSequence": 5,
+          "retrievalSequence": 5,
+          "decisionSequence": 7,
+          "finalCheckSequence": 13
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "source/lower-bound.ts",
+        "source/priority-queue.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 181058,
+          "cached_input_tokens": 156800,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1259,
+          "reasoning_output_tokens": 60
+        },
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_7",
+              "responseIndex": 0,
+              "baselineHash": "7dcf9d2e69fb611bbf46901a7411e23d84353a10302ed659ad7041da32ee164a",
+              "snapshotHash": "5c251c901cd2c220395e839f8b516612665001cbf48786c52fed29cbfcb5be8f",
+              "status": "fail",
+              "verification": [
+                "passed",
+                "failed",
+                "failed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "7dcf9d2e69fb611bbf46901a7411e23d84353a10302ed659ad7041da32ee164a",
+              "snapshotHash": "5c251c901cd2c220395e839f8b516612665001cbf48786c52fed29cbfcb5be8f",
+              "status": "pass",
+              "verification": [
+                "passed",
+                "passed",
+                "passed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 80206,
+      "evidence": {
+        "patchHash": "dace339f13cc036b68637c23584afde1a4bd21f841f503b58ee241c8bfd062f7",
+        "eventHash": "d6dcc9c2134157670ac2a6d99c6f79b375ef759c66e24079e0612ca7a18e18c7",
+        "promptHash": "8d9ee6d3fd28d9245b1c4e03dfd856ae0dfacb3bd2f53048065921cea6473e47",
+        "observationsHash": "9dc3d35602ed8a8ef7801b936535fc36a505089b910647d686414de4f8468f13",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "b941a4811c21473089ec235397dd6c263609d5fa6142c9b3526d67bb4914729e"
+      },
+      "patch": "delete-session-2.implementation.patch",
+      "observations": "delete-session-2.observations.json",
+      "analysis": "delete-session-2.analysis.json"
+    },
+    {
+      "artifactId": "refactor-session-2",
+      "taskId": "refactor",
+      "repetition": 2,
+      "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+      "snapshotHash": "f03018647ce2c4f493944d209b0b91cb7d99bf282fd42e835f326d2454b439a2",
+      "editable": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "initialScopeHash": "3ed3d1712ff173a0b46d8a8cfb478f436cb38494cc1a22ffd16d4439299ef7dc",
+      "finalScopeHash": "d19ea92ada6db3b28e1b8fbe9227f931fa5de9a21895effae72c2f922d345194",
+      "acceptanceHash": "e3c461f55a5e4ae3982659fd3f80e47cc9a66b1942df18b6b5c2308b0961ae5c",
+      "promptHash": "935d7c2aad03a26047a518e43e1a8fec951517a2bf861133f727ff2834a56b75",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "checks": {
+          "build": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 529,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          },
+          "acceptance": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 396,
+            "logHash": "f39e84fd569dedbef033a45854af534d2708f7d44db17af9d50fa34d6bb0f6cd",
+            "testCounts": {
+              "tests": 4,
+              "pass": 4,
+              "fail": 0,
+              "cancelled": 0
+            }
+          },
+          "upstream": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 5568,
+            "logHash": "326802d82593893dbd8666f14980b69cdbefbbac31384ad47ff3697b8ff03653",
+            "counts": {
+              "passed": 45,
+              "knownFailures": 2
+            }
+          },
+          "types": {
+            "exitCode": 0,
+            "error": null,
+            "passed": true,
+            "elapsedMs": 526,
+            "logHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+          }
+        }
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "--import=tsx/esm",
+            "--test",
+            "acceptance/refactor.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/ava/entrypoints/cli.mjs"
+          ],
+          "timeoutMs": 120000
+        },
+        {
+          "command": "node",
+          "args": [
+            "node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--strict",
+            "--skipLibCheck",
+            "--module",
+            "NodeNext",
+            "--target",
+            "ES2022",
+            "--esModuleInterop",
+            "acceptance/refactor-types.mts"
+          ],
+          "timeoutMs": 120000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": false,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": false,
+        "evidence": {
+          "run": "1793954237954-edfe7872-3226-4cc6-8c6c-a8e5d3eb1bbd",
+          "firstEditSequence": 10,
+          "beginSequence": 5,
+          "retrievalSequence": 5,
+          "decisionSequence": null,
+          "finalCheckSequence": 23
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "source/index.ts",
+        "source/wait-for-event.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [
+        {
+          "rule": "REMOVAL_REFERENCE_UNCERTAIN",
+          "severity": "review",
+          "message": "Member removal requires reviewing instance and computed property accesses.",
+          "locations": [
+            {
+              "path": "source/index.ts",
+              "symbol": "PQueue.#onEvent"
+            }
+          ]
+        }
+      ],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 356238,
+          "cached_input_tokens": 312320,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2025,
+          "reasoning_output_tokens": 208
+        },
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_7",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+              "snapshotHash": "5accae84dbf602d0d7b8b8be099c166c6eeb04127fda0f7414d594135f14731a",
+              "status": "fail",
+              "verification": [
+                "failed",
+                "failed",
+                "failed",
+                "failed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_12",
+              "responseIndex": 0,
+              "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+              "snapshotHash": "a6e55133129f09d81382d6867c29d14094ec04dc0714778375866e3ec8456694",
+              "status": "fail",
+              "verification": [
+                "failed",
+                "passed",
+                "passed",
+                "failed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                },
+                {
+                  "rule": "VERIFICATION_FAILED",
+                  "severity": "fail",
+                  "locations": []
+                }
+              ]
+            },
+            {
+              "itemId": "item_14",
+              "responseIndex": 0,
+              "baselineHash": "e64682b337215a5427a91528abf648c244b6660ccf0b4998e1f6629caedc03cd",
+              "snapshotHash": "f03018647ce2c4f493944d209b0b91cb7d99bf282fd42e835f326d2454b439a2",
+              "status": "pass",
+              "verification": [
+                "passed",
+                "passed",
+                "passed",
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 113676,
+      "evidence": {
+        "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+        "eventHash": "3fd93fdfcde195f743af0f8f6087c61e15351f872e99c2e34a6d26aa72eaa409",
+        "promptHash": "935d7c2aad03a26047a518e43e1a8fec951517a2bf861133f727ff2834a56b75",
+        "observationsHash": "d01a8c44dc2b53e1b2878726ae4b43006bc86001720985268709942660c9d27f",
+        "analysisHash": "fecae587af9ac55cfa2d08bbff6d653c16d0d401149436d76c1384862f797081",
+        "initializationHash": "3845588a3b50c2fcc79b8199b9a976ed13b280b4ce99aec5a35b72e9f64529a6"
+      },
+      "patch": "refactor-session-2.implementation.patch",
+      "observations": "refactor-session-2.observations.json",
+      "analysis": "refactor-session-2.analysis.json"
+    }
+  ],
+  "summary": {
+    "sessions": 6,
+    "protocolValid": 6,
+    "behaviorCorrect": 6,
+    "skillReadObserved": 6,
+    "beginBeforeEdit": 6,
+    "retrievalBeforeEdit": 6,
+    "decisionBeforeEdit": 4,
+    "fullFinalCheck": 6,
+    "workflowCompleted": 4,
+    "duplicateFree": 6,
+    "cleanupComplete": 6,
+    "functional": 6,
+    "workflowAndFunctional": 4
+  },
+  "fixtureCanonicalHashes": {
+    "benchmarks/p-queue/LICENSE": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3",
+    "benchmarks/p-queue/delete-types.mts": "49bcc06ea4969d40579d4535c4c66048a943b50d569a5fd2966c650bbf5d5e81",
+    "benchmarks/p-queue/delete.md": "1f2629e519a7581c74736ef93c3172da86de9e0213bf3db5b7980f83234d81ae",
+    "benchmarks/p-queue/delete.mjs": "1066b96a0d533d37205a2d0b279eca6f383747f89bc264c88ee1193630d33e14",
+    "benchmarks/p-queue/modify-types.mts": "127eba1d001dcd6ee753afd74ad054681767921f368b1c8f9683664aac059ef6",
+    "benchmarks/p-queue/modify.md": "c78e19afbefc0fc396e6893cc4e61ec55057d5b7f46c585465d54c38d0bd58a8",
+    "benchmarks/p-queue/modify.mjs": "05192e1e7272b80541d98fd97a76266d2a71b9fa66df2cb27498f2365cbc454e",
+    "benchmarks/p-queue/project.json": "59eadf74816cdd79a6a62a7d13a9031f197a40d2b779867a9c20954552d6f75c",
+    "benchmarks/p-queue/refactor-types.mts": "5b0cecb10e3f856ebe5c8ab7cd3f4cc6d65be5f522b2a1a8d56d844dedaea780",
+    "benchmarks/p-queue/refactor.md": "671dcd67f11169ee8585122796ba64f9ab25c68f546f098f28a5d065129871eb",
+    "benchmarks/p-queue/refactor.mjs": "b093bd34797d9c5dfaf45ac48f94ca0614219f95e1d8485632d53150bd942cd8",
+    "benchmarks/p-queue/support.mjs": "91c4676ce70f5d5560d1032e8dc673b0a7fd6cb7d175d82e6d1bfb65058b0533",
+    "dist/analyze.js": "4fcc548e8e9789d38a06b201b950b10099ab0f04b22a15f604e2c9d6b7a6176a",
+    "dist/check.js": "374779d5ea9a5294a72d7aa4ec9bab2c26cbc34b2c51a56cf46826e054ce859b",
+    "dist/cleanup.js": "176e6fec7ea0f62609bc31047cba8b1c6f23e970ec01d4bb610833de1d485fba",
+    "dist/cli.js": "f463802ef7c27a7ddef9bbdddc76b0534e9ed3fa481aec2e7733ce730261beb3",
+    "dist/decision.js": "0f8098306a657ead815c74e6ee49391478864d810a5a8a9418ea242d2dc351b0",
+    "dist/imports.js": "8447d8ad027eca2ffed9d0c45611c0e127e92d8f577fa26c2134d232a7113544",
+    "dist/init.js": "12389118531b4829890f435a43e903ffdf19e1ea96a38f0819a213bf6863fb30",
+    "dist/output.js": "7d6ce0e5338a96dc53d95ae708dbabc0738928af40e95372f8aff906feacc0c3",
+    "dist/project.js": "0e57afedbbe536075a94076bed633d7bb78e3895e72ea6172ff171617aab79c7",
+    "dist/similarity.js": "87f8f5448c2e27355ea5462b9a93d41db6b8491f050ed02701521360de752f84",
+    "dist/types.js": "a517c6f91040080d849a9576a0922c3edceea50d286170eaeff229580acea3cd",
+    "examples/evaluation/add.test.mjs": "21f3558c85498e2cda1664c6059d44f15c5f4e9ccaea315bcdec33b172d5622e",
+    "examples/evaluation/delete.test.mjs": "1f938c6760ea432e787264f9c7ad61e8e6ec4b4e70f591bc8350f2d95d395a93",
+    "examples/evaluation/dynamic.test.mjs": "16448a1c8224d31d36da5173518ec7fa7e77ba0966b0d421d54b36068c5f5a3e",
+    "examples/evaluation/independent.test.mjs": "6f0f47f29b71945f0f9484a9bc03f34649f86687aa4968886755c496a4d70e12",
+    "examples/evaluation/modify.test.mjs": "ee0d94f72c37ce9c6852247e059b3c20d99b6f12690ccdd662e193e99a7ba16b",
+    "examples/evaluation/refactor.test.mjs": "8c4cc878c8f2b87450bc5553259c926aed5c9342d877fb02c69e0f0ce7ba9bf6",
+    "examples/evaluation/routes.test.mjs": "46f0710035255a828574a5629984e16d44737b29e92372e29f360ad79d5735a4",
+    "examples/evaluation/routes.ts": "39e4c939c2fea4def1db055ea072923d2e3e93479755586d3ef40feff3e462c7",
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "package-lock.json": "afdc6f06c001d11e8f42223e159ad00270671f74baa12986a35c1feb22d379d6",
+    "package.json": "a3662cbe7611bfafecbca2959a053ae3b659ef723153f341ceab682a2b318d3b",
+    "scripts/benchmark-skill.mjs": "a9999a6146e085903e734e2be4a64af6d6f85a9878461b05cf019de473f2d5a5",
+    "scripts/evaluation-cases.mjs": "99ee5ca53de9bd0e7ac909df901e4fb7897f065182d99c18367aeef02291dc7d",
+    "scripts/export-skill-benchmark.mjs": "d1b6c03ed2f997f14b7383579e7d421beb42cce0963ef0b849c9d1175714d367",
+    "scripts/lib/agent-events.mjs": "2d888a9f2e1bf0ee54ed5ec4153fb6f7f3ffc220da22b32a040b4903ac1a1737",
+    "scripts/lib/agent-runner.mjs": "dfc98ca478b0799da7c9694e5da57ce18ae47d5c3f137f48102c968e38bc57c8",
+    "scripts/lib/benchmark-project.mjs": "c44435bbad26b039b939375b195147806d0613ae78fb0ce8f9eacfea1c0209d4",
+    "scripts/lib/evaluation-project.mjs": "886c45d74a0143332be14b128bb269653f961477b5fd05c9ae4449d3849ae70f",
+    "scripts/lib/open-source-project.mjs": "9444ac28eca894b7df84dc8ffaa460b86ddb3974b4e6bd2d9f97dec80c26cf15",
+    "scripts/lib/pqueue-skill.mjs": "bb50419e6f3555b7269210a9d1e75a4883206f08bfe2771cc9f3c5aa5913ff15",
+    "scripts/lib/skill-evidence.mjs": "4a84cdc1c33a1397e85fd093c38d98c1945f8d9ec221f6d86d6a7b031c52d962",
+    "scripts/lib/workspace.mjs": "7c06afb329304777ed7e0141d71a56dd01970cac552148e74c28ed8317d0bcba",
+    "scripts/skill-cases.mjs": "85ae14fd4be5fe80de1016b9a558acc5ced755c549c5fb79eb4baaf721535e04",
+    "skills/terse/SKILL.md": "9f8355731ef5d0ef5e5bed80238f36e54a6f3f48a5f4a5879bbf22ddcb4b734f",
+    "skills/terse/agents/openai.yaml": "8619a54e8c098122a7f3881394f84ca89b684366e848233a29ad18b6ec363935",
+    "skills/terse/scripts/run.mjs": "1dafe783234e30ead765ea649ef078e98b4e3d57302750b96a2c89e4ca9091b7",
+    "src/analyze.ts": "3e664c742f3a8b90093d216acbcb790f7260ce99142fba8818515d2b412d6670",
+    "src/check.ts": "be5d5795d19b0379e23b3153d533604cba5d97ef0b4e5be682eba8dbb95b0fbc",
+    "src/cleanup.ts": "2dce93c27b60f3d2003554a6f6115e9d3618441dc02a9a4bf4bc4297f828829b",
+    "src/cli.ts": "18b6431cf057db7b9eca8b930c0a49e2553fc58ea42b775e7cf9e6a4984531fc",
+    "src/decision.ts": "67eae29bf1a0ef41f5dce48813de8c24df405b7349e21a35abc563c7d5479110",
+    "src/imports.ts": "bd2e256fb1ab6db4aef319b59b1fd324fed90e69fa038d2d5788893092fc5f5f",
+    "src/init.ts": "68ab3815f358a76540385ae039d94f0c19dd08c2b305ace1e3883bb1008bf97b",
+    "src/output.ts": "caa99d67b0e3392d273b5a996047fae83b1e10b754c2c8cb95899ad9f66a342a",
+    "src/project.ts": "22ed57b1709cede96898d8b66104ad97e34ee1dca45ebcf0befd6e1e0c2442f4",
+    "src/similarity.ts": "377cd3146e966aa5314fd205240bada91ccb4ed0b2608b7e9ecfa90e9daf78da",
+    "src/types.ts": "c071777c5cf47fd1f0f8f538b199c7ae6abc420bd26c7ea5e687e06e6f0fd5ca",
+    "test/pqueue-skill.test.mjs": "2a0445366b9dcd9a761e05a478eba3d9ca6ca62c6200cae92da41049ae102bc0",
+    "test/skill-agent.test.mjs": "9526aa2e778371ab903400c17788726bca870254baa607ad34bc76744e9d21ff"
+  },
+  "publication": "Raw event streams, command outputs, prompts and local initialization paths remain local, identified by SHA-256. Published patches, observations and source review are separate from automatic workflow counts. No control arm or causal improvement claim."
+}

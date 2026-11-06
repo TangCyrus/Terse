@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮以 `main` 的 `2c393a0` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20 及已合并的 M5 Skill 初始化 #22；#22 在 Windows/Linux Node 24 CI 各通过 197 项测试（含子用例）及打包预检。M6 行为验收 #21 仍独立待审；本轮 M6 Skill 真实会话评测从 main 单独开发，不合并该待审分支。后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮以 `main` 的 `97f352c` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22 和已合并的 M6 Skill 真实会话 #23；#23 在 Windows/Linux Node 24 CI 各通过 215 项测试（含子用例）及打包预检。M6 行为验收 #21 仍独立待审；本轮 p-queue Skill 接入评测从 main 单独开发，不合并该待审分支。后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -121,6 +121,12 @@ M5 新增项目接入入口 `init(root, verification?)` / `terse init [--verify 
 `npm run demo:agent` 通过安装后的启动器，完成正常订单需求的检索/决策、复制草稿的完整 check、同一基线上的复用修正及复验。复用既有工作区、CLI 调用和订单任务构造；初次与最终报告分别保留，明确是无模型调用的确定性接入示例。[init.test.mjs](test/init.test.mjs) 覆盖初始化、指令优先级、配置保留、命令及路径失败、状态传递和完整集成；Skill 模板随包发布。历史评测输入及发布文件不回填。
 
 ### M6 测试、示例与工程自动化
+
+Skill 运行器增加 --suite p-queue / --source。适配器 [pqueue-skill.mjs](scripts/lib/pqueue-skill.mjs) 复用原三类业务任务与四组验收，普通提示不携带工具指令。原 benchmark-agent 与新套件共用 [open-source-project.mjs](scripts/lib/open-source-project.mjs) 的隔离复制/等价配置准备及 verifyCommand 的执行、计数和日志哈希；每个会话有独立依赖副本。新的 editable、initialScopeHash / finalScopeHash 将阶段判定扩展到 source/ 和 README，旧观察缺省仍兼容，不回填历史。上游源文本、锁和许可随新归档保存；规则见 [p-queue Skill 评测](docs/PQUEUE-SKILL-BENCHMARK.md)，离线边界回归见 [pqueue-skill.test.mjs](test/pqueue-skill.test.mjs)。
+
+p-queue 六次真实会话已完成：行为、人工复用与清理审查各 6/6，完整工作流 4/6。两次重构漏填旧私有方法的删除声明，保留失败计分；父分析的成员引用不确定提示也原样保存，不视为实际残留。四组验证由父进程独立复验，决策格式重试为 0，但保留环境重试及重构中的类型修正。[pqueue-skill-publication.test.mjs](test/pqueue-skill-publication.test.mjs) 校验新发布的 21 个文件、冻结输入及上游锁，重算工作流并静态回放六份补丁；不调用模型或冒充再次运行上游行为测试。旧各轮发布与产品 src/、Skill 模板均未修改。
+
+审查后，带范围快照的最终 check 还要求同一命令开始、完成和区间内观察的 scopeHash 稳定，拒绝同命令 check 后改 README 的误计。缺失开始证据不能算完整检查；新一条独立完整复验可以恢复。本轮六份原始观测重算结论不变，冻结的预登记代码与发布字节均保留。
 
 Skill 冷启动评测入口为 [benchmark-skill.mjs](scripts/benchmark-skill.mjs)，复用现有订单任务、prepareEvaluation、runAgent、保护文件校验和结构分析。任务 [skill-cases.mjs](scripts/skill-cases.mjs) 只提供普通业务需求；宿主仅 init，不提供基线、候选或流程提醒。runAgent 的可选 onEvent 回调在父进程观察事件，不修改模型输入输出，既有套件默认执行方式不变。新的 [skill-evidence.mjs](scripts/lib/skill-evidence.mjs) 将阶段证据与实际磁盘快照绑定，观察不足、过期检查、补写决策及重复基线不能算完整成功。[独立发布器](scripts/export-skill-benchmark.mjs) 校验实际输入、补丁和观察哈希并另存冻结归档，保留全部会话；离线回归见 [skill-agent.test.mjs](test/skill-agent.test.mjs)，规则与结果见 [Skill 评测](docs/SKILL-AGENT-BENCHMARK.md)。
 

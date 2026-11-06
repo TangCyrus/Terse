@@ -1,0 +1,44 @@
+[
+  {
+    "artifactId": "modify-session-1",
+    "patchHash": "fb9a0eb02b04c0bf41c7a093e24159a6bf55734fc36518213bd4a255c3f5ae20",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Extends the existing #onEvent helper with AbortSignal handling and a shared settled/cleanup path. onEmpty/onIdle retain their fast paths, reject pre-aborted waits, and delegate to the same helper; WaitOptions and README describe the API. No second wait implementation or stale listener path remains."
+  },
+  {
+    "artifactId": "delete-session-1",
+    "patchHash": "7fca2361ae3545ba326f9da2c12b4e01594746d8133a841ddebefac3594eaece",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Removes lower-bound.ts and its import completely. The existing enqueue method owns the binary insertion search, keeps its append fast path and advances after equal priorities for stable FIFO. No retired helper or replacement module is left behind."
+  },
+  {
+    "artifactId": "refactor-session-1",
+    "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Removes #onEvent and all three private calls; public waiters delegate to the single new waitForEvent helper while retaining fast paths and the size filter. Runtime/type acceptance passes and no obsolete body or caller remains. The parent analysis conservatively requests member-reference review; the actual cleanup is complete, although decision.remove omitted the required declaration, so strict workflow fails."
+  },
+  {
+    "artifactId": "modify-session-2",
+    "patchHash": "d272295745b0dd99c4872e64caf7870ebe90572fbf19d2a1b7c27d666f5914fc",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Extends the original #onEvent helper with shared cleanup for its queue and abort listeners. Both public waits forward optional signals after their pre-abort guard, retaining the existing fast paths and filter. Options and README are updated without a parallel wait implementation."
+  },
+  {
+    "artifactId": "delete-session-2",
+    "patchHash": "dace339f13cc036b68637c23584afde1a4bd21f841f503b58ee241c8bfd062f7",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Deletes the old lower-bound module and import, and folds logarithmic binary insertion directly into existing enqueue. It inserts after equal priorities and preserves the fast append, filter and dequeue paths; there is one insertion implementation."
+  },
+  {
+    "artifactId": "refactor-session-2",
+    "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "The independently reviewed patch removes the entire private #onEvent implementation and redirects all three waiters to one reusable EventEmitter3 helper. Fast paths, filtered events and listener removal remain intact. The parent member-reference uncertainty is retained separately; actual source cleanup is complete, while missing decision.remove makes strict workflow fail."
+  }
+]

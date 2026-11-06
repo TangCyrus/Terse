@@ -1,3 +1,4 @@
 *.patch -text -whitespace
 *.json -text
 *.gz -text
+LICENSE -text
