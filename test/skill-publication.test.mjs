@@ -59,6 +59,9 @@ test('published Skill sessions bind frozen inputs, all observations and patch re
     assert.deepEqual(observations.map(item => item.sequence), observations.map((_, index) => index));
     assert.deepEqual(result.workflow, skillWorkflow(observations, {initialHash: result.baselineHash, finalHash: result.snapshotHash,
       verification: result.verification, removals: task.remove, traceComplete: result.events.completed && !result.observationErrors.length}));
+    // Original v1 observations predate per-command checkAttempts. Their saved
+    // raw-event measurement confirms no unobservable check was discarded.
+    if (result.workflow.completed && observations.every(item => !Object.hasOwn(item, 'checkAttempts'))) assert.equal(result.events.checks.unknownCalls, 0);
     const analysis = JSON.parse(fs.readFileSync(analysisFile, 'utf8'));
     for (const key of ['newDuplications', 'possibleDuplications', 'cleanup', 'duplicationError']) assert.deepEqual(result[key], analysis[key]);
     assert(!Object.hasOwn(result.events, 'finalMessage'));

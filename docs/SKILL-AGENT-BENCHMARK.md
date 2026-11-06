@@ -56,3 +56,5 @@ node scripts/export-skill-benchmark.mjs --input .terse/skill-agent-<id> --output
 新 [报告](../benchmarks/skill/observed/report.json)、[补丁审查](../benchmarks/skill/observed/reviews.json) 和 [冻结输入](../benchmarks/skill/fixtures/85d86793b8616af5101880d98f9045aba37f0924.json.gz) 单独保留，归档还绑定全部 20 个发布文件的 SHA-256。原始事件、提示、本机初始化路径及模型自由文本不发布；报告保留它们的字节哈希。[发布回归](../test/skill-publication.test.mjs) 复核原始输入/发布字节、重算阶段判断，并把六份补丁应用到冻结夹具，用原验收逻辑离线重放；不会据重放结果改写历史分数。旧 benchmarks/reuse 四轮观测及其归档未改变。
 
 这些结果支持“当前宿主和这三类小型任务中，#22 的项目指令 + Skill 接入可实际工作”。它不是一般触发率或相对收益估计，也没有证明 Skill 单独匹配描述就能触发、能发现所有业务边界，或能在大型项目中稳定减少冗余。本轮只验证普通需求下的真实流程完成，未观察到警告后的修正机会，不应计成新增纠错成功案例。
+
+评审后补严了最后检查的计量：成功后又出现检查错误、缺少可解析结果或检查了另一个 run，均不能继续引用旧 pass；须有随后独立观察到的完整成功检查才能恢复。新观察点增加 checkAttempts，复用既有命令解析来保留可识别但无结果的尝试；同一命令中多个检查和缺失结果按不确定处理。最初六份观察与归档保持原字节，旧事件计量确认 unknownCalls 均为零，最后结果均是有效 pass；在更严格回归下六份结果不变，没有重跑模型或改写分数。

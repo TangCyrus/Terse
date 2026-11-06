@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {snapshot, loadRun, readJson} from '../../dist/project.js';
 import {validateDecision} from '../../dist/decision.js';
-import {jsonObjects} from './agent-events.mjs';
+import {jsonObjects, checkInvocationCount} from './agent-events.mjs';
 import assert from 'node:assert/strict';
 
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -47,6 +47,7 @@ export function skillObserver(project, protectedHashes) {
     const sourceEdits = (item.changes ?? []).map(change => ({path: path.relative(project, path.resolve(project, change.path)).replaceAll('\\', '/'), kind: change.kind}));
     observations.push({sequence: observations.length, event: event.type, itemId: item.id, itemType: item.type,
       sourceHash: state.hash, runStates, responses, tampered, sourceEdits,
+      checkAttempts: event.type === 'item.completed' ? Math.max(checkInvocationCount(item.command ?? ''), responses.filter(item => item.command === 'check').length) : 0,
       skillRead: normal(commandOutput).includes(skill),
       ...(item.command ? {commandHash: hash(item.command)} : {})});
   }};
@@ -65,9 +66,15 @@ export function skillWorkflow(observations, {initialHash, finalHash, verificatio
   const retrieval = beforeEdit.find(item => item.sourceHash === initialHash && item.runStates.some(state => validRun(state) && state.retrieved));
   const decision = beforeEdit.find(item => item.sourceHash === initialHash && item.runStates.some(state => validRun(state) && state.retrieved && state.decided
     && removals.every(removal => state.remove.some(actual => actual.path === removal.path && actual.symbol === removal.symbol))));
-  const lastCheck = observations.flatMap(item => item.responses.map(response => ({sequence: item.sequence, response})))
-    .filter(({response}) => response.command === 'check' && response.outputKind === 'result' && response.run === run).at(-1);
-  const fullFinalCheck = !!lastCheck && lastCheck.response.baselineHash === initialHash && lastCheck.response.snapshotHash === finalHash
+  const lastCheck = observations.flatMap(item => {
+    const responses = item.responses.filter(response => response.command === 'check');
+    const attempts = Math.max(item.checkAttempts ?? 0, responses.length);
+    // Missing responses make a multi-call command ambiguous. A later separately
+    // observed full check can recover; an old pass cannot hide this attempt.
+    return attempts ? [{sequence: item.sequence, response: attempts > responses.length ? null : responses.at(-1)}] : [];
+  }).at(-1);
+  const fullFinalCheck = !!lastCheck?.response && lastCheck.response.outputKind === 'result' && lastCheck.response.run === run
+    && lastCheck.response.baselineHash === initialHash && lastCheck.response.snapshotHash === finalHash
     && verification.length > 0 && JSON.stringify(lastCheck.response.verification.map(item => item.command)) === JSON.stringify(verification)
     && lastCheck.response.verification.every(item => ['passed', 'failed', 'error'].includes(item.status));
   const stages = {skillReadObserved: beforeEdit.some(item => item.skillRead), singleRun,

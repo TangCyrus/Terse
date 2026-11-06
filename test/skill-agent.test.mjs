@@ -103,6 +103,29 @@ test('parent observer retains restored protection edits as invalid evidence', t 
   assert.equal(skillWorkflow(observer.observations, options).completed, false);
 });
 
+test('a final failed, missing or foreign check withholds credit until a later full success', t => {
+  const {observer, project, options, begun, checked} = observedWorkflow(t);
+  const original = structuredClone(observer.observations);
+  const instruction = `node .agents/skills/terse/scripts/run.mjs check --run ${begun.run} --summary --json`;
+  const attempts = [
+    {output: {schemaVersion: 1, command: 'check', outputKind: 'error', status: 'incomplete', exitCode: 3, errors: ['failed to load run']}, command: instruction},
+    {output: '', command: instruction},
+    {output: JSON.stringify(checked) + '\n{"schemaVersion":1', command: instruction + '; ' + instruction},
+    {output: {...checked, run: 'other-run'}, command: instruction},
+  ];
+  for (const attempt of attempts) {
+    const live = skillObserver(project, {});live.observations.push(...structuredClone(original));
+    live.observe(command('last-attempt', attempt.output, attempt.command));
+    assert.equal(skillWorkflow(live.observations, options).fullFinalCheck, false);
+    assert.equal(skillWorkflow(live.observations, options).completed, false);
+    live.observe(command('recovered', checked, instruction));
+    assert.equal(skillWorkflow(live.observations, options).completed, true);
+  }
+  const help = skillObserver(project, {});help.observations.push(...structuredClone(original));
+  help.observe(command('help', '', instruction + ' --help'));
+  assert.equal(skillWorkflow(help.observations, options).completed, true);
+});
+
 test('real transport preserves split UTF-8 JSONL and records observation errors without hiding completion', async t => {
   const parent = workspace(t), preload = path.join(parent, 'preload.mjs');
   const raw = [command('unicode', '金额验证'), {type: 'turn.completed'}].map(item => JSON.stringify(item)).join('\n') + '\n';
