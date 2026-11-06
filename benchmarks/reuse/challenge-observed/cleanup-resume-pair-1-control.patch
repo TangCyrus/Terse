@@ -1,0 +1,37 @@
+diff --git a/src/legacy.ts b/src/legacy.ts
+deleted file mode 100644
+index c5dd9c2..0000000
+--- a/src/legacy.ts
++++ /dev/null
+@@ -1,21 +0,0 @@
+-export interface Order {
+-  id: string;
+-  ownerId: string;
+-  customer: string;
+-  total: number;
+-  status: 'paid' | 'pending';
+-}
+-
+-// 订单导出：权限过滤、金额校验、CSV 转义共用同一条处理路径。
+-export function exportLegacyOrders(orders: Order[], ownerId: string): string {
+-  if (!ownerId) throw new Error('ownerId is required');
+-  const visible = orders.filter(order => order.ownerId === ownerId);
+-  const rows = visible.map(order => {
+-    if (!Number.isFinite(order.total) || order.total < 0) {
+-      throw new Error(`Invalid total for ${order.id}`);
+-    }
+-    const customer = `"${order.customer.replaceAll('"', '""')}"`;
+-    return [order.id, customer, order.total.toFixed(2), order.status].join(',');
+-  });
+-  return ['id,customer,total,status', ...rows].join('\n');
+-}
+diff --git a/src/routes.ts b/src/routes.ts
+index 4c33068..e09f194 100644
+--- a/src/routes.ts
++++ b/src/routes.ts
+@@ -1,4 +1,4 @@
+-import { exportLegacyOrders as exportOrders, type Order } from './legacy.ts';
++import { exportOrders, type Order } from './orders.ts';
+ 
+ // Application entry point: preserve the public contract while changing its implementation.
+ export function downloadOrders(orders: Order[], ownerId: string, status?: 'paid'): string {

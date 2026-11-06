@@ -1,0 +1,50 @@
+{
+  "snapshotHash": "b667479e95a138dc6962d361177085423277534e2aa982e9439bb9e41e9362bc",
+  "newDuplications": 0,
+  "possibleDuplications": 1,
+  "similarities": [
+    {
+      "rule": "POSSIBLE_DUPLICATION",
+      "severity": "review",
+      "similarity": {
+        "algorithm": "implementation-anchors/1",
+        "shared": {
+          "literals": [
+            "id,customer,total,status"
+          ],
+          "members": [
+            "customer",
+            "id",
+            "ownerId",
+            "status",
+            "total"
+          ],
+          "calls": [
+            "isFinite",
+            "toFixed"
+          ]
+        },
+        "sharedAnchors": 8,
+        "leftAnchors": 9,
+        "rightAnchors": 9,
+        "evidenceTruncated": false
+      },
+      "locations": [
+        {
+          "path": "src/orders.ts",
+          "symbol": "exportOrders",
+          "line": 10,
+          "endLine": 21
+        },
+        {
+          "path": "src/paid.ts",
+          "symbol": "exportPaidOrders",
+          "line": 2,
+          "endLine": 12
+        }
+      ],
+      "message": "These implementations newly share literal, data-member and operation anchors. Review responsibility overlap and reuse; distinct behavior or authorization may justify both. Similarity is not proof of equivalence."
+    }
+  ],
+  "cleanup": []
+}

@@ -21,7 +21,7 @@ export function summarizeEvents(text, terseCli) {
     errors: events.filter(event => event.type === 'error' || event.item?.type === 'error').map(event => event.message ?? event.item.message),
     commandCount: events.filter(event => event.type === 'item.completed' && event.item?.type === 'command_execution').length,
     finalMessage: events.filter(event => event.item?.type === 'agent_message').at(-1)?.item.text ?? null,
-    ...(terseCli ? {decisions: decisionActivity(events, terseCli, completed)} : {}) };
+    ...(terseCli ? {decisions: decisionActivity(events, terseCli, completed), checks: checkActivity(events, completed)} : {}) };
 }
 
 // Tool output may contain several pretty-printed CLI objects and shell preambles.
@@ -86,6 +86,47 @@ function decisionActivity(events, terseCli, completed) {
     retries: complete ? retries : null, unrecoveredFailure: complete ? pending : null, helpCalls, evidence: attempts};
 }
 
+function checkActivity(events, completed) {
+  const reports = [];
+  let unknownCalls = 0;
+  for (const event of events) {
+    const item = event.item;
+    if (event.type !== 'item.completed' || item?.type !== 'command_execution') continue;
+    const command = (item.command ?? '').replace(/['"]/g, '');
+    if (!/\bnode(?:\.exe)?\b/.test(command)) continue;
+    const responses = jsonObjects(item.aggregated_output ?? '').filter(value => value.schemaVersion === 1
+      && value.command === 'check' && value.outputKind === 'result');
+    const calls = [...command.matchAll(/\bcheck\s+--/g)];
+    const expected = calls.filter((call, index) => {
+      const part = command.slice(call.index, calls[index + 1]?.index);
+      return /--run\b/.test(part) && !/--(?:help|version)\b/.test(part);
+    }).length;
+    unknownCalls += Math.max(0, expected - responses.length);
+    for (const [responseIndex, response] of responses.entries()) reports.push({itemId: item.id, responseIndex,
+      baselineHash: response.baselineHash ?? null, snapshotHash: response.snapshotHash ?? null, status: response.status,
+      verification: (response.verification ?? []).map(item => item.status), errors: (response.errors ?? []).length,
+      findings: (response.findings ?? []).map(({rule, severity, locations, similarity}) => ({rule, severity, locations, ...(similarity ? {similarity} : {})}))});
+  }
+  return {complete: completed && unknownCalls === 0, unknownCalls, reports};
+}
+
+// An observed warning -> later clean check is sequence evidence, not a causal claim.
+// Parent analysis and patch review remain separate from the agent's own reports.
+export function correctionEvidence(activity, {baselineHash, startingHash, finalHash, targetRules, seeded, finalClean, verificationCount}) {
+  const reports = activity?.reports ?? [];
+  const verified = report => report.baselineHash === baselineHash && report.status !== 'incomplete' && report.errors === 0
+    && report.verification.length === verificationCount && verificationCount > 0 && report.verification.every(status => status === 'passed');
+  const first = reports.findIndex(report => verified(report) && report.findings.some(item => targetRules.includes(item.rule)));
+  const last = reports.findLastIndex(report => verified(report) && report.status === 'pass' && report.snapshotHash === finalHash
+    && !report.findings.some(item => targetRules.includes(item.rule)));
+  const checkpoint = !seeded || first >= 0 && reports[first].snapshotHash === startingHash;
+  const reference = index => index < 0 ? null : {itemId: reports[index].itemId, responseIndex: reports[index].responseIndex, snapshotHash: reports[index].snapshotHash};
+  return {targetRules, warningObserved: first >= 0, seededCheckpoint: seeded ? checkpoint : null,
+    observedCorrection: !!activity?.complete && checkpoint && first >= 0 && last > first
+      && startingHash !== finalHash && reports[first].snapshotHash !== finalHash && finalClean,
+    warning: reference(first), finalCheck: reference(last)};
+}
+
 export function pairedSummary(results) {
   const pairIds = [...new Set(results.map(result => JSON.stringify([result.taskId ?? null, result.repetition])))];
   return pairIds.map(key => {
@@ -96,6 +137,7 @@ export function pairedSummary(results) {
     const terse = results.find(result => inPair(result) && result.arm === 'terse');
     if (!control || !terse) return { ...identity, comparable: false, reason: 'Missing arm' };
     const comparable = control.protocolValid && terse.protocolValid && control.baselineHash === terse.baselineHash
+      && control.startingHash === terse.startingHash
       && typeof control.acceptanceHash === 'string' && control.acceptanceHash === terse.acceptanceHash
       && [control, terse].every(run => Number.isFinite(run.agentMs) && run.agentMs >= 0 && Number.isInteger(run.newDuplications) && run.newDuplications >= 0);
     return { ...identity, comparable,

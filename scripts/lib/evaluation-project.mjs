@@ -19,7 +19,7 @@ export function prepareEvaluation(parent, name, scenario) {
   sources.write('routes.ts', fs.readFileSync(path.join(fixtures, 'routes.ts'), 'utf8'));
   fs.copyFileSync(path.join(fixtures, 'routes.test.mjs'), path.join(project, 'test/routes.test.mjs'));
   scenario.setup?.(sources);
-  fs.copyFileSync(path.join(fixtures, `${scenario.id}.test.mjs`), path.join(project, 'test/acceptance.test.mjs'));
+  fs.copyFileSync(scenario.acceptance ? path.join(repository, scenario.acceptance) : path.join(fixtures, `${scenario.id}.test.mjs`), path.join(project, 'test/acceptance.test.mjs'));
   const config = {minTokens: 50, minLines: 5, duplicatePolicy: 'review', exclude: ['test'], verification: [
     {command: 'node', args: ['--test', 'test/orders.test.mjs', 'test/routes.test.mjs', 'test/acceptance.test.mjs'], timeoutMs: 30_000},
   ]};

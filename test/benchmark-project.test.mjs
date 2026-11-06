@@ -10,6 +10,9 @@ import {gunzipSync} from 'node:zlib';
 import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts, validateFunctionalReviews, protectedFileEvidence} from '../scripts/lib/benchmark-project.mjs';
 import {analyzeEvaluation, prepareEvaluation} from '../scripts/lib/evaluation-project.mjs';
 import {cases} from '../scripts/evaluation-cases.mjs';
+import {challenges} from '../scripts/challenge-cases.mjs';
+import {invoke} from '../scripts/lib/workspace.mjs';
+import {correctionEvidence, pairedSummary} from '../scripts/lib/agent-events.mjs';
 import {snapshot} from '../dist/project.js';
 
 function workspace(t) {
@@ -247,6 +250,118 @@ test('functional publication requires complete reviews and immutable patch bytes
   const newReport = JSON.parse(fs.readFileSync(path.join(missing, 'comparison.json'), 'utf8'));
   assert.equal(newReport.results[0].similarities, `${artifactId}.similarities.json`);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(missing, newReport.results[0].similarities), 'utf8')), []);
+  const initialPatch='inherited patch';
+  const initial={snapshotHash:'start'};
+  const initialText=JSON.stringify(initial);
+  fs.writeFileSync(path.join(parent,artifactId,'initial.patch'),initialPatch);
+  fs.writeFileSync(path.join(parent,artifactId,'initial-analysis.json'),initialText);
+  measured.results[0].initial=initial;
+  measured.results[0].evidence.initialPatchHash=createHash('sha256').update(initialPatch).digest('hex');
+  measured.results[0].evidence.initialAnalysisHash=createHash('sha256').update(initialText).digest('hex');
+  fs.writeFileSync(path.join(parent,'comparison.json'),JSON.stringify(measured));
+  const seeded=path.join(parent,'seeded');
+  publish(seeded);
+  assert.equal(fs.readFileSync(path.join(seeded,`${artifactId}.initial.patch`),'utf8'),initialPatch);
+  fs.writeFileSync(path.join(parent,artifactId,'initial.patch'),'changed');
+  const tampered=path.join(parent,'tampered-seed');
+  assert.throws(()=>publish(tampered));
+  assert(!fs.existsSync(tampered));
+});
+
+test('seeded challenges expose new problems against the original baseline and permit real checked corrections', async t => {
+  const parent=workspace(t);
+  for(const scenario of challenges.filter(item=>item.seed)) await t.test(scenario.id,async()=>{
+    const {project,sources}=prepareEvaluation(parent,scenario.id,scenario);
+    const begun=invoke(project,['begin','--task',scenario.task,'--query',scenario.task]);
+    const before=snapshot(project);
+    scenario.seed(sources);
+    const initial=await analyzeEvaluation(project,before,scenario.remove??[]);
+    assert.equal(initial.duplicationError,null);
+    assert.notEqual(initial.after.hash,before.hash);
+    if(scenario.id==='rewrite-resume') assert.equal(initial.possibleDuplications,1);
+    else assert(initial.cleanup.some(item=>item.rule==='REMOVAL_REMAINS'));
+    const candidate=begun.context.candidates.find(item=>item.path==='src/orders.ts'&&item.symbol==='exportOrders');
+    invoke(project,['decide','--run',begun.run,'--strategy','refactor','--rationale','Consolidate inherited work.',
+      '--candidate',candidate.candidateId,...(scenario.remove??[]).flatMap(item=>['--remove',item.path])]);
+    const warning=invoke(project,['check','--run',begun.run,'--summary'],scenario.id==='rewrite-resume'?2:1);
+    assert(warning.findings.some(item=>scenario.targetRules.includes(item.rule)));
+    assert(warning.verification.every(item=>item.status==='passed'));
+    if(scenario.id==='rewrite-resume') sources.write('paid.ts',"import {exportOrders,type Order} from './orders.ts';\nexport function exportPaidOrders(input:Order[],user:string) { return exportOrders(input.filter(item=>item.status==='paid'),user); }\n");
+    else sources.remove('legacy.ts');
+    assert.equal(invoke(project,['check','--run',begun.run,'--summary']).status,'pass');
+    const final=await analyzeEvaluation(project,before,scenario.remove??[]);
+    assert.equal(final.possibleDuplications,0);
+    assert.deepEqual(final.cleanup,[]);
+  });
+});
+
+test('streaming challenge exposes a behavior-correct rewrite and accepts shared formatting', async t => {
+  const scenario=challenges.find(item=>item.id==='stream-paid');
+  const {project,sources,config}=prepareEvaluation(workspace(t),'stream',scenario);
+  const before=snapshot(project);
+  sources.write('stream.ts',`import type {Order} from './orders.ts';
+export async function streamPaidOrders(input:Order[], user:string, emit:(row:string)=>Promise<void>) {
+  if (!user) throw Error('ownerId is required');
+  const selected = input.filter(item => item.ownerId === user && item.status === 'paid');
+  await emit('id,customer,total,status');
+  for (const item of selected) {
+    if (item.total < 0 || !Number.isFinite(item.total)) throw Error('Invalid total');
+    const escaped = '"' + item.customer.split('"').join('""') + '"';
+    await emit(item.id + ',' + escaped + ',' + Number(item.total).toFixed(2) + ',' + item.status);
+  }
+}`);
+  const env={...process.env}; delete env.NODE_TEST_CONTEXT;
+  const verify=()=>execFileSync(process.execPath,config.verification[0].args,{cwd:project,encoding:'utf8',env});
+  assert.match(verify(),/tests 3\b/);
+  const copied=await analyzeEvaluation(project,before,[]);
+  assert.equal(copied.newDuplications,0);
+  assert.equal(copied.possibleDuplications,1);
+  // A shared selector and row formatter owns the authorization/encoding rules.
+  sources.write('format.ts',`import type {Order} from './orders.ts';
+export const header='id,customer,total,status';
+export function owned(orders:Order[],ownerId:string) {
+  if(!ownerId) throw Error('ownerId is required');
+  return orders.filter(order=>order.ownerId===ownerId);
+}
+export function row(order:Order) {
+  if(!Number.isFinite(order.total)||order.total<0) throw Error('Invalid total');
+  const customer='"'+order.customer.replaceAll('"','""')+'"';
+  return [order.id,customer,order.total.toFixed(2),order.status].join(',');
+}`);
+  sources.write('orders.ts',sources.read('orders.ts').split('// 订单导出')[0]+`import {header,owned,row} from './format.ts';
+export function exportOrders(orders:Order[],ownerId:string) {return [header,...owned(orders,ownerId).map(row)].join('\\n');}`);
+  sources.write('stream.ts',`import type {Order} from './orders.ts';
+import {header,owned,row} from './format.ts';
+export async function streamPaidOrders(orders:Order[],ownerId:string,emit:(row:string)=>Promise<void>) {
+  const selected=owned(orders,ownerId).filter(order=>order.status==='paid');
+  await emit(header);
+  for(const order of selected) await emit(row(order));
+}`);
+  assert.match(verify(),/tests 3\b/);
+  const shared=await analyzeEvaluation(project,before,[]);
+  assert.equal(shared.newDuplications,0);
+  assert.equal(shared.possibleDuplications,0);
+});
+
+test('barrel cleanup omissions pass download behavior but remain visible to the parent analyzer', async t => {
+  const scenario=challenges.find(item=>item.id==='cleanup-indirect');
+  const {project,sources,config}=prepareEvaluation(workspace(t),'barrel',scenario);
+  const before=snapshot(project);
+  sources.write('routes.ts',sources.read('routes.ts').replace('exportLegacyOrders as exportOrders','exportOrders').replace("'./legacy.ts'","'./orders.ts'"));
+  sources.remove('legacy.ts');
+  const env={...process.env}; delete env.NODE_TEST_CONTEXT;
+  assert.match(execFileSync(process.execPath,config.verification[0].args,{cwd:project,encoding:'utf8',env}),/tests 3\b/);
+  const broken=await analyzeEvaluation(project,before,scenario.remove);
+  assert(broken.cleanup.some(item=>item.rule==='REMOVAL_REFERENCE_REMAINS'&&item.locations[0].path==='src/providers.ts'));
+  sources.write('providers.ts',"export {exportOrders as archiveExporter} from './orders.ts';\n");
+  assert.deepEqual((await analyzeEvaluation(project,before,scenario.remove)).cleanup,[]);
+});
+
+test('challenge preflight keeps inherited work passing while the streaming requirement starts unmet', () => {
+  const script=fileURLToPath(new URL('../scripts/benchmark-reuse.mjs',import.meta.url));
+  const output=JSON.parse(execFileSync(process.execPath,[script,'--codex',process.execPath,'--suite','challenge','--preflight-only'],{encoding:'utf8',timeout:60_000}));
+  assert.equal(output.preflight.length,4);
+  assert.deepEqual(output.preflight.filter(item=>!item.verification.passed).map(item=>item.taskId),['stream-paid']);
 });
 
 test('functional preflight checks all six task starts without a live model or credentials', () => {
@@ -263,18 +378,20 @@ test('functional preflight checks all six task starts without a live model or cr
   for (const task of plan.tasks) assert(!fs.existsSync(path.join(directory, `preflight-${task.id}`, 'agent.jsonl')));
 });
 
-for (const cohort of ['observed', 'optimized-observed']) test(`published functional observation ${cohort} binds every fixture, pair, patch and implementation review`, () => {
+for (const cohort of ['observed', 'optimized-observed', 'challenge-observed']) test(`published functional observation ${cohort} binds every fixture, pair, patch and implementation review`, () => {
   const directory = fileURLToPath(new URL(`../benchmarks/reuse/${cohort}/`, import.meta.url));
   const report = JSON.parse(fs.readFileSync(path.join(directory, 'comparison.json'), 'utf8'));
   const reviews = JSON.parse(fs.readFileSync(path.join(directory, 'functional-reviews.json'), 'utf8'));
   const hash = data => createHash('sha256').update(data).digest('hex');
   assert.equal(report.kind, 'controlled-agent-comparison');
-  assert.equal(report.tasks.length, 6);
-  assert.equal(report.results.length, 12);
+  const count=cohort==='challenge-observed'?4:6;
+  assert.equal(report.tasks.length, count);
+  assert.equal(report.results.length, count*2);
+  assert.deepEqual(report.pairs,pairedSummary(report.results));
   assert.deepEqual(validateFunctionalReviews(report.results, reviews), report.functionalSummary);
   assert.equal(report.reviewHash, hash(JSON.stringify(reviews)));
-  assert.equal(report.functionalSummary.control.functional, 6);
-  assert.equal(report.functionalSummary.terse.functional, 6);
+  assert.equal(report.functionalSummary.control.functional, count);
+  assert.equal(report.functionalSummary.terse.functional, count);
   // Validate the original inputs, not the evolving HEAD's task oracle or helpers.
   assert.match(report.terseRevision, /^[a-f0-9]{40}$/);
   const snapshot = JSON.parse(gunzipSync(fs.readFileSync(path.join(directory, '..', 'fixtures', `${report.terseRevision}.json.gz`))).toString('utf8'));
@@ -295,12 +412,26 @@ for (const cohort of ['observed', 'optimized-observed']) test(`published functio
     assert.equal(hash(fs.readFileSync(path.join(directory, result.patch))), result.evidence.patchHash);
     const duplicates = JSON.parse(fs.readFileSync(path.join(directory, result.duplications), 'utf8'));
     assert.equal(duplicates.length, result.newDuplications);
-    if (cohort === 'optimized-observed') {
+    if (cohort !== 'observed') {
       assert.equal(result.similarityAlgorithm, 'implementation-anchors/1');
       const similarities = JSON.parse(fs.readFileSync(path.join(directory, result.similarities), 'utf8'));
       assert.equal(similarities.length, result.possibleDuplications);
       assert(similarities.every(item => item.rule === 'POSSIBLE_DUPLICATION' && item.similarity.algorithm === result.similarityAlgorithm));
       assert.deepEqual(result.cleanup, []);
+    }
+    if(cohort==='challenge-observed') {
+      assert.equal(result.startingHash,result.initial.snapshotHash);
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory,result.initialAnalysis),'utf8')),result.initial);
+      assert.equal(hash(fs.readFileSync(path.join(directory,result.initialPatch))),result.evidence.initialPatchHash);
+      assert.equal(hash(fs.readFileSync(path.join(directory,result.initialAnalysis))),result.evidence.initialAnalysisHash);
+      const task=report.tasks.find(item=>item.id===result.taskId);
+      if(result.arm==='terse') {
+        assert.deepEqual(result.correction,correctionEvidence(result.events.checks,{baselineHash:result.baselineHash,
+          startingHash:result.startingHash,finalHash:result.snapshotHash,targetRules:task.targetRules,seeded:task.mode==='seeded',
+          finalClean:!result.duplicationError&&result.newDuplications===0&&result.possibleDuplications===0&&!result.cleanup.length,verificationCount:1}));
+        assert.equal(result.correction.observedCorrection,task.mode==='seeded');
+        assert(result.events.checks.reports.every(item=>item.verification.length===1&&item.verification[0]==='passed'));
+      }
     }
     assert.equal(result.events.completed, true);
     assert.equal(result.correct, true);
@@ -313,10 +444,14 @@ for (const cohort of ['observed', 'optimized-observed']) test(`published functio
     assert.deepEqual(new Set(runs.map(result => result.arm)), new Set(['control', 'terse']));
     assert.equal(runs[0].baselineHash, runs[1].baselineHash);
     assert.equal(runs[0].acceptanceHash, runs[1].acceptanceHash);
+    if(cohort==='challenge-observed') {
+      assert.equal(runs[0].startingHash,runs[1].startingHash);
+      assert.equal(runs[0].evidence.initialPatchHash,runs[1].evidence.initialPatchHash);
+    }
     assert.equal(report.pairs.find(pair => pair.taskId === task.id).comparable, true);
   }
   const terse = report.results.filter(result => result.arm === 'terse');
-  assert.equal(terse.filter(result => result.candidateHit === true).length, 5);
+  assert.equal(terse.filter(result => result.candidateHit === true).length, cohort==='challenge-observed'?4:5);
   assert(terse.every(result => result.workflow && result.terseStatus === 'pass'));
   assert(!Object.hasOwn(report, 'artifactDirectory'));
   assert(!fs.existsSync(path.join(directory, 'dependency-lock.json.gz')));

@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮以 `main` 的 `7772dc8` 为起点，M1–M6 首轮、评测与接入优化 #8–#14、M3 实现相似度复核 #17、M6 功能效果评测 #16 和 M5 验证入口优化 #15 均已合并；已合并的 M5 提交在 Windows/Linux Node 24 CI 各通过 154 项测试（含子用例）及打包预检。本轮 M6 复测保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮以 `main` 的 `c5abe42` 为起点，包含已合并的 M1–M6 首轮、评测与接入优化 #8–#18；其中 #18 在 Windows/Linux Node 24 CI 各通过 162 项测试（含子用例）及打包预检。本轮 M6 发现与修正任务保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -127,6 +127,8 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 protectedFileEvidence(root, expectedHashes, acceptanceFiles) 用运行前记录构造验收身份，实际文件只用于篡改核对；验收文件缺失、改名或被目录替换时返回 tampered，保留协议无效的样本及原验收哈希，避免中止后续会话。历史输入归档与 observed 发布文件逐字节校验，当前 oracle 的演进不改变旧观测。
 
 analyzeEvaluation(project, before, removals) 复用 M1 快照及 M3/M4 分析，对两组同样开启实现证据采集，返回 duplications/newDuplications、similarities/possibleDuplications、similarityAlgorithm 和 cleanup；精确发现抑制同对相似提示，与产品 check 一致。捕获包括配置读取在内的源码评分异常，失败记录 duplicationError，两类重复计数和证据保持 null；有效快照才参与 workflow 核验，避免配置损坏使整轮对照在保存无效结果前中断。发布器验证新测量的计数与证据匹配；老报告可不含相似度字段，不回填历史测量。
+
+发现与修正套件复用 benchmark-reuse 的 --suite challenge，任务归属 [challenge-cases.mjs](scripts/challenge-cases.mjs)，新流式验收位于 examples/challenge；prepareEvaluation 的可选 acceptance 路径沿用相同三份验证编排。接手 WIP 在 begin 和真实基线检索之后安装，不回填检索，不把已知新问题作为历史基线。initial.patch / initial-analysis.json 分别绑定哈希，两组 startingHash 必须相同。agent-events 的 checks 保留工具返回快照与发现，correctionEvidence 仅在先警告、后完整 pass、父分析干净且源码改变时计为观察到修正；无机会、输出缺失和未修正不计为成功。新 [发现与修正文档](docs/CORRECTION-AGENT-BENCHMARK.md) 分开报告自然开发与接手修复，八次实际会话和冻结证据另存 challenge-observed，前两轮数据不变。
 
 实际 agent 对照复用 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs)，`--suite` 选择固定的 [p-map](benchmarks/p-map) 或 [p-queue](benchmarks/p-queue) 输入，默认 p-map 保持兼容。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与按任务 ID、重复编号成对统计；[benchmark-project.mjs](scripts/lib/benchmark-project.mjs) 处理等价配置准备、上游计数和包含新增文件的 Git 补丁。准备后的项目必须编译、可分析且无范围外变更，再启动模型。离线协议与发布测试不需要模型凭据；实际实验使用 `npm run benchmark:agent` 单独启动。方法、真实结果和限制见 [p-map](docs/AGENT-BENCHMARK.md) 与 [p-queue](docs/COMPLEX-AGENT-BENCHMARK.md) 文档。
 

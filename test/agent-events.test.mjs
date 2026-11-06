@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
-import { summarizeEvents, pairedSummary } from '../scripts/lib/agent-events.mjs';
+import { summarizeEvents, pairedSummary, correctionEvidence } from '../scripts/lib/agent-events.mjs';
 
 test('agent events retain real usage, transport failures and final completion separately', () => {
   const result = summarizeEvents([
@@ -32,6 +32,47 @@ const decisionResponse = failed => ({schemaVersion: 1, command: 'decide', output
   diagnostics: failed ? [{code: 'INVALID_ARGUMENT', issues: [{code: 'conflict'}]}] : []});
 const commandEvent = (id, command, output) => ({type: 'item.completed', item: {id, type: 'command_execution', command, aggregated_output: output, exit_code: 0}});
 const decisionSummary = events => summarizeEvents([...events, {type: 'turn.completed'}].map(event => JSON.stringify(event)).join('\n'), 'D:/Terse/dist/cli.js').decisions;
+
+test('correction evidence requires an observed warning followed by a full later check and independent cleanup', () => {
+  const response = (hash, rules = []) => ({schemaVersion:1,command:'check',outputKind:'result',baselineHash:'base',snapshotHash:hash,
+    status:rules.length ? 'needs-review' : 'pass',errors:[],verification:[{status:'passed'}],findings:rules.map(rule=>({rule,severity:'review',locations:[]}))});
+  const summarize = (items, finish = true) => summarizeEvents([...items,...(finish ? [{type:'turn.completed'}] : [])].map(item=>JSON.stringify(item)).join('\n'),'D:/Terse/dist/cli.js').checks;
+  const warned = response('start',['POSSIBLE_DUPLICATION']);
+  const clean = response('end');
+  const first = commandEvent('warning','node cli.js check --run r --summary --json',JSON.stringify(warned));
+  const last = commandEvent('final','node cli.js check --run r --summary --json',JSON.stringify(clean));
+  const options = {baselineHash:'base',startingHash:'start',finalHash:'end',targetRules:['POSSIBLE_DUPLICATION'],seeded:true,finalClean:true,verificationCount:1};
+  const activity = summarize([first,last]);
+  assert.equal(correctionEvidence(activity,options).observedCorrection,true);
+  assert.equal(correctionEvidence(activity,options).warning.itemId,'warning');
+  for (const changed of [{finalClean:false},{finalHash:'wrong'},{startingHash:'other'},{verificationCount:2},{baselineHash:'other'}]) {
+    assert.equal(correctionEvidence(activity,{...options,...changed}).observedCorrection,false);
+  }
+  assert.equal(correctionEvidence(summarize([last,first]),options).observedCorrection,false);
+  assert.equal(correctionEvidence(summarize([first,last],false),options).observedCorrection,false);
+  const skipped = commandEvent('skipped','node cli.js check --run r',JSON.stringify({...clean,verification:[]}));
+  assert.equal(correctionEvidence(summarize([first,skipped]),options).observedCorrection,false);
+  const truncated = commandEvent('truncated','node cli.js check --run r','{"schemaVersion":1');
+  assert.equal(correctionEvidence(summarize([first,truncated,last]),options).observedCorrection,false);
+  const partial = commandEvent('partial','node cli.js check --run r; node cli.js check --run r',JSON.stringify(clean)+'\n{"schemaVersion":1');
+  assert.equal(correctionEvidence(summarize([first,partial]),options).observedCorrection,false);
+  const noOpportunity = correctionEvidence(summarize([last]),{...options,seeded:false});
+  assert.equal(noOpportunity.warningObserved,false);
+  assert.equal(noOpportunity.observedCorrection,false);
+  const unchanged = commandEvent('same-source','node cli.js check --run r',JSON.stringify({...warned,snapshotHash:'end'}));
+  assert.equal(correctionEvidence(summarize([unchanged,last]),{...options,seeded:false}).observedCorrection,false);
+  const logs = [commandEvent('read','Get-Content report.json',JSON.stringify(warned)),commandEvent('git','git diff --check','')];
+  assert.deepEqual(summarize(logs).reports,[]);
+  assert.equal(summarize(logs).unknownCalls,0);
+  const combined = summarize([commandEvent('combined','node cli.js check --run r; node cli.js check --run r',JSON.stringify(warned)+'\n'+JSON.stringify(clean))]);
+  assert.equal(correctionEvidence(combined,options).observedCorrection,true);
+  assert.equal(correctionEvidence(combined,options).finalCheck.responseIndex,1);
+});
+
+test('agent pairs require identical inherited starting work as well as baseline and tests', () => {
+  const base={taskId:'repair',repetition:1,baselineHash:'base',acceptanceHash:'tests',protocolValid:true,correct:true,newDuplications:0,agentMs:1};
+  assert.equal(pairedSummary([{...base,arm:'control',startingHash:'left'},{...base,arm:'terse',startingHash:'right'}])[0].comparable,false);
+});
 
 test('decision metrics exclude help and file names and distinguish retries from successful revisions', () => {
   const cli = 'node "D:\\\\Terse\\\\dist\\\\cli.js" decide ';
