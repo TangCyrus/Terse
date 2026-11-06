@@ -8,6 +8,8 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts, validateFunctionalReviews, protectedFileEvidence} from '../scripts/lib/benchmark-project.mjs';
+import {analyzeEvaluation} from '../scripts/lib/evaluation-project.mjs';
+import {snapshot} from '../dist/project.js';
 
 function workspace(t) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'terse-benchmark-'));
@@ -87,6 +89,40 @@ test('missing, renamed or replaced acceptance files retain their frozen identity
   const result = {artifactId:'invalid', arm:'terse', correct:false, protocolValid:false, evidence:{patchHash:'unchanged'}};
   assert.deepEqual(validateFunctionalReviews([result], [{artifactId:'invalid',patchHash:'unchanged',functional:false,reason:'Protected acceptance files were removed or replaced.'}]),
     {control:{runs:0,behaviorCorrect:0,functional:0},terse:{runs:1,behaviorCorrect:0,functional:0}});
+});
+
+test('configuration snapshot failures remain persistable invalid samples and do not stop later grading', async t => {
+  const results = [];
+  for (const mode of ['malformed', 'directory', 'healthy']) {
+    const root = workspace(t);
+    execFileSync('git', ['init', '-q'], {cwd: root});
+    const configPath = path.join(root, 'terse.config.json');
+    fs.writeFileSync(configPath, '{"verification":[]}');
+    fs.writeFileSync(path.join(root, 'source.js'), 'export const value = 1;\n');
+    const before = snapshot(root);
+    if (mode === 'malformed') fs.writeFileSync(configPath, '{invalid');
+    if (mode === 'directory') { fs.unlinkSync(configPath); fs.mkdirSync(configPath); }
+    if (mode !== 'healthy') assert.throws(() => snapshot(root), /INVALID_JSON|JSON_READ_FAILED/);
+    const analysis = await analyzeEvaluation(root, before, []);
+    if (mode !== 'healthy') {
+      assert.equal(analysis.after, null);
+      assert.equal(analysis.duplications, null);
+      assert.equal(analysis.newDuplications, null);
+      assert.match(analysis.duplicationError, /INVALID_JSON|JSON_READ_FAILED/);
+    } else {
+      assert.equal(analysis.duplicationError, null);
+      assert.equal(analysis.newDuplications, 0);
+      assert.deepEqual(analysis.duplications, []);
+    }
+    const result = {artifactId: mode, arm:'control', correct:mode === 'healthy', protocolValid:!analysis.duplicationError,
+      newDuplications:analysis.newDuplications, duplicationError:analysis.duplicationError, evidence:{patchHash:mode}};
+    fs.writeFileSync(path.join(root, 'result.json'), JSON.stringify(result));
+    results.push(JSON.parse(fs.readFileSync(path.join(root, 'result.json'), 'utf8')));
+  }
+  assert.equal(results.length, 3);
+  assert.deepEqual(validateFunctionalReviews(results, results.map(result => ({artifactId:result.artifactId,patchHash:result.evidence.patchHash,
+    functional:result.protocolValid,reason:result.duplicationError ?? 'Subsequent healthy grading completed.'}))),
+    {control:{runs:3,behaviorCorrect:1,functional:1},terse:{runs:0,behaviorCorrect:0,functional:0}});
 });
 
 test('upstream counts distinguish expected failures from passing tests', () => {

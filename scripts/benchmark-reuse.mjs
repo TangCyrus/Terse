@@ -6,14 +6,13 @@ import {execFileSync, spawnSync} from 'node:child_process';
 import {parseArgs} from 'node:util';
 import {cases} from './evaluation-cases.mjs';
 import {repository} from './lib/workspace.mjs';
-import {prepareEvaluation} from './lib/evaluation-project.mjs';
+import {prepareEvaluation, analyzeEvaluation} from './lib/evaluation-project.mjs';
 import {runAgent} from './lib/agent-runner.mjs';
 import {pairedSummary} from './lib/agent-events.mjs';
 import {collectChanges, protectedFileEvidence} from './lib/benchmark-project.mjs';
 import {begin, snapshot} from '../dist/project.js';
-import {clones, indexSources, newClones} from '../dist/analyze.js';
+import {indexSources} from '../dist/analyze.js';
 import {validateDecision} from '../dist/decision.js';
-import {cleanupFindings} from '../dist/cleanup.js';
 
 const {values} = parseArgs({options: {codex: {type: 'string', default: 'codex'}, repetitions: {type: 'string', default: '1'}, 'preflight-only': {type: 'boolean'}}});
 const repetitions = Number(values.repetitions);
@@ -86,16 +85,8 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
     const verification = verify(project, config, directory); // Always independent, even if the agent already checked.
     const {tampered, acceptanceHash} = protectedFileEvidence(project, protectedHashes, config.verification[0].args.slice(1));
     tampered.push(...Object.entries(fixtureHashes).filter(([file, hash]) => !fs.existsSync(path.join(repository, file)) || digest(fs.readFileSync(path.join(repository, file))) !== hash).map(([file]) => `fixture/${file}`));
-    const after = snapshot(project);
-    let newDuplications = null, duplicationError = null, cleanup = [];
-    try {
-      const index = indexSources(after, project, before.files);
-      assert.deepEqual(index.errors, []);
-      const duplicates = newClones(before, after, await clones(after));
-      newDuplications = duplicates.length;
-      write(path.join(directory, 'duplications.json'), duplicates);
-      cleanup = cleanupFindings(before, after, indexSources(before), index, task.remove);
-    } catch (error) { duplicationError = error.message; }
+    const {after, duplications, newDuplications, duplicationError, cleanup} = await analyzeEvaluation(project, before, task.remove);
+    if (duplications !== null) write(path.join(directory, 'duplications.json'), duplications);
     // Collect only after grading; this includes new helpers and deleted modules in the patch.
     const changes = collectChanges(project, editable);
     fs.writeFileSync(path.join(directory, 'implementation.patch'), changes.patch);
@@ -107,7 +98,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
       const {decision} = validateDecision(JSON.parse(fs.readFileSync(run.decisionPath, 'utf8')));
       const baselineSearch = history.filter(entry => entry.atBaseline && entry.snapshotHash === before.hash && entry.errors.length === 0);
       candidateHit = task.candidate ? baselineSearch.some(entry => entry.candidates.some(candidate => candidate.path === task.candidate.path && candidate.symbol === task.candidate.symbol)) : null;
-      workflow = baselineSearch.length > 0 && !!decision && report.snapshotHash === after.hash
+      workflow = after !== null && baselineSearch.length > 0 && !!decision && report.snapshotHash === after.hash
         && report.verification.length === config.verification.length
         && task.remove.every(removal => decision.remove.some(actual => actual.path === removal.path && actual.symbol === removal.symbol));
       terseStatus = report.status; terseRules = report.findings.map(item => item.rule);

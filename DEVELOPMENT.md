@@ -122,6 +122,8 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 
 protectedFileEvidence(root, expectedHashes, acceptanceFiles) 用运行前记录构造验收身份，实际文件只用于篡改核对；验收文件缺失、改名或被目录替换时返回 tampered，保留协议无效的样本及原验收哈希，避免中止后续会话。历史输入归档与 observed 发布文件逐字节校验，当前 oracle 的演进不改变旧观测。
 
+analyzeEvaluation(project, before, removals) 复用 M1 快照及 M3/M4 分析，捕获包括配置读取在内的源码评分异常。失败记录 duplicationError，重复计数保持 null；有效快照才参与 workflow 核验，避免配置损坏使整轮对照在保存无效结果前中断。
+
 实际 agent 对照复用 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs)，`--suite` 选择固定的 [p-map](benchmarks/p-map) 或 [p-queue](benchmarks/p-queue) 输入，默认 p-map 保持兼容。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与按任务 ID、重复编号成对统计；[benchmark-project.mjs](scripts/lib/benchmark-project.mjs) 处理等价配置准备、上游计数和包含新增文件的 Git 补丁。准备后的项目必须编译、可分析且无范围外变更，再启动模型。离线协议与发布测试不需要模型凭据；实际实验使用 `npm run benchmark:agent` 单独启动。方法、真实结果和限制见 [p-map](docs/AGENT-BENCHMARK.md) 与 [p-queue](docs/COMPLEX-AGENT-BENCHMARK.md) 文档。
 
 `summarizeEvents(text, terseCli?)` 在提供 CLI 路径时增补 decisions 统计，不改变原有调用结果。它读取工具事件中的 CLI JSON，区分保存、拒绝、帮助和未知结果；只把失败后的后续记录调用计为重试，未知/截断时不报告零重试。[measure-agent-decisions.mjs](scripts/measure-agent-decisions.mjs) 用同一逻辑回算历史日志，先核对每个已发布 eventHash，再写新文件；新旧观测互不覆盖。真实模型仍只在独立评测中调用。

@@ -29,6 +29,8 @@ npm run benchmark:reuse
 
 acceptanceHash 从运行前保存的验收文件哈希构造。运行后验收文件缺失、改名、被目录替换或不可读时，记入 tampered，并保留 correct/protocolValid 为 false 的结果；不因再次读取缺失验收文件抛错而丢掉本轮样本或中止后续会话。无效运行继续留在分母中，不计为功能成功。
 
+源码快照、解析、重复与清理分析统一由 analyzeEvaluation 捕获失败。配置 JSON 损坏或被目录替换导致快照失败时，保留 duplicationError，newDuplications 为 null，workflow 不会用缺失的快照验证成功；协议无效的结果仍可保存，后续样本继续评测，不将未知分析结果记为零重复。
+
 实际 agent 结束后，在该目录写 functional-reviews.json，为每次运行填写 artifactId、patchHash、functional 布尔值和 reason。用现有导出器发布到新目录：
 
 ```sh
