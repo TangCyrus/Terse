@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
-import { summarizeEvents, pairedSummary, correctionEvidence } from '../scripts/lib/agent-events.mjs';
+import { summarizeEvents, summarizePhases, pairedSummary, correctionEvidence } from '../scripts/lib/agent-events.mjs';
 
 test('agent events retain real usage, transport failures and final completion separately', () => {
   const result = summarizeEvents([
@@ -67,11 +67,38 @@ test('correction evidence requires an observed warning followed by a full later 
   const combined = summarize([commandEvent('combined','node cli.js check --run r; node cli.js check --run r',JSON.stringify(warned)+'\n'+JSON.stringify(clean))]);
   assert.equal(correctionEvidence(combined,options).observedCorrection,true);
   assert.equal(correctionEvidence(combined,options).finalCheck.responseIndex,1);
+  const draftOptions={...options,seeded:false,startingHash:'baseline',draftHash:'saved-draft'};
+  const cleanDraft=commandEvent('clean-draft','node cli.js check --run r',JSON.stringify(response('saved-draft')));
+  const reviewRegression=commandEvent('review-regression','node cli.js check --run r',JSON.stringify(response('review-change',['POSSIBLE_DUPLICATION'])));
+  assert.equal(correctionEvidence(summarize([cleanDraft,reviewRegression,last]),draftOptions).observedCorrection,false);
+  const draftWarning=commandEvent('draft-warning','node cli.js check --run r',JSON.stringify(response('saved-draft',['POSSIBLE_DUPLICATION'])));
+  assert.equal(correctionEvidence(summarize([draftWarning,last]),draftOptions).observedCorrection,true);
+  assert.equal(correctionEvidence(summarize([reviewRegression,last]),draftOptions).observedCorrection,false);
 });
 
 test('agent pairs require identical inherited starting work as well as baseline and tests', () => {
   const base={taskId:'repair',repetition:1,baselineHash:'base',acceptanceHash:'tests',protocolValid:true,correct:true,newDuplications:0,agentMs:1};
   assert.equal(pairedSummary([{...base,arm:'control',startingHash:'left'},{...base,arm:'terse',startingHash:'right'}])[0].comparable,false);
+});
+
+test('natural draft and review events retain phase identities, usage and incomplete stages', () => {
+  const draft=[commandEvent('item_1','node cli.js decide --run r',JSON.stringify(decisionResponse(false))),
+    {type:'turn.completed',usage:{input_tokens:10,output_tokens:2}}].map(item=>JSON.stringify(item)).join('\n');
+  const review=[commandEvent('item_1','node cli.js check --run r',JSON.stringify({schemaVersion:1,command:'check',outputKind:'result',
+    baselineHash:'base',snapshotHash:'done',status:'pass',verification:[{status:'passed'}],findings:[],errors:[]})),
+    {type:'turn.completed',usage:{input_tokens:20,output_tokens:3}}].map(item=>JSON.stringify(item)).join('\n');
+  const combine=text=>summarizePhases([{phase:'draft',text},{phase:'review',text:review}],'D:/Terse/dist/cli.js');
+  const result=combine(draft);
+  assert.equal(result.completed,true);
+  assert.deepEqual(result.usage,{input_tokens:30,output_tokens:5});
+  assert.equal(result.decisions.evidence[0].itemId,'draft:item_1');
+  assert.equal(result.checks.reports[0].itemId,'review:item_1');
+  for(const broken of ['',draft.split('\n')[0],draft+'\n{broken']) {
+    const invalid=combine(broken);
+    assert.equal(invalid.completed,false);
+    assert.equal(invalid.checks.complete,false);
+    assert.equal(invalid.decisions.retries,null);
+  }
 });
 
 test('decision metrics exclude help and file names and distinguish retries from successful revisions', () => {

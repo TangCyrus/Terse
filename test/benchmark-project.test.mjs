@@ -180,6 +180,22 @@ test('functional grading requires patch review and cannot promote zero-clone or 
   assert.throws(() => validateFunctionalReviews([{...results[1], correct: false}], [reviews[1]]), /behavior-incorrect/);
 });
 
+test('natural reviews bind both patches and cannot promote incomplete or redundant drafts',()=>{
+  const result={artifactId:'natural',arm:'terse',correct:true,protocolValid:true,evidence:{patchHash:'final',draftPatchHash:'draft'},
+    draft:{acceptance:{passed:true},protocolValid:true}};
+  const review={artifactId:'natural',patchHash:'final',functional:true,reason:'Final shared implementation.',
+    draftReview:{patchHash:'draft',functional:false,duplicateFree:false,cleanupComplete:true,reason:'Draft copied encoding.'},
+    finalReview:{duplicateFree:true,cleanupComplete:true,reason:'Final delegates to the shared formatter.'}};
+  const summary=validateFunctionalReviews([result],[review]);
+  assert.equal(summary.terse.draftFunctional,0);
+  assert.equal(summary.terse.draftDuplicateFree,0);
+  assert.equal(summary.terse.finalDuplicateFree,1);
+  assert.throws(()=>validateFunctionalReviews([result],[{...review,draftReview:{...review.draftReview,functional:true}}]),/redundant drafts/);
+  assert.throws(()=>validateFunctionalReviews([result],[{...review,draftReview:{...review.draftReview,patchHash:'other'}}]),/original candidate/);
+  assert.throws(()=>validateFunctionalReviews([{...result,draft:{...result.draft,protocolValid:false}}],[{
+    ...review,draftReview:{...review.draftReview,functional:true,duplicateFree:true}}]),/Incomplete/);
+});
+
 test('agent publication uses task-specific artifacts and preserves unknown duplicate measurements', t => {
   const parent = workspace(t);
   const label = 'refactor-pair-1-terse';
@@ -266,6 +282,23 @@ test('functional publication requires complete reviews and immutable patch bytes
   const tampered=path.join(parent,'tampered-seed');
   assert.throws(()=>publish(tampered));
   assert(!fs.existsSync(tampered));
+  fs.writeFileSync(path.join(parent,artifactId,'initial.patch'),initialPatch);
+  const draft={snapshotHash:'model-draft',acceptance:{passed:true},protocolValid:true};
+  const draftText=JSON.stringify(draft), draftPatch='model-authored candidate';
+  measured.results[0].draft=draft;
+  measured.results[0].evidence.draftPatchHash=createHash('sha256').update(draftPatch).digest('hex');
+  measured.results[0].evidence.draftAnalysisHash=createHash('sha256').update(draftText).digest('hex');
+  reviews[0].draftReview={patchHash:measured.results[0].evidence.draftPatchHash,functional:true,duplicateFree:true,cleanupComplete:true,reason:'Shared candidate.'};
+  reviews[0].finalReview={duplicateFree:true,cleanupComplete:true,reason:'Shared final implementation.'};
+  fs.writeFileSync(path.join(parent,'functional-reviews.json'),JSON.stringify(reviews));
+  fs.writeFileSync(path.join(parent,artifactId,'draft.patch'),draftPatch);
+  fs.writeFileSync(path.join(parent,artifactId,'draft-analysis.json'),draftText);
+  fs.writeFileSync(path.join(parent,'comparison.json'),JSON.stringify(measured));
+  const natural=path.join(parent,'natural'); publish(natural);
+  assert.equal(fs.readFileSync(path.join(natural,`${artifactId}.draft.patch`),'utf8'),draftPatch);
+  assert(!Object.hasOwn(JSON.parse(fs.readFileSync(path.join(natural,'comparison.json'),'utf8')).results[0].events,'finalMessage'));
+  fs.writeFileSync(path.join(parent,artifactId,'draft-analysis.json'),'changed');
+  const changedDraft=path.join(parent,'changed-draft');assert.throws(()=>publish(changedDraft));assert(!fs.existsSync(changedDraft));
 });
 
 test('seeded challenges expose new problems against the original baseline and permit real checked corrections', async t => {
@@ -378,20 +411,21 @@ test('functional preflight checks all six task starts without a live model or cr
   for (const task of plan.tasks) assert(!fs.existsSync(path.join(directory, `preflight-${task.id}`, 'agent.jsonl')));
 });
 
-for (const cohort of ['observed', 'optimized-observed', 'challenge-observed']) test(`published functional observation ${cohort} binds every fixture, pair, patch and implementation review`, () => {
+for (const cohort of ['observed', 'optimized-observed', 'challenge-observed', 'natural-observed']) test(`published functional observation ${cohort} binds every fixture, pair, patch and implementation review`, () => {
   const directory = fileURLToPath(new URL(`../benchmarks/reuse/${cohort}/`, import.meta.url));
   const report = JSON.parse(fs.readFileSync(path.join(directory, 'comparison.json'), 'utf8'));
   const reviews = JSON.parse(fs.readFileSync(path.join(directory, 'functional-reviews.json'), 'utf8'));
   const hash = data => createHash('sha256').update(data).digest('hex');
   assert.equal(report.kind, 'controlled-agent-comparison');
-  const count=cohort==='challenge-observed'?4:6;
+  const count=cohort==='natural-observed'?3:cohort==='challenge-observed'?4:6;
+  const runsPerArm=count*report.repetitions;
   assert.equal(report.tasks.length, count);
-  assert.equal(report.results.length, count*2);
+  assert.equal(report.results.length, runsPerArm*2);
   assert.deepEqual(report.pairs,pairedSummary(report.results));
   assert.deepEqual(validateFunctionalReviews(report.results, reviews), report.functionalSummary);
   assert.equal(report.reviewHash, hash(JSON.stringify(reviews)));
-  assert.equal(report.functionalSummary.control.functional, count);
-  assert.equal(report.functionalSummary.terse.functional, count);
+  assert.equal(report.functionalSummary.control.functional, runsPerArm);
+  assert.equal(report.functionalSummary.terse.functional, runsPerArm);
   // Validate the original inputs, not the evolving HEAD's task oracle or helpers.
   assert.match(report.terseRevision, /^[a-f0-9]{40}$/);
   const snapshot = JSON.parse(gunzipSync(fs.readFileSync(path.join(directory, '..', 'fixtures', `${report.terseRevision}.json.gz`))).toString('utf8'));
@@ -419,7 +453,7 @@ for (const cohort of ['observed', 'optimized-observed', 'challenge-observed']) t
       assert(similarities.every(item => item.rule === 'POSSIBLE_DUPLICATION' && item.similarity.algorithm === result.similarityAlgorithm));
       assert.deepEqual(result.cleanup, []);
     }
-    if(cohort==='challenge-observed') {
+    if(cohort==='challenge-observed'||cohort==='natural-observed') {
       assert.equal(result.startingHash,result.initial.snapshotHash);
       assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory,result.initialAnalysis),'utf8')),result.initial);
       assert.equal(hash(fs.readFileSync(path.join(directory,result.initialPatch))),result.evidence.initialPatchHash);
@@ -427,10 +461,31 @@ for (const cohort of ['observed', 'optimized-observed', 'challenge-observed']) t
       const task=report.tasks.find(item=>item.id===result.taskId);
       if(result.arm==='terse') {
         assert.deepEqual(result.correction,correctionEvidence(result.events.checks,{baselineHash:result.baselineHash,
-          startingHash:result.startingHash,finalHash:result.snapshotHash,targetRules:task.targetRules,seeded:task.mode==='seeded',
+          startingHash:result.startingHash,finalHash:result.snapshotHash,targetRules:task.targetRules,seeded:task.mode==='seeded',draftHash:result.draft?.snapshotHash,
           finalClean:!result.duplicationError&&result.newDuplications===0&&result.possibleDuplications===0&&!result.cleanup.length,verificationCount:1}));
         assert.equal(result.correction.observedCorrection,task.mode==='seeded');
         assert(result.events.checks.reports.every(item=>item.verification.length===1&&item.verification[0]==='passed'));
+      }
+    }
+    if(cohort==='natural-observed') {
+      assert.equal(result.startingHash,result.baselineHash);
+      assert.equal(fs.readFileSync(path.join(directory,result.initialPatch),'utf8'),'');
+      assert.equal(hash(fs.readFileSync(path.join(directory,result.draftPatch))),result.evidence.draftPatchHash);
+      assert.equal(hash(fs.readFileSync(path.join(directory,result.draftAnalysis))),result.evidence.draftAnalysisHash);
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory,result.draftAnalysis),'utf8')),result.draft);
+      assert.equal(result.draft.protocolValid,true);
+      assert.equal(result.draft.earlyChecks,0);
+      const review=reviews.find(item=>item.artifactId===result.artifactId);
+      assert.equal(review.draftReview.patchHash,result.evidence.draftPatchHash);
+      assert.equal(review.draftReview.duplicateFree,true);
+      assert.equal(review.finalReview.cleanupComplete,true);
+      for(const probe of review.supplemental??[]) {
+        assert.equal(probe.patchHash,result.evidence.patchHash);assert.equal(probe.scored,false);
+      }
+      if(result.arm==='terse') {
+        assert.equal(result.reviewCheckpoint,true);
+        assert(result.events.checks.reports.every(item=>item.itemId.startsWith('review:')));
+        assert(result.events.decisions.evidence.every(item=>/^(draft|review):/.test(item.itemId)));
       }
     }
     assert.equal(result.events.completed, true);
@@ -444,14 +499,16 @@ for (const cohort of ['observed', 'optimized-observed', 'challenge-observed']) t
     assert.deepEqual(new Set(runs.map(result => result.arm)), new Set(['control', 'terse']));
     assert.equal(runs[0].baselineHash, runs[1].baselineHash);
     assert.equal(runs[0].acceptanceHash, runs[1].acceptanceHash);
-    if(cohort==='challenge-observed') {
+    if(cohort==='challenge-observed'||cohort==='natural-observed') {
       assert.equal(runs[0].startingHash,runs[1].startingHash);
       assert.equal(runs[0].evidence.initialPatchHash,runs[1].evidence.initialPatchHash);
     }
-    assert.equal(report.pairs.find(pair => pair.taskId === task.id).comparable, true);
+    const pairs=report.pairs.filter(pair=>pair.taskId===task.id);
+    assert.equal(pairs.length,report.repetitions);
+    assert(pairs.every(pair=>pair.comparable));
   }
   const terse = report.results.filter(result => result.arm === 'terse');
-  assert.equal(terse.filter(result => result.candidateHit === true).length, cohort==='challenge-observed'?4:5);
+  assert.equal(terse.filter(result => result.candidateHit === true).length, cohort==='natural-observed'?6:cohort==='challenge-observed'?4:5);
   assert(terse.every(result => result.workflow && result.terseStatus === 'pass'));
   assert(!Object.hasOwn(report, 'artifactDirectory'));
   assert(!fs.existsSync(path.join(directory, 'dependency-lock.json.gz')));

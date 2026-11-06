@@ -1,0 +1,67 @@
+diff --git a/src/reports/batches.ts b/src/reports/batches.ts
+new file mode 100644
+index 0000000..4ac4fb4
+--- /dev/null
++++ b/src/reports/batches.ts
+@@ -0,0 +1,61 @@
++import type {Order} from '../orders.ts';
++import {selectCustomerOrders} from '../domain/selection.ts';
++import {renderOrderCsv} from '../reporting/csv.ts';
++
++export interface CustomerBatchOptions {
++  size: number;
++  status?: Order['status'];
++  afterId?: string;
++}
++
++export interface CustomerBatch {
++  csv: string;
++  nextCursor: string | null;
++}
++
++export async function streamCustomerBatches(
++  orders: readonly Order[],
++  ownerId: string,
++  options: CustomerBatchOptions,
++  emit: (batch: CustomerBatch) => void | Promise<void>,
++): Promise<void> {
++  if (typeof ownerId !== 'string' || !ownerId) {
++    throw new Error('ownerId is required');
++  }
++  if (!options || typeof options !== 'object' || Array.isArray(options)) {
++    throw new Error('Invalid batch options');
++  }
++  const {size, status, afterId} = options;
++  if (!Number.isInteger(size) || size < 1 || size > 1000) {
++    throw new Error('Invalid batch size: expected an integer from 1 to 1000');
++  }
++  if (status !== undefined && status !== 'paid' && status !== 'pending') {
++    throw new Error('Invalid status');
++  }
++  if (afterId !== undefined && typeof afterId !== 'string') {
++    throw new Error('Invalid afterId cursor');
++  }
++
++  const selected = selectCustomerOrders(orders, ownerId, status);
++  const ids = new Set<string>();
++  let start = 0;
++  for (let index = 0; index < selected.length; index++) {
++    const {id} = selected[index];
++    if (ids.has(id)) throw new Error(`Duplicate order ID: ${id}`);
++    ids.add(id);
++    if (afterId !== undefined && id === afterId) start = index + 1;
++  }
++  if (afterId !== undefined && !ids.has(afterId)) {
++    throw new Error('Invalid afterId cursor: order is not in the selection');
++  }
++
++  if (start === selected.length) {
++    await emit({csv: renderOrderCsv([]), nextCursor: null});
++    return;
++  }
++  for (let offset = start; offset < selected.length; offset += size) {
++    const batch = selected.slice(offset, offset + size);
++    const nextCursor = offset + size < selected.length ? batch[batch.length - 1].id : null;
++    await emit({csv: renderOrderCsv(batch), nextCursor});
++  }
++}

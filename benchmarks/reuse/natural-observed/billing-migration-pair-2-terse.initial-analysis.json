@@ -1,0 +1,18 @@
+{
+  "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+  "newDuplications": 0,
+  "possibleDuplications": 0,
+  "similarities": [],
+  "cleanup": [
+    {
+      "rule": "REMOVAL_REMAINS",
+      "severity": "fail",
+      "message": "An implementation declared for removal is still present.",
+      "locations": [
+        {
+          "path": "src/legacy/billing.ts"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "snapshotHash": "582a4e1c569b35da5c4e62130ae422c792e5de964a4aead4a421715d4446f62b",
+  "newDuplications": 0,
+  "possibleDuplications": 0,
+  "similarities": [],
+  "cleanup": [],
+  "duplicationError": null,
+  "acceptance": {
+    "passed": true,
+    "exitCode": 0,
+    "error": null,
+    "logHash": "6de137fd505d66e3168958a46a29252da176456c32aba8c60f5751875722a7de"
+  },
+  "tampered": [],
+  "outsideScope": [],
+  "completed": true,
+  "exitCode": 0,
+  "agentMs": 66687,
+  "timedOut": false,
+  "blockedByPolicy": false,
+  "earlyChecks": 0,
+  "decisionWrites": 1,
+  "eventHash": "102e953c3a9d2ea885a674226c04dc5eaaafc068d3f5ae5e0080acde635de991",
+  "protocolValid": true
+}

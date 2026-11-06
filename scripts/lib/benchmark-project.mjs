@@ -66,10 +66,29 @@ export function validateFunctionalReviews(results, reviews) {
     assert.equal(typeof review.functional, 'boolean');
     assert(typeof review.reason === 'string' && review.reason.trim(), 'Review needs a concrete rationale');
     if (review.functional) assert(result.correct && result.protocolValid, 'Incomplete or behavior-incorrect runs cannot count as functional successes');
+    if (result.draft) {
+      assert.equal(review.draftReview?.patchHash,result.evidence.draftPatchHash,'Draft review must bind the original candidate');
+      for (const item of [review.draftReview,review.finalReview]) {
+        assert(item && typeof item.duplicateFree==='boolean' && typeof item.cleanupComplete==='boolean');
+        assert(typeof item.reason==='string' && item.reason.trim());
+      }
+      assert.equal(typeof review.draftReview.functional,'boolean');
+      if (review.draftReview.functional) assert(result.draft.acceptance.passed && result.draft.protocolValid
+        && review.draftReview.duplicateFree && review.draftReview.cleanupComplete,'Incomplete or redundant drafts cannot count as functional successes');
+      if (review.functional) assert(review.finalReview.duplicateFree && review.finalReview.cleanupComplete,'Final success requires reviewed reuse and cleanup');
+    }
   }
   return Object.fromEntries(['control', 'terse'].map(arm => {
     const runs = results.filter(result => result.arm === arm);
     return [arm, {runs: runs.length, behaviorCorrect: runs.filter(result => result.correct).length,
-      functional: runs.filter(result => reviews.find(review => review.artifactId === result.artifactId).functional).length}];
+      functional: runs.filter(result => reviews.find(review => review.artifactId === result.artifactId).functional).length,
+      ...(runs.length && runs.every(result=>result.draft) ? {
+        draftBehaviorCorrect:runs.filter(result=>result.draft.acceptance.passed && !result.draft.tampered?.length).length,
+        draftFunctional:runs.filter(result=>reviews.find(review=>review.artifactId===result.artifactId).draftReview.functional).length,
+        draftDuplicateFree:runs.filter(result=>reviews.find(review=>review.artifactId===result.artifactId).draftReview.duplicateFree).length,
+        finalDuplicateFree:runs.filter(result=>reviews.find(review=>review.artifactId===result.artifactId).finalReview.duplicateFree).length,
+        draftCleanupComplete:runs.filter(result=>reviews.find(review=>review.artifactId===result.artifactId).draftReview.cleanupComplete).length,
+        finalCleanupComplete:runs.filter(result=>reviews.find(review=>review.artifactId===result.artifactId).finalReview.cleanupComplete).length,
+      } : {})}];
   }));
 }

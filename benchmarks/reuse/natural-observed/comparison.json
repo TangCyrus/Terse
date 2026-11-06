@@ -1,0 +1,2062 @@
+{
+  "schemaVersion": 1,
+  "kind": "controlled-agent-comparison",
+  "suite": "natural-complex",
+  "terseRevision": "07757da03ec1856fb9d5aba53270379805490d70",
+  "project": {
+    "fixture": "examples/natural + examples/orders",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "timeoutMs": 600000
+  },
+  "repetitions": 2,
+  "cliVersion": "codex-cli 0.166.0-alpha.6",
+  "tasks": [
+    {
+      "id": "customer-batches",
+      "task": "Add async streamCustomerBatches(orders, ownerId, options, emit) in src/reports/batches.ts. Options: size integer 1..1000, optional status paid/pending and afterId cursor. Select owner-visible orders then status, preserve input order, reject duplicate IDs in that selection, and require any afterId to exist there. Emit batches of at most size records as {csv,nextCursor}; each CSV has the existing header and quoting/precision/validation, nextCursor is the last emitted id only when another batch remains. An empty result emits one header-only batch with null cursor. Await each callback and propagate sink errors. Reject bad owner/options/cursor before delivery, preserve original APIs and inputs, and keep shared export rules in one implementation.",
+      "remove": [],
+      "candidate": {
+        "path": "src/orders.ts",
+        "symbol": "exportOrders"
+      },
+      "mode": "natural",
+      "targetRules": [
+        "POSSIBLE_DUPLICATION",
+        "NEW_DUPLICATION"
+      ],
+      "staged": true,
+      "query": "Add async streamCustomerBatches(orders, ownerId, options, emit) in src/reports/batches.ts. Options: size integer 1..1000, optional status paid/pending and afterId cursor. Select owner-visible orders then status, preserve input order, reject duplicate IDs in that selection, and require any afterId to exist there. Emit batches of at most size records as {csv,nextCursor}; each CSV has the existing header and quoting/precision/validation, nextCursor is the last emitted id only when another batch remains. An empty result emits one header-only batch with null cursor. Await each callback and propagate sink errors. Reject bad owner/options/cursor before delivery, preserve original APIs and inputs, and keep shared export rules in one implementation.",
+      "acceptanceHash": "f174549de77a742dcb7f466eca644fa1293ed9ad6343eb5852f15ea8dab61a92"
+    },
+    {
+      "id": "billing-migration",
+      "task": "Move createBillingCsv into src/reports/billing.ts and retire src/legacy/billing.ts. Preserve its signature and every existing entry point: customer download, archive, weekly and manual jobs, namespace download integration, public barrel aliases and lazy plugin loader. All consumers must use the new implementation without keeping an obsolete source file or dangling references. Keep owner isolation, paidOnly selection, amount validation, CSV behavior and existing API names.",
+      "remove": [
+        {
+          "path": "src/legacy/billing.ts"
+        }
+      ],
+      "candidate": {
+        "path": "src/legacy/billing.ts",
+        "symbol": "createBillingCsv"
+      },
+      "mode": "natural",
+      "targetRules": [
+        "REMOVAL_REMAINS",
+        "REMOVAL_REFERENCE_REMAINS"
+      ],
+      "staged": true,
+      "query": "Move createBillingCsv into src/reports/billing.ts and retire src/legacy/billing.ts. Preserve its signature and every existing entry point: customer download, archive, weekly and manual jobs, namespace download integration, public barrel aliases and lazy plugin loader. All consumers must use the new implementation without keeping an obsolete source file or dangling references. Keep owner isolation, paidOnly selection, amount validation, CSV behavior and existing API names.",
+      "acceptanceHash": "b01461ae889ea32dd00e51d42e1664ded4f3b28f6eaa9f382950ff45398cbc63"
+    },
+    {
+      "id": "audit-delivery",
+      "task": "Add async streamAuditCsv(orders, authorization, emit) in src/reports/audit.ts. authorization.auditor must be strictly true before any emission. Optional owners and statuses arrays restrict selection; empty arrays select none, absent arrays allow all. Preserve input order and emit ownerId,id,customer,total,status as header then complete CSV records, with ownerId and customer quoted, embedded quotes/newlines preserved, and finite nonnegative totals at two decimals. Await each callback, propagate sink errors, do not mutate orders or authorization, and keep the customer exporter owner isolation unchanged. Audit authorization is independent; reuse shared serialization/validation responsibilities rather than duplicating them.",
+      "remove": [],
+      "candidate": {
+        "path": "src/reporting/csv.ts",
+        "symbol": "orderRecord"
+      },
+      "mode": "natural",
+      "targetRules": [
+        "POSSIBLE_DUPLICATION",
+        "NEW_DUPLICATION"
+      ],
+      "staged": true,
+      "query": "Add async streamAuditCsv(orders, authorization, emit) in src/reports/audit.ts. authorization.auditor must be strictly true before any emission. Optional owners and statuses arrays restrict selection; empty arrays select none, absent arrays allow all. Preserve input order and emit ownerId,id,customer,total,status as header then complete CSV records, with ownerId and customer quoted, embedded quotes/newlines preserved, and finite nonnegative totals at two decimals. Await each callback, propagate sink errors, do not mutate orders or authorization, and keep the customer exporter owner isolation unchanged. Audit authorization is independent; reuse shared serialization/validation responsibilities rather than duplicating them.",
+      "acceptanceHash": "fa0c5f09e7c6850a88f236fc3a0a750f26f37354cf0494f005f221fecb0aabe0"
+    }
+  ],
+  "fixtureHashes": {
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "examples/evaluation/add.test.mjs": "1f2889d72485724c1b7b95790235fd5e6233109b80ccac85f9f49201d03154b1",
+    "examples/evaluation/delete.test.mjs": "8da2db669649ba5651f00bec8500aa9075863c6f0b564e37b8b60de8dd01f6cd",
+    "examples/evaluation/dynamic.test.mjs": "dda586393770be26212bb8431d2ab04308a556b32571bbd73e35598188d30be4",
+    "examples/evaluation/independent.test.mjs": "75e62ffb11f25da6af752cbcddbb2f780b901d4a9ed2926bd0b4dbb6932f23df",
+    "examples/evaluation/modify.test.mjs": "9751bb774f1cc40c31989f84e53858d248db91a0448c3272085617d25bde5381",
+    "examples/evaluation/refactor.test.mjs": "15d97c2d1ba41be88896a7ab52eef6fd6a3109b63f2b7c9281fbed3d3d8497e8",
+    "examples/evaluation/routes.test.mjs": "d02be4705e97862dea941cd95d2881c5520f20decfa2c63fd96c9d344dc8e155",
+    "examples/evaluation/routes.ts": "ee14a302026ab2332ad2f926c4524ee868118b9b9b913bc3ded8b9d3c89973f7",
+    "scripts/evaluation-cases.mjs": "09695404df2aa7038aac014eb6ac144576548d7a417d8f48638bab9fffa4ae70",
+    "scripts/lib/evaluation-project.mjs": "7062d5c152d431be14377d412d2610c0978ece114980dd651d47ea9c8521cd56",
+    "examples/natural/audit-delivery.test.mjs": "fa0c5f09e7c6850a88f236fc3a0a750f26f37354cf0494f005f221fecb0aabe0",
+    "examples/natural/billing-migration.test.mjs": "b01461ae889ea32dd00e51d42e1664ded4f3b28f6eaa9f382950ff45398cbc63",
+    "examples/natural/customer-batches.test.mjs": "f174549de77a742dcb7f466eca644fa1293ed9ad6343eb5852f15ea8dab61a92",
+    "examples/natural/source/api.ts": "3e2b5579a484c9c908b129f9728cf1914e4d49f0adeef674c819ee3c3efa6570",
+    "examples/natural/source/archive.ts": "529a0ec66f83ae64dbad2bdcf52b813a5f5278161628ff265172bbf85ceb02bf",
+    "examples/natural/source/domain/selection.ts": "5c5513ef7edf2dc344d0fa7b72ff20cef126ae878cf5d75efd767c83acc35413",
+    "examples/natural/source/integrations/download.ts": "6209ac60774997eb677a43bda2b1252bada67c4470fae5e3abe635f809ee7c6b",
+    "examples/natural/source/jobs/manual.ts": "8d58b1fdddecaa339735ebcf44899fc1821d01a8a3f0204fa6206ec2d9d73064",
+    "examples/natural/source/jobs/weekly.ts": "aec3829ad183316524b9f9952274acf787da45d48578688ebfc57f762dca723e",
+    "examples/natural/source/legacy/billing.ts": "67b300b79611041da39f964fb994f0f78cdf381786942cad32af64318ec74030",
+    "examples/natural/source/orders.ts": "3e4cae51f735808e8cbbb84092cdbc2930e76b5e6b6223ee0038bdbf02089642",
+    "examples/natural/source/plugins.ts": "37f28698a922ae43ed673572901d50b3b3238bdad160f6e3070352b51f184a32",
+    "examples/natural/source/providers.ts": "cf99d14b6bad63be4061bbaf3f2a329711ad9e3144a09460a39e21ad6e3d0ff3",
+    "examples/natural/source/reporting/csv.ts": "47a234a5a475623c7fd0756a2f9d0a45ab3ca43ab5b1be3d4d80aae8239c3fc4",
+    "scripts/natural-cases.mjs": "4729b25ebb50f9b9c9dd57ce34885d8536d3e24bedb2dd522ecac00325005eea",
+    "scripts/benchmark-reuse.mjs": "e8b7068e2c89815a2bf08b7f44ec754f0fb62ffc4f4d8be8a90ff9066b0a71d2",
+    "scripts/lib/agent-events.mjs": "866595231f79a06cd9c3b0d37a1403d117f8676549a00b872ce22158a649799e",
+    "scripts/lib/benchmark-project.mjs": "5998e93d51cccec4963dee2b0056476b6994fe5a892ca3cc79755e797313b93c"
+  },
+  "preflight": [
+    {
+      "taskId": "customer-batches",
+      "verification": {
+        "passed": false,
+        "exitCode": 1,
+        "error": null,
+        "logHash": "bd8f668ed87037779a9191230fe111fa240da0ed70368dac187f881e9394b968"
+      }
+    },
+    {
+      "taskId": "billing-migration",
+      "verification": {
+        "passed": false,
+        "exitCode": 1,
+        "error": null,
+        "logHash": "8f21d549093a0e5c12e2f05b62a58648e2602b6a27960f0d59d09081d064b55a"
+      }
+    },
+    {
+      "taskId": "audit-delivery",
+      "verification": {
+        "passed": false,
+        "exitCode": 1,
+        "error": null,
+        "logHash": "d6c22bce1397867cf5ae1c841a3ea3fd8f8bf5b5df377d6bd3a9e11bc412a59e"
+      }
+    }
+  ],
+  "criteria": "Behavior correctness, patch-reviewed reuse/cleanup and independent-responsibility preservation. Token counts and elapsed time alone are not success criteria.",
+  "runtime": {
+    "node": "v24.20.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "results": [
+    {
+      "taskId": "customer-batches",
+      "artifactId": "customer-batches-pair-1-control",
+      "arm": "control",
+      "repetition": 1,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "93682f31e7d265772706a1015b1a0948f7fa657f6585de16b10ad48d02d70047",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "9e72c71ad5b001f06d65abed7a58b2381ac4a4f3a070faf6c0fa90caf711e5f4",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": null,
+      "draft": {
+        "snapshotHash": "9e72c71ad5b001f06d65abed7a58b2381ac4a4f3a070faf6c0fa90caf711e5f4",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "ec543a42525da90feab982167e2a114fc5ba8a08f2bebc319407f202dbe37e01"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 60988,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 0,
+        "eventHash": "726279659f68e03ec4aea5f3c43fcaf376c0a74aa1b05625367fbb142ac54ce8",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "eedefad710d646e48778c66235cac02e5e48c114d2b36d55466a10d61277ce3e"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/batches.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 90142,
+      "evaluationMs": 266,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 222734,
+          "cached_input_tokens": 192000,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1830,
+          "reasoning_output_tokens": 275
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 8,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "9f0ce768e57f3ca41332aa967b2624fba8e5e1376d6c565b05c1261eaba8f243",
+        "eventHash": "3bf478da2e492ceb8d3391d89fd3a8479f79f4856a4619249581604a462f1f31",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "726279659f68e03ec4aea5f3c43fcaf376c0a74aa1b05625367fbb142ac54ce8",
+        "draftPatchHash": "9f0ce768e57f3ca41332aa967b2624fba8e5e1376d6c565b05c1261eaba8f243",
+        "draftAnalysisHash": "7f8f33aef5b832a45f25ccfe67dc670935e8db55bda5b0dba220267f52411de1"
+      },
+      "patch": "customer-batches-pair-1-control.patch",
+      "duplications": "customer-batches-pair-1-control.duplications.json",
+      "similarities": "customer-batches-pair-1-control.similarities.json",
+      "initialPatch": "customer-batches-pair-1-control.initial.patch",
+      "initialAnalysis": "customer-batches-pair-1-control.initial-analysis.json",
+      "draftPatch": "customer-batches-pair-1-control.draft.patch",
+      "draftAnalysis": "customer-batches-pair-1-control.draft-analysis.json"
+    },
+    {
+      "taskId": "customer-batches",
+      "artifactId": "customer-batches-pair-1-terse",
+      "arm": "terse",
+      "repetition": 1,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "93682f31e7d265772706a1015b1a0948f7fa657f6585de16b10ad48d02d70047",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "d80cd3df102b40e9f31fa4e9aa364765a8d801166b3310d655e8e46161c8b0c8",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": {
+        "targetRules": [
+          "POSSIBLE_DUPLICATION",
+          "NEW_DUPLICATION"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "review:item_2",
+          "responseIndex": 0,
+          "snapshotHash": "d80cd3df102b40e9f31fa4e9aa364765a8d801166b3310d655e8e46161c8b0c8"
+        }
+      },
+      "draft": {
+        "snapshotHash": "d80cd3df102b40e9f31fa4e9aa364765a8d801166b3310d655e8e46161c8b0c8",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "a8c3e0cf8f8b351687737e370c85a8d694a9df63c3694af5be943cde40246ed9"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 64429,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 1,
+        "eventHash": "6f37ed8591a78db83d1359084e0e46a2ef7ee17f76ab94b86c024c8940046e05",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": true,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "3a900adb9a18d42fe84e679b93034249ec0462d18905f126b55a056734f7c07c"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/batches.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 104444,
+      "evaluationMs": 266,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 235350,
+          "cached_input_tokens": 204544,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2554,
+          "reasoning_output_tokens": 419
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 10,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "draft:item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "review:item_2",
+              "responseIndex": 0,
+              "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+              "snapshotHash": "d80cd3df102b40e9f31fa4e9aa364765a8d801166b3310d655e8e46161c8b0c8",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "a8989ff53e549dc3ca6bd6964c6fc24a55944bbcd3c902adb439f09d27575602",
+        "eventHash": "f75cfa7d500a830a0d4a1774e1e90af936cc2ce771b368ed5d863eccd0841c06",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "6f37ed8591a78db83d1359084e0e46a2ef7ee17f76ab94b86c024c8940046e05",
+        "draftPatchHash": "a8989ff53e549dc3ca6bd6964c6fc24a55944bbcd3c902adb439f09d27575602",
+        "draftAnalysisHash": "5afee50a26172a01fb8957e1518037dc458a3b005be290200b76413abf8c5819"
+      },
+      "patch": "customer-batches-pair-1-terse.patch",
+      "duplications": "customer-batches-pair-1-terse.duplications.json",
+      "similarities": "customer-batches-pair-1-terse.similarities.json",
+      "initialPatch": "customer-batches-pair-1-terse.initial.patch",
+      "initialAnalysis": "customer-batches-pair-1-terse.initial-analysis.json",
+      "draftPatch": "customer-batches-pair-1-terse.draft.patch",
+      "draftAnalysis": "customer-batches-pair-1-terse.draft-analysis.json"
+    },
+    {
+      "taskId": "customer-batches",
+      "artifactId": "customer-batches-pair-2-terse",
+      "arm": "terse",
+      "repetition": 2,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "93682f31e7d265772706a1015b1a0948f7fa657f6585de16b10ad48d02d70047",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "582a4e1c569b35da5c4e62130ae422c792e5de964a4aead4a421715d4446f62b",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": {
+        "targetRules": [
+          "POSSIBLE_DUPLICATION",
+          "NEW_DUPLICATION"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "review:item_2",
+          "responseIndex": 0,
+          "snapshotHash": "582a4e1c569b35da5c4e62130ae422c792e5de964a4aead4a421715d4446f62b"
+        }
+      },
+      "draft": {
+        "snapshotHash": "582a4e1c569b35da5c4e62130ae422c792e5de964a4aead4a421715d4446f62b",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "6de137fd505d66e3168958a46a29252da176456c32aba8c60f5751875722a7de"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 66687,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 1,
+        "eventHash": "102e953c3a9d2ea885a674226c04dc5eaaafc068d3f5ae5e0080acde635de991",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": true,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "ba06b87b910f6ed6c5364478714246b36e781e123275186c186a813b00de80ca"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/batches.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 120905,
+      "evaluationMs": 238,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 259277,
+          "cached_input_tokens": 229632,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3038,
+          "reasoning_output_tokens": 339
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 10,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "draft:item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "review:item_2",
+              "responseIndex": 0,
+              "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+              "snapshotHash": "582a4e1c569b35da5c4e62130ae422c792e5de964a4aead4a421715d4446f62b",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "11ae6d83e1033af521a37c832d8ce831419fa1cd76ed35156f2cf8cf2a4f487c",
+        "eventHash": "0136b4dde1a8c9dd7314b9fb65355bf7a1f4e70dbe32cf340d8a68c43f3bf60f",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "102e953c3a9d2ea885a674226c04dc5eaaafc068d3f5ae5e0080acde635de991",
+        "draftPatchHash": "11ae6d83e1033af521a37c832d8ce831419fa1cd76ed35156f2cf8cf2a4f487c",
+        "draftAnalysisHash": "2c6765764d630dd885864c66e35cd911484ffef7e933a79fbb92d803ad6d5156"
+      },
+      "patch": "customer-batches-pair-2-terse.patch",
+      "duplications": "customer-batches-pair-2-terse.duplications.json",
+      "similarities": "customer-batches-pair-2-terse.similarities.json",
+      "initialPatch": "customer-batches-pair-2-terse.initial.patch",
+      "initialAnalysis": "customer-batches-pair-2-terse.initial-analysis.json",
+      "draftPatch": "customer-batches-pair-2-terse.draft.patch",
+      "draftAnalysis": "customer-batches-pair-2-terse.draft-analysis.json"
+    },
+    {
+      "taskId": "customer-batches",
+      "artifactId": "customer-batches-pair-2-control",
+      "arm": "control",
+      "repetition": 2,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "93682f31e7d265772706a1015b1a0948f7fa657f6585de16b10ad48d02d70047",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "21406df39c339900732e31212e6353cf8558e1d0259385a923adf2deb66936a1",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": null,
+      "draft": {
+        "snapshotHash": "21406df39c339900732e31212e6353cf8558e1d0259385a923adf2deb66936a1",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "12d8fe2a260a2e1ab3b7806ca86212055d2ac7760c6aca963db9f36bd539e9b1"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 57243,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 0,
+        "eventHash": "87d99cd2512a957bc06779fb32d70f41a6b07026ad2a6f9e3f7f677113ab5155",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "f6c0394ae329354066372cd2ab87dd91960746e6700c2770a6ebe381cb77786d"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/batches.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 104296,
+      "evaluationMs": 255,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 251758,
+          "cached_input_tokens": 228992,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2619,
+          "reasoning_output_tokens": 395
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "b81aab63a4f9189281c88364b8f8b2e6dc3a760f1f47dbadbf7070c7ee9cb854",
+        "eventHash": "3164da86d29117ae2759354b48fd889169956fd6f7f67127d8500168ca25197c",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "87d99cd2512a957bc06779fb32d70f41a6b07026ad2a6f9e3f7f677113ab5155",
+        "draftPatchHash": "b81aab63a4f9189281c88364b8f8b2e6dc3a760f1f47dbadbf7070c7ee9cb854",
+        "draftAnalysisHash": "6d9a15349c7dc2e4a6d130dbd7344b40d23db9fdd6c3a3a4a8880d5362d03f8b"
+      },
+      "patch": "customer-batches-pair-2-control.patch",
+      "duplications": "customer-batches-pair-2-control.duplications.json",
+      "similarities": "customer-batches-pair-2-control.similarities.json",
+      "initialPatch": "customer-batches-pair-2-control.initial.patch",
+      "initialAnalysis": "customer-batches-pair-2-control.initial-analysis.json",
+      "draftPatch": "customer-batches-pair-2-control.draft.patch",
+      "draftAnalysis": "customer-batches-pair-2-control.draft-analysis.json"
+    },
+    {
+      "taskId": "billing-migration",
+      "artifactId": "billing-migration-pair-1-terse",
+      "arm": "terse",
+      "repetition": 1,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "95d439e18daeda4073a3d8ab2b00aeda331acedaa676115a02c1b0a11a28c7cd",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy/billing.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": {
+        "targetRules": [
+          "REMOVAL_REMAINS",
+          "REMOVAL_REFERENCE_REMAINS"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "review:item_2",
+          "responseIndex": 0,
+          "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b"
+        }
+      },
+      "draft": {
+        "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "1e260b3cefda70a08c30a1f9bd74e0c33c366f4ded00650443ba939b2f7db611"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 68092,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 1,
+        "eventHash": "7472af5b14907376f4704e2f894bf14a87996fa8317a455f4be41093a6c6a26e",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": true,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "766fa338338b7937ac1a2d5bd0264d3607d010c4a264a9539d51a5d3b85228d8"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/api.ts",
+        "src/integrations/download.ts",
+        "src/jobs/manual.ts",
+        "src/jobs/weekly.ts",
+        "src/plugins.ts",
+        "src/providers.ts",
+        "src/reports/billing.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 108984,
+      "evaluationMs": 240,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 251035,
+          "cached_input_tokens": 208128,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2401,
+          "reasoning_output_tokens": 213
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 11,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 1,
+          "evidence": [
+            {
+              "itemId": "draft:item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "review:item_2",
+              "responseIndex": 0,
+              "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+              "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+        "eventHash": "32c37e6bb9af8f173269952f18fc9658f8d589e85d075ba3299d7346fa5aad4e",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "e7ba1f0bef5b878c994c8c7da7d13d92974c638a97c87ff1f50672ace824342e",
+        "draftEventHash": "7472af5b14907376f4704e2f894bf14a87996fa8317a455f4be41093a6c6a26e",
+        "draftPatchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+        "draftAnalysisHash": "5ced8a4b3c82d65f33871b312ccf8dc1f081cdc070f65042e82289e6626962c2"
+      },
+      "patch": "billing-migration-pair-1-terse.patch",
+      "duplications": "billing-migration-pair-1-terse.duplications.json",
+      "similarities": "billing-migration-pair-1-terse.similarities.json",
+      "initialPatch": "billing-migration-pair-1-terse.initial.patch",
+      "initialAnalysis": "billing-migration-pair-1-terse.initial-analysis.json",
+      "draftPatch": "billing-migration-pair-1-terse.draft.patch",
+      "draftAnalysis": "billing-migration-pair-1-terse.draft-analysis.json"
+    },
+    {
+      "taskId": "billing-migration",
+      "artifactId": "billing-migration-pair-1-control",
+      "arm": "control",
+      "repetition": 1,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "95d439e18daeda4073a3d8ab2b00aeda331acedaa676115a02c1b0a11a28c7cd",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "244dcfe72447ecde718d3f616410aca4de97f3ebb884c818d116817e1c8161d8",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy/billing.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": null,
+      "draft": {
+        "snapshotHash": "77e849a6b4b3e2153de82238283e99c0be16d0916d40376d7107d4f35ab5f5db",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "81d5f96ec8e9497b0a949895b6ff4847f6dafd6edc1718c7eb1f23c6ca18b5a5"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 61806,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 0,
+        "eventHash": "315be11f4979c574e798b2accd503b0254d0bc3b2c5fcc67f93cf9d71f6b85cb",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "fbc73d2873bc2f975fd2494815e3aa654481868dfaa77435a1522a1177e1972e"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/api.ts",
+        "src/integrations/download.ts",
+        "src/jobs/manual.ts",
+        "src/jobs/weekly.ts",
+        "src/legacy/billing.ts",
+        "src/orders.ts",
+        "src/plugins.ts",
+        "src/providers.ts",
+        "src/reports/billing.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 106801,
+      "evaluationMs": 250,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 228130,
+          "cached_input_tokens": 203520,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2510,
+          "reasoning_output_tokens": 206
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "1a6d5bfb45341762dbd7a5c7d1e53ff9090f76820db80dd488b6dc371181ff33",
+        "eventHash": "b20f1872aa072d403239a76a8460885e51b406da39f8b8ca3fe6cb5d5b19bd6c",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "e7ba1f0bef5b878c994c8c7da7d13d92974c638a97c87ff1f50672ace824342e",
+        "draftEventHash": "315be11f4979c574e798b2accd503b0254d0bc3b2c5fcc67f93cf9d71f6b85cb",
+        "draftPatchHash": "d79ba3c2f1f88c8a7dbf9e05c0f2d810021dee0ea4177fdbfd8e04af9cc1d8a7",
+        "draftAnalysisHash": "1886268b0386f948e5b200bab186f42f3a1d96f80ea695ef28f7ea40309982a4"
+      },
+      "patch": "billing-migration-pair-1-control.patch",
+      "duplications": "billing-migration-pair-1-control.duplications.json",
+      "similarities": "billing-migration-pair-1-control.similarities.json",
+      "initialPatch": "billing-migration-pair-1-control.initial.patch",
+      "initialAnalysis": "billing-migration-pair-1-control.initial-analysis.json",
+      "draftPatch": "billing-migration-pair-1-control.draft.patch",
+      "draftAnalysis": "billing-migration-pair-1-control.draft-analysis.json"
+    },
+    {
+      "taskId": "billing-migration",
+      "artifactId": "billing-migration-pair-2-control",
+      "arm": "control",
+      "repetition": 2,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "95d439e18daeda4073a3d8ab2b00aeda331acedaa676115a02c1b0a11a28c7cd",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "19aa95c841874ff336c42339a597675bb691c7a7f189978b45de5e18b086751c",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy/billing.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": null,
+      "draft": {
+        "snapshotHash": "19aa95c841874ff336c42339a597675bb691c7a7f189978b45de5e18b086751c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "367a935abf98369713c4671964e8537c635ea08eb58532dd9518792852ccb8c8"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 57663,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 0,
+        "eventHash": "2ed055fc49be9172551304f917a39bf886b7bc6babf436a0489c3162785fe5de",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "e2a2865f90ee7e5b4201335246904473aa1937b80f53d68ed1685e0b69a66f84"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/api.ts",
+        "src/integrations/download.ts",
+        "src/jobs/manual.ts",
+        "src/jobs/weekly.ts",
+        "src/legacy/billing.ts",
+        "src/orders.ts",
+        "src/plugins.ts",
+        "src/providers.ts",
+        "src/reports/billing.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 91882,
+      "evaluationMs": 213,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 203766,
+          "cached_input_tokens": 179584,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2111,
+          "reasoning_output_tokens": 353
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 8,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "3cf62f4914fcdf576b92e65f92f1023b32bcd325d11b0d270892a3a0c756498c",
+        "eventHash": "28bf57d29113949496a36d542bafa69c9cec1ff9dcd6abe73da86a319bb027e6",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "e7ba1f0bef5b878c994c8c7da7d13d92974c638a97c87ff1f50672ace824342e",
+        "draftEventHash": "2ed055fc49be9172551304f917a39bf886b7bc6babf436a0489c3162785fe5de",
+        "draftPatchHash": "3cf62f4914fcdf576b92e65f92f1023b32bcd325d11b0d270892a3a0c756498c",
+        "draftAnalysisHash": "e38e881ae30bd7f2d57e06ef9631533ac338bd8dd212e5d50408f45875a8800c"
+      },
+      "patch": "billing-migration-pair-2-control.patch",
+      "duplications": "billing-migration-pair-2-control.duplications.json",
+      "similarities": "billing-migration-pair-2-control.similarities.json",
+      "initialPatch": "billing-migration-pair-2-control.initial.patch",
+      "initialAnalysis": "billing-migration-pair-2-control.initial-analysis.json",
+      "draftPatch": "billing-migration-pair-2-control.draft.patch",
+      "draftAnalysis": "billing-migration-pair-2-control.draft-analysis.json"
+    },
+    {
+      "taskId": "billing-migration",
+      "artifactId": "billing-migration-pair-2-terse",
+      "arm": "terse",
+      "repetition": 2,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "95d439e18daeda4073a3d8ab2b00aeda331acedaa676115a02c1b0a11a28c7cd",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy/billing.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": {
+        "targetRules": [
+          "REMOVAL_REMAINS",
+          "REMOVAL_REFERENCE_REMAINS"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "review:item_2",
+          "responseIndex": 0,
+          "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b"
+        }
+      },
+      "draft": {
+        "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "a565333ab3466ed9a60a2d73d13747af456f401627050b38341df6855eecee7e"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 69261,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 1,
+        "eventHash": "3cf9efd42d26f9c20ebaea37f7efc4ebd2563e3f541d5a6607d27917434c9bed",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": true,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "b88495416bd7b332369147319be52c6814136eff5e2c6d32c0048f4f6502861a"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/api.ts",
+        "src/integrations/download.ts",
+        "src/jobs/manual.ts",
+        "src/jobs/weekly.ts",
+        "src/plugins.ts",
+        "src/providers.ts",
+        "src/reports/billing.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 111431,
+      "evaluationMs": 282,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 246714,
+          "cached_input_tokens": 188288,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2832,
+          "reasoning_output_tokens": 162
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 12,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 1,
+          "evidence": [
+            {
+              "itemId": "draft:item_7",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "review:item_2",
+              "responseIndex": 0,
+              "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+              "snapshotHash": "390b2e338b17676621e211bf03ed871b20a0c3aded76dd614ff248be6445d92b",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+        "eventHash": "c59846f8d1569ec0091f178ac66dcd5d2b2251d20148ab77194b25cfea48e71c",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "e7ba1f0bef5b878c994c8c7da7d13d92974c638a97c87ff1f50672ace824342e",
+        "draftEventHash": "3cf9efd42d26f9c20ebaea37f7efc4ebd2563e3f541d5a6607d27917434c9bed",
+        "draftPatchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+        "draftAnalysisHash": "c3c1956be7b7c0cd74bc1992e684c748df9d85a91e7a4cc9da07e9eacab92bbb"
+      },
+      "patch": "billing-migration-pair-2-terse.patch",
+      "duplications": "billing-migration-pair-2-terse.duplications.json",
+      "similarities": "billing-migration-pair-2-terse.similarities.json",
+      "initialPatch": "billing-migration-pair-2-terse.initial.patch",
+      "initialAnalysis": "billing-migration-pair-2-terse.initial-analysis.json",
+      "draftPatch": "billing-migration-pair-2-terse.draft.patch",
+      "draftAnalysis": "billing-migration-pair-2-terse.draft-analysis.json"
+    },
+    {
+      "taskId": "audit-delivery",
+      "artifactId": "audit-delivery-pair-1-control",
+      "arm": "control",
+      "repetition": 1,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "8279d4d88b41ea020dac7b3100b54e079b11bf54081f90c40e4d82960b6a1980",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "875fa842b06ebbfa6e7c5810b3ae496808857feceee8d7302372624ce39d744e",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": null,
+      "draft": {
+        "snapshotHash": "875fa842b06ebbfa6e7c5810b3ae496808857feceee8d7302372624ce39d744e",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "f63a7b69323fcd3ada22c14475ad5ed5b33a9ee59c994d44b30ddd9aa000fae1"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 44938,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 0,
+        "eventHash": "79d353a0fffe5b58b9fcef9fbc571339262b53806e6d44da7dc5de3e7359e212",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "6ecd6486be5ffa5b5edf8fd774359adeb2804e944ce31cb021e036d780e8124b"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/audit.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 75509,
+      "evaluationMs": 256,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 196540,
+          "cached_input_tokens": 161024,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1427,
+          "reasoning_output_tokens": 359
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "671a378ab5e0e6b610de2b0061ec502d07447d882c7a0f2cb1b87e04825ab96f",
+        "eventHash": "3533d786553418ee9646cdd1a67ae7136ed32d01964d204e4b0556b104cded27",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "79d353a0fffe5b58b9fcef9fbc571339262b53806e6d44da7dc5de3e7359e212",
+        "draftPatchHash": "671a378ab5e0e6b610de2b0061ec502d07447d882c7a0f2cb1b87e04825ab96f",
+        "draftAnalysisHash": "a0ab6e09fc27764d7b7e62af9d0bcc17555bec1ebc96a2b89d027de72ec3213c"
+      },
+      "patch": "audit-delivery-pair-1-control.patch",
+      "duplications": "audit-delivery-pair-1-control.duplications.json",
+      "similarities": "audit-delivery-pair-1-control.similarities.json",
+      "initialPatch": "audit-delivery-pair-1-control.initial.patch",
+      "initialAnalysis": "audit-delivery-pair-1-control.initial-analysis.json",
+      "draftPatch": "audit-delivery-pair-1-control.draft.patch",
+      "draftAnalysis": "audit-delivery-pair-1-control.draft-analysis.json"
+    },
+    {
+      "taskId": "audit-delivery",
+      "artifactId": "audit-delivery-pair-1-terse",
+      "arm": "terse",
+      "repetition": 1,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "8279d4d88b41ea020dac7b3100b54e079b11bf54081f90c40e4d82960b6a1980",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "df8d3456d58d6901475790ec058361283ab7c0bd949b5b09b44f9ca07d3c6a0e",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": {
+        "targetRules": [
+          "POSSIBLE_DUPLICATION",
+          "NEW_DUPLICATION"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "review:item_2",
+          "responseIndex": 0,
+          "snapshotHash": "df8d3456d58d6901475790ec058361283ab7c0bd949b5b09b44f9ca07d3c6a0e"
+        }
+      },
+      "draft": {
+        "snapshotHash": "df8d3456d58d6901475790ec058361283ab7c0bd949b5b09b44f9ca07d3c6a0e",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "21ca55f1e4dc3454b14a4c49e9570efa5ff01cc4103fa89738222f7aa08083cf"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 54209,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 1,
+        "eventHash": "1764a6d276c1c30b262409ae5bc3205f9daf6536aa98bc83c0efb99ee0762d8b",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": true,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "4f3d022324eb3c52b1e6983ea6d98c0349232ff1f315f1227d3b74a6dca465eb"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/audit.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 85307,
+      "evaluationMs": 267,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 233881,
+          "cached_input_tokens": 204160,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1772,
+          "reasoning_output_tokens": 120
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 11,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 1,
+          "evidence": [
+            {
+              "itemId": "draft:item_7",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "review:item_2",
+              "responseIndex": 0,
+              "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+              "snapshotHash": "df8d3456d58d6901475790ec058361283ab7c0bd949b5b09b44f9ca07d3c6a0e",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "7ea9f79b858dec5769fc58a01c7825a86d93daa71d836147ae9d2c939d5fd0b1",
+        "eventHash": "a9d15a3def0698e5838de9690cbf4a1e2274b596b4b77913a22c2411fa4a79c7",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "1764a6d276c1c30b262409ae5bc3205f9daf6536aa98bc83c0efb99ee0762d8b",
+        "draftPatchHash": "7ea9f79b858dec5769fc58a01c7825a86d93daa71d836147ae9d2c939d5fd0b1",
+        "draftAnalysisHash": "9057d3d80fbd29cc8742b477ed1aeed0809074181cf7bb9222e797d12f23cf54"
+      },
+      "patch": "audit-delivery-pair-1-terse.patch",
+      "duplications": "audit-delivery-pair-1-terse.duplications.json",
+      "similarities": "audit-delivery-pair-1-terse.similarities.json",
+      "initialPatch": "audit-delivery-pair-1-terse.initial.patch",
+      "initialAnalysis": "audit-delivery-pair-1-terse.initial-analysis.json",
+      "draftPatch": "audit-delivery-pair-1-terse.draft.patch",
+      "draftAnalysis": "audit-delivery-pair-1-terse.draft-analysis.json"
+    },
+    {
+      "taskId": "audit-delivery",
+      "artifactId": "audit-delivery-pair-2-terse",
+      "arm": "terse",
+      "repetition": 2,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "8279d4d88b41ea020dac7b3100b54e079b11bf54081f90c40e4d82960b6a1980",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "4dd1632741a469f58fdcd3caaba9c80d2150949ffaf132078c68b337fde31b96",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": {
+        "targetRules": [
+          "POSSIBLE_DUPLICATION",
+          "NEW_DUPLICATION"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "review:item_2",
+          "responseIndex": 0,
+          "snapshotHash": "4dd1632741a469f58fdcd3caaba9c80d2150949ffaf132078c68b337fde31b96"
+        }
+      },
+      "draft": {
+        "snapshotHash": "4dd1632741a469f58fdcd3caaba9c80d2150949ffaf132078c68b337fde31b96",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "5b00305b7ae8610d22b1b036a4b78244e7f085ed34f99ce886bc62829f555c90"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 60490,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 2,
+        "eventHash": "d484d30bff7d92c1bfbf8f51499224474f14218b66507de989380fbaa61b811a",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": true,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "982696851974735bcbece3bf007b1bf93d8462730ec296947e8b0577ee116fe9"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/audit.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 88935,
+      "evaluationMs": 256,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 223322,
+          "cached_input_tokens": 190720,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1819,
+          "reasoning_output_tokens": 143
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 9,
+        "decisions": {
+          "complete": true,
+          "attempts": 2,
+          "successfulWrites": 2,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "draft:item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            },
+            {
+              "itemId": "draft:item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "review:item_2",
+              "responseIndex": 0,
+              "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+              "snapshotHash": "4dd1632741a469f58fdcd3caaba9c80d2150949ffaf132078c68b337fde31b96",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "ff7acdb875d721de07a1bb6cb6238dad4e61a5e0a9011a79331f44e83d2d12ce",
+        "eventHash": "25993c39316478c5d813635197d1eecbba161fc535d326b608de6b63979bf3a3",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "d484d30bff7d92c1bfbf8f51499224474f14218b66507de989380fbaa61b811a",
+        "draftPatchHash": "ff7acdb875d721de07a1bb6cb6238dad4e61a5e0a9011a79331f44e83d2d12ce",
+        "draftAnalysisHash": "7db6d2a15bacb3c84302e274c8cb27946180ae9944ecc800b7617a6f2fd16fd7"
+      },
+      "patch": "audit-delivery-pair-2-terse.patch",
+      "duplications": "audit-delivery-pair-2-terse.duplications.json",
+      "similarities": "audit-delivery-pair-2-terse.similarities.json",
+      "initialPatch": "audit-delivery-pair-2-terse.initial.patch",
+      "initialAnalysis": "audit-delivery-pair-2-terse.initial-analysis.json",
+      "draftPatch": "audit-delivery-pair-2-terse.draft.patch",
+      "draftAnalysis": "audit-delivery-pair-2-terse.draft-analysis.json"
+    },
+    {
+      "taskId": "audit-delivery",
+      "artifactId": "audit-delivery-pair-2-control",
+      "arm": "control",
+      "repetition": 2,
+      "baselineHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "acceptanceHash": "8279d4d88b41ea020dac7b3100b54e079b11bf54081f90c40e4d82960b6a1980",
+      "startingHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+      "snapshotHash": "2ca42e66bf24b17c92714084b6988a1c2f0b421fd1b379a3445c3828e53a5de8",
+      "initial": {
+        "snapshotHash": "085be9f16de481f92c5440c014ca34a4540d27f798c6271732a465c6e2e99b8c",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": null,
+      "draft": {
+        "snapshotHash": "2ca42e66bf24b17c92714084b6988a1c2f0b421fd1b379a3445c3828e53a5de8",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [],
+        "duplicationError": null,
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "fbf2013422c04aa8f98732afd94b7fe399d9ebec4ceb2b02db2c646c015f8ea1"
+        },
+        "tampered": [],
+        "outsideScope": [],
+        "completed": true,
+        "exitCode": 0,
+        "agentMs": 42437,
+        "timedOut": false,
+        "blockedByPolicy": false,
+        "earlyChecks": 0,
+        "decisionWrites": 0,
+        "eventHash": "00d8df8bc8ab73f2eb7036249859768e9cd4c153826f3bdf177d1402cdf0eb6f",
+        "protocolValid": true
+      },
+      "reviewCheckpoint": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "e3a88a505a5ccf1a8a65ac175a8f47766de65ece5993100e579a5cebec540913"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/reports/audit.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 76697,
+      "evaluationMs": 273,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 175199,
+          "cached_input_tokens": 155392,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1433,
+          "reasoning_output_tokens": 307
+        },
+        "errors": [
+          "Local configuration feature warning",
+          "Local configuration feature warning"
+        ],
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "dca30cac38d40a0c9a3a214a382a0e203f5c594860954d10fdc9642fce312628",
+        "eventHash": "90cb6f2c3a7462d44ca293c40b0ca9bc90f07e4e73e2c569122209c0dd21b8b8",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "94e079c76f0b4d0b4ee85f7a3ee79b43ccbd831a1e32a5ca82adefa82a1b3a6c",
+        "draftEventHash": "00d8df8bc8ab73f2eb7036249859768e9cd4c153826f3bdf177d1402cdf0eb6f",
+        "draftPatchHash": "dca30cac38d40a0c9a3a214a382a0e203f5c594860954d10fdc9642fce312628",
+        "draftAnalysisHash": "683b99a8651e2b2b3d88a1c18dbaa77e2cf58c08cff03eed8894e87543070b7d"
+      },
+      "patch": "audit-delivery-pair-2-control.patch",
+      "duplications": "audit-delivery-pair-2-control.duplications.json",
+      "similarities": "audit-delivery-pair-2-control.similarities.json",
+      "initialPatch": "audit-delivery-pair-2-control.initial.patch",
+      "initialAnalysis": "audit-delivery-pair-2-control.initial-analysis.json",
+      "draftPatch": "audit-delivery-pair-2-control.draft.patch",
+      "draftAnalysis": "audit-delivery-pair-2-control.draft-analysis.json"
+    }
+  ],
+  "pairs": [
+    {
+      "taskId": "customer-batches",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 90142,
+        "terse": 104444
+      },
+      "terseMinusControlMs": 14302
+    },
+    {
+      "taskId": "customer-batches",
+      "repetition": 2,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 104296,
+        "terse": 120905
+      },
+      "terseMinusControlMs": 16609
+    },
+    {
+      "taskId": "billing-migration",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 106801,
+        "terse": 108984
+      },
+      "terseMinusControlMs": 2183
+    },
+    {
+      "taskId": "billing-migration",
+      "repetition": 2,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 91882,
+        "terse": 111431
+      },
+      "terseMinusControlMs": 19549
+    },
+    {
+      "taskId": "audit-delivery",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 75509,
+        "terse": 85307
+      },
+      "terseMinusControlMs": 9798
+    },
+    {
+      "taskId": "audit-delivery",
+      "repetition": 2,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 76697,
+        "terse": 88935
+      },
+      "terseMinusControlMs": 12238
+    }
+  ],
+  "exportedAt": "2026-11-06T05:07:02.772Z",
+  "functionalSummary": {
+    "control": {
+      "runs": 6,
+      "behaviorCorrect": 6,
+      "functional": 6,
+      "draftBehaviorCorrect": 6,
+      "draftFunctional": 6,
+      "draftDuplicateFree": 6,
+      "finalDuplicateFree": 6,
+      "draftCleanupComplete": 6,
+      "finalCleanupComplete": 6
+    },
+    "terse": {
+      "runs": 6,
+      "behaviorCorrect": 6,
+      "functional": 6,
+      "draftBehaviorCorrect": 6,
+      "draftFunctional": 6,
+      "draftDuplicateFree": 6,
+      "finalDuplicateFree": 6,
+      "draftCleanupComplete": 6,
+      "finalCleanupComplete": 6
+    }
+  },
+  "fixtureCanonicalHashes": {
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "examples/evaluation/add.test.mjs": "21f3558c85498e2cda1664c6059d44f15c5f4e9ccaea315bcdec33b172d5622e",
+    "examples/evaluation/delete.test.mjs": "1f938c6760ea432e787264f9c7ad61e8e6ec4b4e70f591bc8350f2d95d395a93",
+    "examples/evaluation/dynamic.test.mjs": "16448a1c8224d31d36da5173518ec7fa7e77ba0966b0d421d54b36068c5f5a3e",
+    "examples/evaluation/independent.test.mjs": "6f0f47f29b71945f0f9484a9bc03f34649f86687aa4968886755c496a4d70e12",
+    "examples/evaluation/modify.test.mjs": "ee0d94f72c37ce9c6852247e059b3c20d99b6f12690ccdd662e193e99a7ba16b",
+    "examples/evaluation/refactor.test.mjs": "8c4cc878c8f2b87450bc5553259c926aed5c9342d877fb02c69e0f0ce7ba9bf6",
+    "examples/evaluation/routes.test.mjs": "46f0710035255a828574a5629984e16d44737b29e92372e29f360ad79d5735a4",
+    "examples/evaluation/routes.ts": "39e4c939c2fea4def1db055ea072923d2e3e93479755586d3ef40feff3e462c7",
+    "scripts/evaluation-cases.mjs": "99ee5ca53de9bd0e7ac909df901e4fb7897f065182d99c18367aeef02291dc7d",
+    "scripts/lib/evaluation-project.mjs": "59aef0903a8681b0eda917e27ba69229402d441da90975e42c3eceb56a2e34ac",
+    "examples/natural/audit-delivery.test.mjs": "fa0c5f09e7c6850a88f236fc3a0a750f26f37354cf0494f005f221fecb0aabe0",
+    "examples/natural/billing-migration.test.mjs": "b01461ae889ea32dd00e51d42e1664ded4f3b28f6eaa9f382950ff45398cbc63",
+    "examples/natural/customer-batches.test.mjs": "f174549de77a742dcb7f466eca644fa1293ed9ad6343eb5852f15ea8dab61a92",
+    "examples/natural/source/api.ts": "3e2b5579a484c9c908b129f9728cf1914e4d49f0adeef674c819ee3c3efa6570",
+    "examples/natural/source/archive.ts": "529a0ec66f83ae64dbad2bdcf52b813a5f5278161628ff265172bbf85ceb02bf",
+    "examples/natural/source/domain/selection.ts": "5c5513ef7edf2dc344d0fa7b72ff20cef126ae878cf5d75efd767c83acc35413",
+    "examples/natural/source/integrations/download.ts": "6209ac60774997eb677a43bda2b1252bada67c4470fae5e3abe635f809ee7c6b",
+    "examples/natural/source/jobs/manual.ts": "8d58b1fdddecaa339735ebcf44899fc1821d01a8a3f0204fa6206ec2d9d73064",
+    "examples/natural/source/jobs/weekly.ts": "aec3829ad183316524b9f9952274acf787da45d48578688ebfc57f762dca723e",
+    "examples/natural/source/legacy/billing.ts": "67b300b79611041da39f964fb994f0f78cdf381786942cad32af64318ec74030",
+    "examples/natural/source/orders.ts": "3e4cae51f735808e8cbbb84092cdbc2930e76b5e6b6223ee0038bdbf02089642",
+    "examples/natural/source/plugins.ts": "37f28698a922ae43ed673572901d50b3b3238bdad160f6e3070352b51f184a32",
+    "examples/natural/source/providers.ts": "cf99d14b6bad63be4061bbaf3f2a329711ad9e3144a09460a39e21ad6e3d0ff3",
+    "examples/natural/source/reporting/csv.ts": "47a234a5a475623c7fd0756a2f9d0a45ab3ca43ab5b1be3d4d80aae8239c3fc4",
+    "scripts/natural-cases.mjs": "4729b25ebb50f9b9c9dd57ce34885d8536d3e24bedb2dd522ecac00325005eea",
+    "scripts/benchmark-reuse.mjs": "05f98ca5bc36ee283d4c630f7ddb59950d07cb9cd3306697376c9979edc7bfa4",
+    "scripts/lib/agent-events.mjs": "15903e4d7d8e1e4812506184b5c2b8d823f3b1d4aeba6a8f33d249e655ca7a53",
+    "scripts/lib/benchmark-project.mjs": "aa1d152ea7375d40997f2cdb2aa135ae47072b6ca9e59bd2a82acedcc6a6779e"
+  },
+  "reviewHash": "377085afc8fc4ca819232d0a67c71cb0bbb8e428f27a7cbf4bc20a28cf7f8f47",
+  "publication": "Raw event streams and process logs remain local; SHA-256 hashes identify those artifacts. Final agent prose and machine-local artifact paths are omitted. Patches and duplicate evidence are included."
+}

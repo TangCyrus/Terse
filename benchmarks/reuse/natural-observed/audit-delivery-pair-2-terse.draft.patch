@@ -1,0 +1,32 @@
+diff --git a/src/reports/audit.ts b/src/reports/audit.ts
+new file mode 100644
+index 0000000..14ae79c
+--- /dev/null
++++ b/src/reports/audit.ts
+@@ -0,0 +1,26 @@
++import type {Order} from '../orders.ts';
++import {csvCell, ORDER_HEADER, orderRecord} from '../reporting/csv.ts';
++
++export interface AuditAuthorization {
++  readonly auditor: boolean;
++  readonly owners?: readonly string[];
++  readonly statuses?: readonly Order['status'][];
++}
++
++export async function streamAuditCsv(
++  orders: readonly Order[],
++  authorization: AuditAuthorization,
++  emit: (record: string) => void | Promise<void>,
++): Promise<void> {
++  if (authorization.auditor !== true) {
++    throw new Error('Auditor authorization is required');
++  }
++
++  const {owners, statuses} = authorization;
++  await emit(`ownerId,${ORDER_HEADER}`);
++  for (const order of orders) {
++    if (owners !== undefined && !owners.includes(order.ownerId)) continue;
++    if (statuses !== undefined && !statuses.includes(order.status)) continue;
++    await emit(`${csvCell(order.ownerId)},${orderRecord(order)}`);
++  }
++}

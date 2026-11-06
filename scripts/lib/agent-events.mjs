@@ -24,6 +24,26 @@ export function summarizeEvents(text, terseCli) {
     ...(terseCli ? {decisions: decisionActivity(events, terseCli, completed), checks: checkActivity(events, completed)} : {}) };
 }
 
+// Preserve raw phase logs separately; prefix only derived references so repeated
+// item IDs from independent ephemeral sessions cannot be confused in a report.
+export function summarizePhases(phases, terseCli) {
+  const summaries = phases.map(({text}) => summarizeEvents(text, terseCli));
+  const lines = phases.flatMap(({phase, text}) => text.split(/\r?\n/).filter(Boolean).map(line => {
+    try {
+      const event = JSON.parse(line);
+      if (event?.item && typeof event.item.id === 'string') event.item.id = `${phase}:${event.item.id}`;
+      return JSON.stringify(event);
+    } catch { return line; }
+  }));
+  const result = summarizeEvents(lines.join('\n'), terseCli);
+  if (!summaries.every(item => item.completed)) {
+    result.completed = false;
+    if (result.decisions) Object.assign(result.decisions, {complete: false, retries: null, unrecoveredFailure: null});
+    if (result.checks) result.checks.complete = false;
+  }
+  return result;
+}
+
 // Tool output may contain several pretty-printed CLI objects and shell preambles.
 // Do not count help, source reads, decision-input filenames or ordinary successful revisions as retries.
 function jsonObjects(text) {
@@ -112,7 +132,7 @@ function checkActivity(events, completed) {
 
 // An observed warning -> later clean check is sequence evidence, not a causal claim.
 // Parent analysis and patch review remain separate from the agent's own reports.
-export function correctionEvidence(activity, {baselineHash, startingHash, finalHash, targetRules, seeded, finalClean, verificationCount}) {
+export function correctionEvidence(activity, {baselineHash, startingHash, finalHash, targetRules, seeded, finalClean, verificationCount, draftHash}) {
   const reports = activity?.reports ?? [];
   const verified = report => report.baselineHash === baselineHash && report.status !== 'incomplete' && report.errors === 0
     && report.verification.length === verificationCount && verificationCount > 0 && report.verification.every(status => status === 'passed');
@@ -120,9 +140,10 @@ export function correctionEvidence(activity, {baselineHash, startingHash, finalH
   const last = reports.findLastIndex(report => verified(report) && report.status === 'pass' && report.snapshotHash === finalHash
     && !report.findings.some(item => targetRules.includes(item.rule)));
   const checkpoint = !seeded || first >= 0 && reports[first].snapshotHash === startingHash;
+  const draftOpportunity = draftHash === undefined || first === 0 && reports[first].snapshotHash === draftHash;
   const reference = index => index < 0 ? null : {itemId: reports[index].itemId, responseIndex: reports[index].responseIndex, snapshotHash: reports[index].snapshotHash};
   return {targetRules, warningObserved: first >= 0, seededCheckpoint: seeded ? checkpoint : null,
-    observedCorrection: !!activity?.complete && checkpoint && first >= 0 && last > first
+    observedCorrection: !!activity?.complete && checkpoint && draftOpportunity && first >= 0 && last > first
       && startingHash !== finalHash && reports[first].snapshotHash !== finalHash && finalClean,
     warning: reference(first), finalCheck: reference(last)};
 }

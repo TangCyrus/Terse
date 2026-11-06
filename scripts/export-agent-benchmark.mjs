@@ -36,6 +36,9 @@ for (const result of report.results) if (Object.hasOwn(result, 'possibleDuplicat
 for (const result of report.results) if (result.initial) for (const [file, key] of [['initial.patch', 'initialPatchHash'], ['initial-analysis.json', 'initialAnalysisHash']]) {
   assert.equal(createHash('sha256').update(fs.readFileSync(path.join(source, result.artifactId, file))).digest('hex'), result.evidence[key], 'Initial challenge evidence changed');
 }
+for (const result of report.results) if (result.draft) for (const [file,key] of [['draft.patch','draftPatchHash'],['draft-analysis.json','draftAnalysisHash']]) {
+  assert.equal(createHash('sha256').update(fs.readFileSync(path.join(source,result.artifactId,file))).digest('hex'),result.evidence[key],'Natural draft evidence changed');
+}
 fs.mkdirSync(target); // Never overwrite a previously published experiment.
 const results = report.results.map(result => {
   const label = result.artifactId ?? `pair-${result.repetition}-${result.arm}`;
@@ -48,6 +51,7 @@ const results = report.results.map(result => {
   const hasSimilarities = fs.existsSync(path.join(source, label, 'similarities.json'));
   if (hasSimilarities) fs.copyFileSync(path.join(source, label, 'similarities.json'), path.join(target, `${label}.similarities.json`));
   if (result.initial) for (const file of ['initial.patch', 'initial-analysis.json']) fs.copyFileSync(path.join(source, label, file), path.join(target, `${label}.${file}`));
+  if (result.draft) for (const file of ['draft.patch','draft-analysis.json']) fs.copyFileSync(path.join(source,label,file),path.join(target,`${label}.${file}`));
   const { finalMessage, ...events } = result.events;
   events.errors = events.errors.map(message => /Under-development features/.test(message) ? 'Local configuration feature warning'
     : /Reconnecting/.test(message) ? 'Transport reconnect'
@@ -55,7 +59,8 @@ const results = report.results.map(result => {
         : 'Other CLI diagnostic; raw message retained locally');
   return { ...result, events, patch: `${label}.patch`, duplications: hasDuplications ? `${label}.duplications.json` : null,
     ...(Object.hasOwn(result, 'possibleDuplications') ? {similarities: hasSimilarities ? `${label}.similarities.json` : null} : {}),
-    ...(result.initial ? {initialPatch: `${label}.initial.patch`, initialAnalysis: `${label}.initial-analysis.json`} : {}) };
+    ...(result.initial ? {initialPatch: `${label}.initial.patch`, initialAnalysis: `${label}.initial-analysis.json`} : {}),
+    ...(result.draft ? {draftPatch:`${label}.draft.patch`,draftAnalysis:`${label}.draft-analysis.json`} : {}) };
 });
 const { artifactDirectory, ...portable } = report;
 if (report.kind === 'open-source-agent-comparison') fs.writeFileSync(path.join(target, 'dependency-lock.json.gz'), gzipSync(fs.readFileSync(path.join(source, 'package-lock.json'))));
