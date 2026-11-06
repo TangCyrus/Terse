@@ -122,7 +122,8 @@ export function correctionEvidence(activity, {baselineHash, startingHash, finalH
   const checkpoint = !seeded || first >= 0 && reports[first].snapshotHash === startingHash;
   const reference = index => index < 0 ? null : {itemId: reports[index].itemId, responseIndex: reports[index].responseIndex, snapshotHash: reports[index].snapshotHash};
   return {targetRules, warningObserved: first >= 0, seededCheckpoint: seeded ? checkpoint : null,
-    observedCorrection: !!activity?.complete && checkpoint && first >= 0 && last > first && startingHash !== finalHash && finalClean,
+    observedCorrection: !!activity?.complete && checkpoint && first >= 0 && last > first
+      && startingHash !== finalHash && reports[first].snapshotHash !== finalHash && finalClean,
     warning: reference(first), finalCheck: reference(last)};
 }
 

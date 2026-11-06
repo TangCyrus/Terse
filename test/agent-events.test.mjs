@@ -59,6 +59,8 @@ test('correction evidence requires an observed warning followed by a full later 
   const noOpportunity = correctionEvidence(summarize([last]),{...options,seeded:false});
   assert.equal(noOpportunity.warningObserved,false);
   assert.equal(noOpportunity.observedCorrection,false);
+  const unchanged = commandEvent('same-source','node cli.js check --run r',JSON.stringify({...warned,snapshotHash:'end'}));
+  assert.equal(correctionEvidence(summarize([unchanged,last]),{...options,seeded:false}).observedCorrection,false);
   const logs = [commandEvent('read','Get-Content report.json',JSON.stringify(warned)),commandEvent('git','git diff --check','')];
   assert.deepEqual(summarize(logs).reports,[]);
   assert.equal(summarize(logs).unknownCalls,0);
