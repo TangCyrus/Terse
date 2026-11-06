@@ -124,6 +124,8 @@ M5 新增项目接入入口 `init(root, verification?)` / `terse init [--verify 
 
 Skill 运行器增加 --suite p-queue / --source。适配器 [pqueue-skill.mjs](scripts/lib/pqueue-skill.mjs) 复用原三类业务任务与四组验收，普通提示不携带工具指令。原 benchmark-agent 与新套件共用 [open-source-project.mjs](scripts/lib/open-source-project.mjs) 的隔离复制/等价配置准备及 verifyCommand 的执行、计数和日志哈希；每个会话有独立依赖副本。新的 editable、initialScopeHash / finalScopeHash 将阶段判定扩展到 source/ 和 README，旧观察缺省仍兼容，不回填历史。上游源文本、锁和许可随新归档保存；规则见 [p-queue Skill 评测](docs/PQUEUE-SKILL-BENCHMARK.md)，离线边界回归见 [pqueue-skill.test.mjs](test/pqueue-skill.test.mjs)。
 
+p-queue 六次真实会话已完成：行为、人工复用与清理审查各 6/6，完整工作流 4/6。两次重构漏填旧私有方法的删除声明，保留失败计分；父分析的成员引用不确定提示也原样保存，不视为实际残留。四组验证由父进程独立复验，决策格式重试为 0，但保留环境重试及重构中的类型修正。[pqueue-skill-publication.test.mjs](test/pqueue-skill-publication.test.mjs) 校验新发布的 21 个文件、冻结输入及上游锁，重算工作流并静态回放六份补丁；不调用模型或冒充再次运行上游行为测试。旧各轮发布与产品 src/、Skill 模板均未修改。
+
 Skill 冷启动评测入口为 [benchmark-skill.mjs](scripts/benchmark-skill.mjs)，复用现有订单任务、prepareEvaluation、runAgent、保护文件校验和结构分析。任务 [skill-cases.mjs](scripts/skill-cases.mjs) 只提供普通业务需求；宿主仅 init，不提供基线、候选或流程提醒。runAgent 的可选 onEvent 回调在父进程观察事件，不修改模型输入输出，既有套件默认执行方式不变。新的 [skill-evidence.mjs](scripts/lib/skill-evidence.mjs) 将阶段证据与实际磁盘快照绑定，观察不足、过期检查、补写决策及重复基线不能算完整成功。[独立发布器](scripts/export-skill-benchmark.mjs) 校验实际输入、补丁和观察哈希并另存冻结归档，保留全部会话；离线回归见 [skill-agent.test.mjs](test/skill-agent.test.mjs)，规则与结果见 [Skill 评测](docs/SKILL-AGENT-BENCHMARK.md)。
 
 本轮在预登记提交 85d8679 完成六个独立真实会话，各自只有普通业务提示；六次均在修改前读取/检索/决策，并在同一基线上完整 check 通过，父运行时验收和人工复用/清理审查亦达标。原始记录留本地，新发布及冻结输入位于 benchmarks/skill，旧四轮数据不变。[skill-publication.test.mjs](test/skill-publication.test.mjs) 校验所有发布字节和冻结输入、重算工作流并离线重放六份实际补丁。prepareEvaluation / createWorkspace 的可选 fixtureRoot 允许读取冻结夹具，默认路径及旧套件不变。小样本无 control，不外推一般触发率或相对收益。

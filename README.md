@@ -10,7 +10,7 @@ Terse 为 coding agent 提供任务相关的代码检索、修改前基线和修
 
 `npm run benchmark:skill` 用独立新会话验证安装后的实际接入：任务只给普通开发需求，分别测量修改前读取/检索/决策、最终完整检查和独立行为验收。本轮修改、删除、重构各两次，六个真实会话均自主完成流程，行为、复用与清理审查达标。方法与局限见 [Skill 真实会话评测](docs/SKILL-AGENT-BENCHMARK.md)；这是当前宿主的小样本接入证据，不与确定性 demo 或旧对照数据混算，也不推断相对收益。
 
-真实开源项目入口为 `npm run benchmark:skill -- --suite p-queue --source <固定工作区>`，沿用 p-queue 的修改、删除和重构验收，保留编译、任务行为、上游 AVA 和严格类型四组检查。准备与判定规则见 [p-queue Skill 接入评测](docs/PQUEUE-SKILL-BENCHMARK.md)，数据单独保存。
+真实开源项目入口为 `npm run benchmark:skill -- --suite p-queue --source <固定工作区>`，沿用 p-queue 的修改、删除和重构验收，保留编译、任务行为、上游 AVA 和严格类型四组检查。六次真实会话的行为、复用与清理审查均达标，但两次重构漏填删除声明，严格工作流仅 4/6 通过。结果与限制见 [p-queue Skill 接入评测](docs/PQUEUE-SKILL-BENCHMARK.md)，数据与历史分开保存。
 
 ## 安装与验证
 
