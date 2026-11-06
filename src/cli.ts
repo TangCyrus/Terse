@@ -3,12 +3,14 @@ import { parseArgs } from 'node:util';
 import { begin, rootOf } from './project.js';
 import { context } from './analyze.js';
 import { check } from './check.js';
+import { init } from './init.js';
 import { decide, decisionGuide, inputOptionIssues } from './decision.js';
 import { VERSION } from './types.js';
 import { resultOutput, errorOutput, summaryOutput, verificationGuide, type CliOutput, type Command, type ErrorStage } from './output.js';
 
 const help = `Terse ${VERSION} — find existing code before adding another implementation
 
+terse init [--verify '<command JSON>'] [--cwd <project>] [--json]
 terse begin --task "<requirement>" [--query "<behavior or symbol>"] [--limit 5] [--cwd <project>] [--json]
 terse context --run <id> --query "<behavior or symbol>" [--limit 5] [--cwd <project>] [--json]
 terse decide --run <id> --strategy <reuse|modify|refactor|new> --rationale "<reason>" [--candidate <candidateId>] [--json]
@@ -16,6 +18,9 @@ terse decide --run <id> --input <decision.json> [--candidate <candidateId>] [--c
 terse check --run <id> [--summary] [--skip-verification] [--cwd <project>] [--json]
 
 Use begin --query to create a baseline and retrieve candidates in one call.
+init installs the project Agent Skill and instructions, preserving existing configuration.
+--verify may repeat for a new config; each value is {"command":"node","args":["--test","test/*.test.mjs"]}.
+Without configured verification, init returns needs-review; configure real checks before begin.
 Read candidates, then use decide to save a validated decision before implementing.
 --candidate and --remove (file path) can repeat; --reason defaults to --rationale.
 --disposition overrides the candidate default: reuse, modify or reject.
@@ -34,6 +39,8 @@ function render(result: any): string {
   if (result.outputKind === 'error') return `${result.status}: ${result.diagnostics.map((d: any) => `[${d.code}] ${d.message}`).join('\n')}`;
   if (result.command === 'help') return result.help;
   if (result.command === 'version') return result.toolVersion;
+  if (result.command === 'init') return [`Status: ${result.status}`, `Skill: ${result.skillPath}`, `Instructions: ${result.instructionsPath}`,
+    ...result.files.map((file: any) => `${file.status}: ${file.path}`), ...result.setupIssues.map((issue: any) => `${issue.code}: ${issue.message}`), result.next].join('\n');
   if (result.command === 'begin') return `Run: ${result.run}\nTask: ${result.task}\nScanned: ${result.scannedFiles} files\nDecision: ${result.decisionPath}\nNext: ${result.next}${result.context ? `\n\n${render(result.context)}` : ''}`;
   if (result.command === 'decide') return `Decision saved: ${result.decisionPath}\nStrategy: ${result.decision.strategy}\nNext: ${result.next}`;
   if (result.command === 'context') {
@@ -64,20 +71,24 @@ try {
     task: { type: 'string' }, run: { type: 'string' }, query: { type: 'string' }, cwd: { type: 'string' }, limit: { type: 'string' },
     json: { type: 'boolean' }, help: { type: 'boolean' }, version: { type: 'boolean' }, 'skip-verification': { type: 'boolean' },
     strategy: { type: 'string' }, rationale: { type: 'string' }, candidate: { type: 'string', multiple: true },
-    disposition: { type: 'string' }, reason: { type: 'string' }, input: { type: 'string' }, remove: { type: 'string', multiple: true }, summary: { type: 'boolean' },
+    disposition: { type: 'string' }, reason: { type: 'string' }, input: { type: 'string' }, remove: { type: 'string', multiple: true }, summary: { type: 'boolean' }, verify: { type: 'string', multiple: true },
   } });
   json = values.json ?? false;
   if (values.version) { command = 'version'; output = resultOutput(command, {}); }
   else if (values.help || !positionals.length) { command = 'help'; output = resultOutput(command, { help }); }
   else {
-    const permitted: Record<string, string[]> = { begin: ['task', 'query', 'limit'], context: ['run', 'query', 'limit'],
+    const permitted: Record<string, string[]> = { init: ['verify'], begin: ['task', 'query', 'limit'], context: ['run', 'query', 'limit'],
       decide: ['run', 'strategy', 'rationale', 'candidate', 'disposition', 'reason', 'input', 'remove'], check: ['run', 'skip-verification', 'summary'] };
-    if (positionals.length !== 1 || !Object.hasOwn(permitted, positionals[0])) throw new Error('Expected begin, context, decide or check. Use --help.');
-    command = positionals[0] as 'begin' | 'context' | 'decide' | 'check';
+    if (positionals.length !== 1 || !Object.hasOwn(permitted, positionals[0])) throw new Error('Expected init, begin, context, decide or check. Use --help.');
+    command = positionals[0] as 'init' | 'begin' | 'context' | 'decide' | 'check';
     for (const key of Object.keys(values)) if (!['cwd', 'json', ...permitted[command]].includes(key)) throw new Error(`--${key} is not valid for ${command}`);
     const required = (value: string | undefined, name: string) => { if (!value?.trim()) throw new Error(`--${name} is required`); return value; };
     if (command === 'begin') required(values.task, 'task');
-    else required(values.run, 'run');
+    else if (command !== 'init') required(values.run, 'run');
+    const verification = values.verify?.map(value => {
+      try { return JSON.parse(value); }
+      catch { throw new Error('--verify must be a JSON object with command, args and optional timeoutMs'); }
+    });
     const limit = Number(values.limit ?? 5);
     if (command === 'context' || (command === 'begin' && values.query !== undefined)) {
       required(values.query, 'query');
@@ -100,7 +111,8 @@ try {
     const root = rootOf(values.cwd ?? process.cwd());
     stage = 'command';
     let result;
-    if (command === 'begin') {
+    if (command === 'init') result = init(root, verification);
+    else if (command === 'begin') {
       const started = begin(root, values.task!);
       const found = values.query !== undefined ? context(root, started.run, values.query, limit) : undefined;
       result = { ...started, decisionGuide: decisionGuide(root, started.run), ...(found ? { context: found, errors: found.errors,
@@ -112,7 +124,7 @@ try {
       const report = await check(root, values.run!, values['skip-verification']);
       result = values.summary ? summaryOutput(root, report) : report;
     }
-    if (command !== 'check') result = {...result, verificationGuide: verificationGuide(root, values.run ?? result.run)};
+    if (command !== 'check' && 'run' in result) result = {...result, verificationGuide: verificationGuide(root, values.run ?? result.run)};
     output = resultOutput(command, result);
   }
 } catch (error) {

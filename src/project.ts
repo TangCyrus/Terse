@@ -42,7 +42,7 @@ export function readJson(file: string): any {
   catch { throw recordError('INVALID_JSON', `${file}: expected valid JSON; file contents are omitted`); }
 }
 
-function parseConfig(raw: unknown, complete = false): Config {
+export function parseConfig(raw: unknown, complete = false): Config {
   if (!isRecord(raw)) throw new Error('config must be an object');
   const allowed = new Set(['exclude', 'minTokens', 'minLines', 'duplicatePolicy', 'verification']);
   for (const key of Object.keys(raw)) if (!allowed.has(key)) throw new Error(`Unknown config option: ${key}`);

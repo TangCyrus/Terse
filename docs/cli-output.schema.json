@@ -6,7 +6,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "toolVersion": { "type": "string" },
-    "command": { "enum": ["begin", "context", "decide", "check", "help", "version", null] },
+    "command": { "enum": ["init", "begin", "context", "decide", "check", "help", "version", null] },
     "outputKind": { "enum": ["result", "error"] },
     "status": { "enum": ["pass", "fail", "needs-review", "incomplete"] },
     "exitCode": { "enum": [0, 1, 2, 3] },
@@ -68,6 +68,12 @@
       "if": { "properties": { "outputKind": { "const": "result" } } },
       "then": {
         "oneOf": [
+          { "properties": { "command": { "const": "init" }, "files": { "type": "array", "items": {
+            "type": "object", "required": ["path", "status"], "properties": {
+              "path": { "type": "string" }, "status": { "enum": ["created", "updated", "unchanged", "preserved"] }
+            }
+          } }, "verificationConfigured": { "type": "boolean" }, "runnerArgv": { "type": "array", "items": { "type": "string" } } },
+            "required": ["root", "skillPath", "instructionsPath", "files", "verificationConfigured", "runnerArgv", "setupIssues", "next"] },
           { "properties": { "command": { "const": "begin" } }, "required": ["run", "root", "snapshotHash", "scannedFiles", "decisionPath"] },
           { "properties": { "command": { "const": "context" } }, "required": ["run", "query", "snapshotHash", "scannedFiles", "candidates", "fileMatches", "unresolvedImports"] },
           { "properties": { "command": { "const": "decide" } }, "required": ["run", "decisionPath", "decision"] },
