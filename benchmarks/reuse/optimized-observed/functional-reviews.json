@@ -1,0 +1,74 @@
+[
+  {
+    "artifactId": "modify-pair-1-control",
+    "patchHash": "ae39b5ce604c3bfdcdf1ac8798ba5d8a49d3e4ce9ce83b1dd39151193078ce76",
+    "functional": true,
+    "reason": "Route filters paid orders and delegates to the unchanged exporter. Owner isolation, amount validation and CSV encoding remain in a single implementation; defaults and inputs are preserved."
+  },
+  {
+    "artifactId": "modify-pair-1-terse",
+    "patchHash": "31008b68cdb732a7158d2084898a919dee1b256033539164a868ddee2bf401c8",
+    "functional": true,
+    "reason": "Route filters paid orders and delegates to the unchanged exporter. Owner isolation, amount validation and CSV encoding remain in one owner; no competing implementation was introduced."
+  },
+  {
+    "artifactId": "delete-pair-1-terse",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "functional": true,
+    "reason": "Legacy module is physically deleted and routes import the existing orders exporter and Order type. No stale legacy import or second encoder remains; unchanged behavior passes independent acceptance."
+  },
+  {
+    "artifactId": "delete-pair-1-control",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "functional": true,
+    "reason": "Legacy module is physically deleted and routes import the existing orders exporter and Order type. No stale legacy import or second encoder remains; unchanged behavior passes independent acceptance."
+  },
+  {
+    "artifactId": "refactor-pair-1-control",
+    "patchHash": "87047a5c509ef0ffd52430dd600b93a1995cba47af9c21b06788dadd1a5a920a",
+    "functional": true,
+    "reason": "The original body and Order interface move into reporting.ts; orders.ts becomes a one-line compatibility re-export of both. The caller reaches the same single encoder, with no retained implementation body."
+  },
+  {
+    "artifactId": "refactor-pair-1-terse",
+    "patchHash": "df4f00ce34279a36fec6bda9f32aec231e87d68cac65016dbfd50b5698c8386d",
+    "functional": true,
+    "reason": "The complete CSV body moves into reporting.ts and orders.ts retains only the Order interface and compatibility re-export. The type-only back-reference has no runtime import; one permission/validation/encoding pipeline remains."
+  },
+  {
+    "artifactId": "add-pair-1-terse",
+    "patchHash": "8f22e728f0ef8089b00480e75d1124bd7444abfde1262fd4e9cb2d477a0956e0",
+    "functional": true,
+    "reason": "A standalone notifications module implements trimmed-field validation, first-ID-wins idempotence and copied array/new item outputs without altering the exporter. This is an independent queue responsibility, so the additional module is appropriate."
+  },
+  {
+    "artifactId": "add-pair-1-control",
+    "patchHash": "b9addc68dec0d37c42764d5ad341da99a74e16b8ac8dfb282e6bfc113a47955d",
+    "functional": true,
+    "reason": "A standalone notifications module implements trimmed-field validation, first-ID-wins idempotence and copied array/new item outputs without altering the exporter. The queue is an independent responsibility; additional source is appropriate."
+  },
+  {
+    "artifactId": "independent-pair-1-control",
+    "patchHash": "8a1f01a697a646158a1ded26f327c771cc926f64ccf2e4785ea1554c53f7af6c",
+    "functional": true,
+    "reason": "Customer export retains owner filtering and auditor export separately requires isAuditor === true. Both delegate to one CSV serializer owning amount validation and escaping; no second encoder or authorization bypass was introduced."
+  },
+  {
+    "artifactId": "independent-pair-1-terse",
+    "patchHash": "d7a65021d2c5496021c20bf91b8930638f46012701da364a0bc7dbef6695e0cb",
+    "functional": true,
+    "reason": "Customer export retains owner filtering and auditor export independently requires isAuditor === true. Both use one shared CSV serializer for validation and escaping; the distinct authorization contracts remain intact."
+  },
+  {
+    "artifactId": "dynamic-pair-1-terse",
+    "patchHash": "611aa12ce2991bb28e0119760d8e5d191d189eb85ee11d818a616f6dfca140ce",
+    "functional": true,
+    "reason": "Legacy implementation is deleted and the download route migrates to orders.ts. A runtime-selected Map resolves 'orders' to an explicit current-module import and rejects unknown names, preserving selection without stale legacy references."
+  },
+  {
+    "artifactId": "dynamic-pair-1-control",
+    "patchHash": "bebe45fbab7d72f7591bdfba7710e6632d261371d0ebca97009c03f28bf363c7",
+    "functional": true,
+    "reason": "Legacy implementation is deleted and the caller migrates to orders.ts. A name-based switch imports the current exporter for 'orders' and rejects unknown names, preserving runtime selection without leaving legacy references."
+  }
+]

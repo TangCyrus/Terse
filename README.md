@@ -32,6 +32,8 @@ npm run demo
 
 首轮 12 次真实会话中，两组各 6/6 行为与补丁审查达标，尚未观察到 Terse 相对对照组的改善。该历史版本未检出改写式重复反例；合并 M3 实现复核后，当前回归预期已改为 needs-review，原观测和哈希保持不变。当前仍不能保证没有同职责重复；详见上述评测的能力边界。
 
+合并 M3 / M5 后另完成 12 次真实复测，数据单独保存在 [optimized-observed](benchmarks/reuse/optimized-observed/comparison.json)。两组各 6/6 行为与功能审查达标，新增精确重复和独立相似实现均为 0；删除、重构及动态迁移均完成清理，合理新增和独立权限保留。仍未观察到相对对照组的功能改善；Terse 总会话耗时约多 31.5%，仅作辅助记录。历史数据及哈希未变。
+
 实际 agent 对照入口为 `npm run benchmark:agent -- --source <p-map 工作区>`，使用固定开源版本、独立会话和事后验收，比较有无 Terse 的正确性、重复和墙钟时间。它需要单独登录的 Codex CLI，不在常规 CI 中调用模型。准备方式、真实观测与限制见 [开源项目 agent 评测](docs/AGENT-BENCHMARK.md)。
 
 多文件 TypeScript 评测使用 `npm run benchmark:agent -- --suite p-queue --source <p-queue 工作区>`，覆盖修改、删除和重构三类任务，以优化后的命令式接入做 12 次独立会话对照。任务、验收、配置准备边界与结果见 [p-queue agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md)。

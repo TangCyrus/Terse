@@ -1,0 +1,43 @@
+diff --git a/src/orders.ts b/src/orders.ts
+index 87dffc7..b6959d3 100644
+--- a/src/orders.ts
++++ b/src/orders.ts
+@@ -6,16 +6,4 @@ export interface Order {
+   status: 'paid' | 'pending';
+ }
+ 
+-// 订单导出：权限过滤、金额校验、CSV 转义共用同一条处理路径。
+-export function exportOrders(orders: Order[], ownerId: string): string {
+-  if (!ownerId) throw new Error('ownerId is required');
+-  const visible = orders.filter(order => order.ownerId === ownerId);
+-  const rows = visible.map(order => {
+-    if (!Number.isFinite(order.total) || order.total < 0) {
+-      throw new Error(`Invalid total for ${order.id}`);
+-    }
+-    const customer = `"${order.customer.replaceAll('"', '""')}"`;
+-    return [order.id, customer, order.total.toFixed(2), order.status].join(',');
+-  });
+-  return ['id,customer,total,status', ...rows].join('\n');
+-}
++export { exportOrders } from './reporting.ts';
+diff --git a/src/reporting.ts b/src/reporting.ts
+new file mode 100644
+index 0000000..c86fc44
+--- /dev/null
++++ b/src/reporting.ts
+@@ -0,0 +1,15 @@
++import type { Order } from './orders.ts';
++
++// 订单导出：权限过滤、金额校验、CSV 转义共用同一条处理路径。
++export function exportOrders(orders: Order[], ownerId: string): string {
++  if (!ownerId) throw new Error('ownerId is required');
++  const visible = orders.filter(order => order.ownerId === ownerId);
++  const rows = visible.map(order => {
++    if (!Number.isFinite(order.total) || order.total < 0) {
++      throw new Error(`Invalid total for ${order.id}`);
++    }
++    const customer = `"${order.customer.replaceAll('"', '""')}"`;
++    return [order.id, customer, order.total.toFixed(2), order.status].join(',');
++  });
++  return ['id,customer,total,status', ...rows].join('\n');
++}

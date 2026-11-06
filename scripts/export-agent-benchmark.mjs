@@ -26,6 +26,13 @@ const fixtureCanonicalHashes = reviews ? Object.fromEntries(Object.entries(repor
 if (reviews) for (const result of report.results) assert.equal(
   createHash('sha256').update(fs.readFileSync(path.join(source, result.artifactId, 'implementation.patch'))).digest('hex'),
   result.evidence.patchHash, 'Reviewed patch bytes changed after grading');
+for (const result of report.results) if (Object.hasOwn(result, 'possibleDuplications') && result.possibleDuplications !== null) {
+  assert(Number.isInteger(result.possibleDuplications) && result.possibleDuplications >= 0);
+  const evidence = JSON.parse(fs.readFileSync(path.join(source, result.artifactId, 'similarities.json'), 'utf8'));
+  assert(Array.isArray(evidence));
+  assert.equal(evidence.length, result.possibleDuplications, 'Similarity count must match saved evidence');
+  assert(evidence.every(item => item.rule === 'POSSIBLE_DUPLICATION' && item.similarity?.algorithm === result.similarityAlgorithm));
+}
 fs.mkdirSync(target); // Never overwrite a previously published experiment.
 const results = report.results.map(result => {
   const label = result.artifactId ?? `pair-${result.repetition}-${result.arm}`;
@@ -35,12 +42,15 @@ const results = report.results.map(result => {
   if (hasDuplications) {
     fs.copyFileSync(path.join(source, label, 'duplications.json'), path.join(target, `${label}.duplications.json`));
   }
+  const hasSimilarities = fs.existsSync(path.join(source, label, 'similarities.json'));
+  if (hasSimilarities) fs.copyFileSync(path.join(source, label, 'similarities.json'), path.join(target, `${label}.similarities.json`));
   const { finalMessage, ...events } = result.events;
   events.errors = events.errors.map(message => /Under-development features/.test(message) ? 'Local configuration feature warning'
     : /Reconnecting/.test(message) ? 'Transport reconnect'
       : /Falling back/.test(message) ? 'Transport fallback'
         : 'Other CLI diagnostic; raw message retained locally');
-  return { ...result, events, patch: `${label}.patch`, duplications: hasDuplications ? `${label}.duplications.json` : null };
+  return { ...result, events, patch: `${label}.patch`, duplications: hasDuplications ? `${label}.duplications.json` : null,
+    ...(Object.hasOwn(result, 'possibleDuplications') ? {similarities: hasSimilarities ? `${label}.similarities.json` : null} : {}) };
 });
 const { artifactDirectory, ...portable } = report;
 if (report.kind === 'open-source-agent-comparison') fs.writeFileSync(path.join(target, 'dependency-lock.json.gz'), gzipSync(fs.readFileSync(path.join(source, 'package-lock.json'))));

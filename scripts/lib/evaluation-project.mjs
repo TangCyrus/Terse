@@ -5,6 +5,7 @@ import {createWorkspace, repository} from './workspace.mjs';
 import {snapshot} from '../../dist/project.js';
 import {clones, indexSources, newClones} from '../../dist/analyze.js';
 import {cleanupFindings} from '../../dist/cleanup.js';
+import {similarImplementations, SIMILARITY_ALGORITHM} from '../../dist/similarity.js';
 
 // Both authored variants and live agents receive the same project and acceptance files.
 export function prepareEvaluation(parent, name, scenario) {
@@ -29,14 +30,19 @@ export function prepareEvaluation(parent, name, scenario) {
 // Grading failures are recorded, so an agent's malformed configuration cannot
 // prevent its invalid sample (or subsequent samples) from being persisted.
 export async function analyzeEvaluation(project, before, removals) {
-  const result = {after: null, duplications: null, newDuplications: null, duplicationError: null, cleanup: []};
+  const result = {after: null, duplications: null, newDuplications: null, similarities: null, possibleDuplications: null,
+    similarityAlgorithm: SIMILARITY_ALGORITHM, duplicationError: null, cleanup: []};
   try {
     result.after = snapshot(project);
-    const index = indexSources(result.after, project, before.files);
+    const index = indexSources(result.after, project, before.files, true);
+    const oldIndex = indexSources(before, undefined, {}, true);
     assert.deepEqual(index.errors, []);
+    assert.deepEqual(oldIndex.errors, []);
     const duplications = newClones(before, result.after, await clones(result.after));
-    const cleanup = cleanupFindings(before, result.after, indexSources(before), index, removals);
-    Object.assign(result, {duplications, newDuplications: duplications.length, cleanup});
+    const cleanup = cleanupFindings(before, result.after, oldIndex, index, removals);
+    const similarities = similarImplementations(oldIndex.implementations, index.implementations,
+      duplications.map(({locations}) => ({rule: 'NEW_DUPLICATION', locations})));
+    Object.assign(result, {duplications, newDuplications: duplications.length, similarities, possibleDuplications: similarities.length, cleanup});
   } catch (error) {
     result.duplicationError = (error instanceof Error ? error.message : String(error)) || 'Source analysis failed';
   }

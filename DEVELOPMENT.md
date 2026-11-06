@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮已合入 `main` 的 `ce49130`，包含 M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12、M5 复杂决策优化 #13、p-queue 复测 #14、M3 实现相似度复核 #17 及 M6 功能效果评测 #16；该主线的 Windows/Linux Node 24 CI 各通过 150 项测试（含子用例）及打包预检。本 PR #15 的 M5 验证入口优化保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮以 `main` 的 `7772dc8` 为起点，M1–M6 首轮、评测与接入优化 #8–#14、M3 实现相似度复核 #17、M6 功能效果评测 #16 和 M5 验证入口优化 #15 均已合并；已合并的 M5 提交在 Windows/Linux Node 24 CI 各通过 154 项测试（含子用例）及打包预检。本轮 M6 复测保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -15,7 +15,7 @@
 
 已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、11 个实现变体，包含改写式重复反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 及复测已合并。M6 用订单项目六类任务运行实际 agent 对照，以行为、复用、清理和职责边界为主要标准，耗时作辅助；方法与局限见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。本次 M5 交付针对重复执行整套验证及失败 summary 缺少日志的问题；完整检查和功能效果仍是主要标准，不以总耗时下降作为验收条件。
 
-历史 12 次真实会话两组各 6/6 行为及非盲补丁审查达标，五个预登记已有候选均在 Terse 基线检索中出现；尚未观察到接入相对对照组的功能改善。适配 #17 后，当前改写式反例应产生 POSSIBLE_DUPLICATION，而非历史 pass；当前评测输出 possibleDuplications、similarityAlgorithm 和 similarities。历史 observed 目录的 26 个文件及全部原哈希不变，CI 改用当时 13 份输入的冻结归档校验历史证据，避免把当前 oracle 误当成过去的输入。没有重新调用模型或改写旧结论。
+历史与本轮各完成 12 次真实会话，两组均各 6/6 行为及非盲补丁审查达标；本轮五个已有候选命中，独立新增精确重复与相似实现均为 0，清理完成，仍未观察到接入相对对照组的功能改善。改写式反例在当前离线回归产生 POSSIBLE_DUPLICATION，本轮真实会话未产生该反例。新结果单独发布到 optimized-observed，两个观测目录各自绑定冻结输入与全部发布文件哈希；历史 observed 的 26 个文件、旧归档和原哈希不变。
 
 ## 开发原则与任务范围
 
@@ -126,7 +126,7 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 
 protectedFileEvidence(root, expectedHashes, acceptanceFiles) 用运行前记录构造验收身份，实际文件只用于篡改核对；验收文件缺失、改名或被目录替换时返回 tampered，保留协议无效的样本及原验收哈希，避免中止后续会话。历史输入归档与 observed 发布文件逐字节校验，当前 oracle 的演进不改变旧观测。
 
-analyzeEvaluation(project, before, removals) 复用 M1 快照及 M3/M4 分析，捕获包括配置读取在内的源码评分异常。失败记录 duplicationError，重复计数保持 null；有效快照才参与 workflow 核验，避免配置损坏使整轮对照在保存无效结果前中断。
+analyzeEvaluation(project, before, removals) 复用 M1 快照及 M3/M4 分析，对两组同样开启实现证据采集，返回 duplications/newDuplications、similarities/possibleDuplications、similarityAlgorithm 和 cleanup；精确发现抑制同对相似提示，与产品 check 一致。捕获包括配置读取在内的源码评分异常，失败记录 duplicationError，两类重复计数和证据保持 null；有效快照才参与 workflow 核验，避免配置损坏使整轮对照在保存无效结果前中断。发布器验证新测量的计数与证据匹配；老报告可不含相似度字段，不回填历史测量。
 
 实际 agent 对照复用 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs)，`--suite` 选择固定的 [p-map](benchmarks/p-map) 或 [p-queue](benchmarks/p-queue) 输入，默认 p-map 保持兼容。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与按任务 ID、重复编号成对统计；[benchmark-project.mjs](scripts/lib/benchmark-project.mjs) 处理等价配置准备、上游计数和包含新增文件的 Git 补丁。准备后的项目必须编译、可分析且无范围外变更，再启动模型。离线协议与发布测试不需要模型凭据；实际实验使用 `npm run benchmark:agent` 单独启动。方法、真实结果和限制见 [p-map](docs/AGENT-BENCHMARK.md) 与 [p-queue](docs/COMPLEX-AGENT-BENCHMARK.md) 文档。
 
