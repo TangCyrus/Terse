@@ -1,0 +1,3 @@
+*.patch -text
+*.json -text
+*.gz -text

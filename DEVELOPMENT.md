@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮以 `main` 的 `44067b2` 为起点，包含已合并的 M1–M6 首轮、评测与接入优化 #8–#20；其中 #20 在 Windows/Linux Node 24 CI 各通过 179 项测试（含子用例）及打包预检。M6 行为验收 #21 仍独立待审；本轮 M5 Agent Skill 与项目初始化从 main 单独开发，不合并该待审分支。后续测试数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮以 `main` 的 `2c393a0` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20 及已合并的 M5 Skill 初始化 #22；#22 在 Windows/Linux Node 24 CI 各通过 197 项测试（含子用例）及打包预检。M6 行为验收 #21 仍独立待审；本轮 M6 Skill 真实会话评测从 main 单独开发，不合并该待审分支。后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -121,6 +121,8 @@ M5 新增项目接入入口 `init(root, verification?)` / `terse init [--verify 
 `npm run demo:agent` 通过安装后的启动器，完成正常订单需求的检索/决策、复制草稿的完整 check、同一基线上的复用修正及复验。复用既有工作区、CLI 调用和订单任务构造；初次与最终报告分别保留，明确是无模型调用的确定性接入示例。[init.test.mjs](test/init.test.mjs) 覆盖初始化、指令优先级、配置保留、命令及路径失败、状态传递和完整集成；Skill 模板随包发布。历史评测输入及发布文件不回填。
 
 ### M6 测试、示例与工程自动化
+
+Skill 冷启动评测入口为 [benchmark-skill.mjs](scripts/benchmark-skill.mjs)，复用现有订单任务、prepareEvaluation、runAgent、保护文件校验和结构分析。任务 [skill-cases.mjs](scripts/skill-cases.mjs) 只提供普通业务需求；宿主仅 init，不提供基线、候选或流程提醒。runAgent 的可选 onEvent 回调在父进程观察事件，不修改模型输入输出，既有套件默认执行方式不变。新的 [skill-evidence.mjs](scripts/lib/skill-evidence.mjs) 将阶段证据与实际磁盘快照绑定，观察不足、过期检查、补写决策及重复基线不能算完整成功。[独立发布器](scripts/export-skill-benchmark.mjs) 校验实际输入、补丁和观察哈希并另存冻结归档，保留全部会话；离线回归见 [skill-agent.test.mjs](test/skill-agent.test.mjs)，规则与结果见 [Skill 评测](docs/SKILL-AGENT-BENCHMARK.md)。
 
 代码归属：[test/terse.test.mjs](test/terse.test.mjs)、[scripts/demo.mjs](scripts/demo.mjs)、[examples/orders](examples/orders)、[package.json](package.json)、[tsconfig.json](tsconfig.json) 与 [CI 工作流](.github/workflows/ci.yml)。
 

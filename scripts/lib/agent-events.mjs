@@ -46,7 +46,7 @@ export function summarizePhases(phases, terseCli) {
 
 // Tool output may contain several pretty-printed CLI objects and shell preambles.
 // Do not count help, source reads, decision-input filenames or ordinary successful revisions as retries.
-function jsonObjects(text) {
+export function jsonObjects(text) {
   const objects = [];
   for (let start = 0; start < text.length; start++) {
     if (text[start] !== '{') continue;

@@ -8,6 +8,8 @@ Terse 为 coding agent 提供任务相关的代码检索、修改前基线和修
 
 已有项目可运行 `node <Terse>/dist/cli.js init --cwd <项目>`，安装项目级 Agent Skill 与指令。随后在该项目开启 agent 会话，普通 JS/TS 开发需求即可按项目约定触发检索、决策和完整检查。已有配置保留，缺少真实验证命令时会提示补齐。安装与能力边界见 [Agent 接入](docs/AGENT-INTEGRATION.md)，`npm run demo:agent` 可验证完整接入及重复提示后的修正流程。
 
+`npm run benchmark:skill` 用独立新会话验证安装后的实际接入：任务只给普通开发需求，分别测量修改前读取/检索/决策、最终完整检查和独立行为验收。方法与实际观测另见 [Skill 真实会话评测](docs/SKILL-AGENT-BENCHMARK.md)，不与确定性 demo 或旧对照数据混算。
+
 ## 安装与验证
 
 需要 Node.js 24 或更新版本，以及 PATH 中可用的 Git。在仓库目录运行：
