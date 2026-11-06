@@ -21,7 +21,7 @@ export function implementation(body: ts.Node, ast: ts.SourceFile, location: Loca
   function visit(node: ts.Node) {
     // Diagnostics and type annotations do not establish a shared implementation.
     if (ts.isThrowStatement(node) || ts.isTypeNode(node)) return;
-    if (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)
+    if (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node) || ts.isMethodDeclaration(node)
       || ((ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && ts.isVariableDeclaration(node.parent))) return;
     if (ts.isCallExpression(node)) {
       if (ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'console') return;

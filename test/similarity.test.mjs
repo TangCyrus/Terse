@@ -174,3 +174,19 @@ test('M3 independent authorization remains a review question rather than a claim
   assert.match(finding.message, /authorization may justify both/);
   assert(!Object.hasOwn(finding, 'attribution'));
 });
+
+test('M3 factories do not inherit independently indexed object or class-expression method bodies', () => {
+  const method = rewritten.replace('export function exportPaidOrders(input, user)', 'exportRows(input, user)');
+  for (const returned of [`{${method}}`, `class Exporter {${method}}`]) {
+    const factory = `export function createExporter() {
+      const format = 'csv';
+      const version = 1;
+      const enabled = true;
+      return ${returned};
+    }`;
+    const indexed = profiles({'factory.ts': factory});
+    assert.equal(indexed.length, 1);
+    assert.notEqual(indexed[0].symbol, 'createExporter');
+    assert.deepEqual(similarImplementations([], indexed, []), []);
+  }
+});
