@@ -16,12 +16,12 @@ export function createWorkspace(parent, name) {
   return fs.realpathSync(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: directory, encoding: 'utf8' }).trim());
 }
 
-export function invoke(cwd, args, expected = 0) {
+export function invoke(cwd, args, expected = 0, entryPoint = cli) {
   const env = { ...process.env };
   // Nested Node test runners otherwise treat verification as an existing test child
   // and may execute only the first file instead of the entire acceptance suite.
   delete env.NODE_TEST_CONTEXT;
-  const result = spawnSync(process.execPath, [cli, ...args, '--cwd', cwd, '--json'], { encoding: 'utf8', timeout: 60_000, env });
+  const result = spawnSync(process.execPath, [entryPoint, ...args, '--cwd', cwd, '--json'], { encoding: 'utf8', timeout: 60_000, env });
   assert.equal(result.error, undefined);
   assert.equal(result.status, expected, `${result.stdout}\n${result.stderr}`);
   assert.equal(result.stderr, '');

@@ -5,13 +5,14 @@
   "description": "Task-scoped reuse discovery and incremental duplication checks for coding agents",
   "type": "module",
   "bin": { "terse": "dist/cli.js" },
-  "files": ["dist", "README.md", "DESIGN.md", "docs/CLI.md", "docs/SIMILARITY.md", "docs/cli-output.schema.json", "docs/decision.schema.json"],
+  "files": ["dist", "skills", "README.md", "DESIGN.md", "docs/CLI.md", "docs/AGENT-INTEGRATION.md", "docs/SIMILARITY.md", "docs/cli-output.schema.json", "docs/decision.schema.json"],
   "engines": { "node": ">=24" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "terse": "node dist/cli.js",
     "test": "npm run build && node --test test/*.test.mjs",
     "demo": "npm run build && node scripts/demo.mjs",
+    "demo:agent": "npm run build && node scripts/demo-agent.mjs",
     "evaluate": "npm run build && node scripts/evaluate.mjs",
     "benchmark:agent": "npm run build && node scripts/benchmark-agent.mjs",
     "benchmark:reuse": "npm run build && node scripts/benchmark-reuse.mjs"

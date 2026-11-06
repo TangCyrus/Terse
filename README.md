@@ -6,6 +6,8 @@ Terse 为 coding agent 提供任务相关的代码检索、修改前基线和修
 
 参与开发请阅读 [开发文档](DEVELOPMENT.md)，其中包含 M1–M6 的合并进度、当前接口、验证方式和后续分模块交付计划。
 
+已有项目可运行 `node <Terse>/dist/cli.js init --cwd <项目>`，安装项目级 Agent Skill 与指令。随后在该项目开启 agent 会话，普通 JS/TS 开发需求即可按项目约定触发检索、决策和完整检查。已有配置保留，缺少真实验证命令时会提示补齐。安装与能力边界见 [Agent 接入](docs/AGENT-INTEGRATION.md)，`npm run demo:agent` 可验证完整接入及重复提示后的修正流程。
+
 ## 安装与验证
 
 需要 Node.js 24 或更新版本，以及 PATH 中可用的 Git。在仓库目录运行：
@@ -226,7 +228,7 @@ M4 已适配 M2：`indexSources(state, root?, fallbackFiles?)` 保留第二个�
 5. 执行 `check`，处理实际问题，并在源码变更后重新验证。
 6. 交付时说明复用了什么、为何新增、清理了什么、哪些验证完成或仍有缺口。
 
-工具返回过代码不代表 agent 已理解代码。该约定属于行为引导，首版没有接管编辑工具、强制宿主 hook 或 CI 合并门槛。
+工具返回过代码不代表 agent 已理解代码。`init` 安装的项目 Skill 和指令会提供上述行为引导；当前没有接管编辑工具、强制宿主 hook 或 CI 合并门槛。
 
 ## 分析范围与后续方向
 

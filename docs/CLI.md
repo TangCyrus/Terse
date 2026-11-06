@@ -4,6 +4,8 @@ Agent 应通过参数数组运行 `node <terse>/dist/cli.js <command> ... --json
 
 ## 读取规则
 
+新增 `init [--verify <command JSON>] [--cwd <project>] [--json]` 安装项目 Skill 与配置，不建立任务基线、不执行验证。verify 可重复传入 command/args/可选 timeoutMs 对象，只用于新配置。已有配置保留，冲突或不安全路径返回既有错误结构。结果包含 root、skillPath、instructionsPath、runnerArgv、files、verificationConfigured、setupIssues 和 next；files 的 status 为 created / updated / unchanged / preserved。无验证时为 needs-review / 2；有配置时 pass 只表示安装完成。init 不返回任务 verificationGuide。详细行为见 [Agent 接入](AGENT-INTEGRATION.md)。
+
 `--json` 模式每次向 stdout 输出一个 JSON 对象和结尾换行，可能跨多行；应在进程退出后解析完整 stdout，不要按行拆 JSON。正常的工具诊断也包含在 JSON 中，不写入 stderr；项目验证命令的输出保存在 `verification[].output`。进程被外部终止、stdout 管道断开或 Node 无法启动不保证产生 JSON，宿主应单独处理这类传输失败。
 
 所有命令、帮助、版本和捕获到的错误均包含以下字段：
@@ -12,7 +14,7 @@ Agent 应通过参数数组运行 `node <terse>/dist/cli.js <command> ... --json
 | --- | --- |
 | `schemaVersion` | 当前为数字 `1`，不随工具版本改变 |
 | `toolVersion` | Terse 版本字符串 |
-| `command` | `begin`、`context`、`decide`、`check`、`help`、`version`；参数解析尚未识别命令时为 `null` |
+| `command` | `init`、`begin`、`context`、`decide`、`check`、`help`、`version`；参数解析尚未识别命令时为 `null` |
 | `outputKind` | `result` 表示命令已返回结果；`error` 表示参数、项目定位或执行异常，可能没有任何业务字段 |
 | `status` | `pass`、`fail`、`needs-review`、`incomplete` |
 | `exitCode` | 与实际进程退出码一致：依次为 `0`、`1`、`2`、`3` |
