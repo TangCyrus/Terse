@@ -1,0 +1,962 @@
+{
+  "schemaVersion": 1,
+  "kind": "agent-skill-integration",
+  "terseRevision": "85d86793b8616af5101880d98f9045aba37f0924",
+  "specification": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "timeoutMs": 600000
+  },
+  "repetitions": 2,
+  "cliVersion": "codex-cli 0.166.0-alpha.6",
+  "tasks": [
+    {
+      "id": "modify",
+      "prompt": "下载订单时支持只导出已付款订单：downloadOrders 的可选 paid 参数应生效；省略参数时保留全部可见订单。保持 owner 隔离、金额校验、CSV 转义和输入不变。\n源码修改限于 src/；保留现有测试、依赖和项目配置，可阅读测试。不要提交或推送。完成后说明修改和验证结果。",
+      "promptHash": "3cc488e9e7e82fd59b5eb065c93482ef8e76d437b59264306c3a735bd7a0bc27",
+      "remove": [],
+      "acceptanceHash": "9751bb774f1cc40c31989f84e53858d248db91a0448c3272085617d25bde5381"
+    },
+    {
+      "id": "delete",
+      "prompt": "退役 src/legacy.ts，将订单下载调用迁移到当前导出实现，删除旧文件，保持现有导出接口和 CSV 行为。\n源码修改限于 src/；保留现有测试、依赖和项目配置，可阅读测试。不要提交或推送。完成后说明修改和验证结果。",
+      "promptHash": "abcca9facbd3b3514b398654b6b0be164ed259c9444427d3dded9985fa747bbd",
+      "remove": [
+        {
+          "path": "src/legacy.ts"
+        }
+      ],
+      "acceptanceHash": "8da2db669649ba5651f00bec8500aa9075863c6f0b564e37b8b60de8dd01f6cd"
+    },
+    {
+      "id": "refactor",
+      "prompt": "将订单 CSV 的实现移到 src/reporting.ts，保留 orders.ts 的公开导出兼容入口和下载行为，保持原有权限、金额校验和 CSV 格式。\n源码修改限于 src/；保留现有测试、依赖和项目配置，可阅读测试。不要提交或推送。完成后说明修改和验证结果。",
+      "promptHash": "561a4bf70ce24552e1ae8c45322234c5fe38798897cdbf245090f6e12fccfa5f",
+      "remove": [],
+      "acceptanceHash": "15d97c2d1ba41be88896a7ab52eef6fd6a3109b63f2b7c9281fbed3d3d8497e8"
+    }
+  ],
+  "fixtureHashes": {
+    "dist/analyze.js": "4fcc548e8e9789d38a06b201b950b10099ab0f04b22a15f604e2c9d6b7a6176a",
+    "dist/check.js": "374779d5ea9a5294a72d7aa4ec9bab2c26cbc34b2c51a56cf46826e054ce859b",
+    "dist/cleanup.js": "176e6fec7ea0f62609bc31047cba8b1c6f23e970ec01d4bb610833de1d485fba",
+    "dist/cli.js": "e19afc305022d28d006d753d15484b1f94c9e8543a13b4ecec7e9dd46f26d185",
+    "dist/decision.js": "0f8098306a657ead815c74e6ee49391478864d810a5a8a9418ea242d2dc351b0",
+    "dist/imports.js": "8447d8ad027eca2ffed9d0c45611c0e127e92d8f577fa26c2134d232a7113544",
+    "dist/init.js": "1ba4f16309f0235e3c587b8868e9d24069d66a975e784ba71176f5e7bc03d500",
+    "dist/output.js": "7d6ce0e5338a96dc53d95ae708dbabc0738928af40e95372f8aff906feacc0c3",
+    "dist/project.js": "0e57afedbbe536075a94076bed633d7bb78e3895e72ea6172ff171617aab79c7",
+    "dist/similarity.js": "87f8f5448c2e27355ea5462b9a93d41db6b8491f050ed02701521360de752f84",
+    "dist/types.js": "a517c6f91040080d849a9576a0922c3edceea50d286170eaeff229580acea3cd",
+    "examples/evaluation/add.test.mjs": "1f2889d72485724c1b7b95790235fd5e6233109b80ccac85f9f49201d03154b1",
+    "examples/evaluation/delete.test.mjs": "8da2db669649ba5651f00bec8500aa9075863c6f0b564e37b8b60de8dd01f6cd",
+    "examples/evaluation/dynamic.test.mjs": "dda586393770be26212bb8431d2ab04308a556b32571bbd73e35598188d30be4",
+    "examples/evaluation/independent.test.mjs": "75e62ffb11f25da6af752cbcddbb2f780b901d4a9ed2926bd0b4dbb6932f23df",
+    "examples/evaluation/modify.test.mjs": "9751bb774f1cc40c31989f84e53858d248db91a0448c3272085617d25bde5381",
+    "examples/evaluation/refactor.test.mjs": "15d97c2d1ba41be88896a7ab52eef6fd6a3109b63f2b7c9281fbed3d3d8497e8",
+    "examples/evaluation/routes.test.mjs": "d02be4705e97862dea941cd95d2881c5520f20decfa2c63fd96c9d344dc8e155",
+    "examples/evaluation/routes.ts": "ee14a302026ab2332ad2f926c4524ee868118b9b9b913bc3ded8b9d3c89973f7",
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "package-lock.json": "afdc6f06c001d11e8f42223e159ad00270671f74baa12986a35c1feb22d379d6",
+    "package.json": "f9ae109728746c4022d6b398b5a080d4bc3f0daabc0b9918213cceb3766296b9",
+    "scripts/benchmark-skill.mjs": "194f9ba228dbbe74840ee9bd32f07ff9b4aa2001c22f028991b156e662ceed19",
+    "scripts/evaluation-cases.mjs": "09695404df2aa7038aac014eb6ac144576548d7a417d8f48638bab9fffa4ae70",
+    "scripts/export-skill-benchmark.mjs": "9fac743540bbe719f9d4824ba672e9764afab36d2a7b411737007ece20f09aaa",
+    "scripts/lib/agent-events.mjs": "ada777425bfd0519d94225dbc1b6f98d4486d6ccf7d2ca428b339136f274ea84",
+    "scripts/lib/agent-runner.mjs": "2b26606c59a2cde3f5091dfed6474e7df8e821164649b79f47f6e7dd23497d5e",
+    "scripts/lib/benchmark-project.mjs": "5998e93d51cccec4963dee2b0056476b6994fe5a892ca3cc79755e797313b93c",
+    "scripts/lib/evaluation-project.mjs": "7bdd4eb2e1dd597fb82e670d97c9e803b0f841da60afeba45f1c389e06e57884",
+    "scripts/lib/skill-evidence.mjs": "3b164d1dd89e1b7e7bff7bb627bd4e1cac04b0c972bffc4ba4d6f8b4ddbb50e7",
+    "scripts/lib/workspace.mjs": "920bed9a2b0be652ea2385c4fd1eab702d12275b922d4ae14819db7ef802e60a",
+    "scripts/skill-cases.mjs": "85ae14fd4be5fe80de1016b9a558acc5ced755c549c5fb79eb4baaf721535e04",
+    "skills/terse/SKILL.md": "f871d081fbde329ef4e47fd19b26409e70d838b57520747b43296874cf817e66",
+    "skills/terse/agents/openai.yaml": "d9ef3372e04c488b227009cd14ef0ed84fa4335056d48219bc6cbf8a80a970bd",
+    "skills/terse/scripts/run.mjs": "27ab2ee119a2c4953dca76129d83bb278634ab7a3285668fc812afebb9a81894",
+    "src/analyze.ts": "376150708312d387e637bb8acfcf743e6897da2ff740ba71e21957c682f3734c",
+    "src/check.ts": "d5809d8d1ae5ce10c672b1841c47999e254ff9db735dd3aa16e00b6bf4546d9f",
+    "src/cleanup.ts": "5d740ab59d49595159846cc1baa73bfe17725735023bd9e16d0b7c9b841b857b",
+    "src/cli.ts": "f383b33f67d2342f1425a8edf24e03cf5f85cd5a2c88207982c7dfcc874f4552",
+    "src/decision.ts": "8ae9b64fad719f84c5d3d7e64f0c6c5621edbdce10d8823492d290c61b184ad8",
+    "src/imports.ts": "b342ac0968c60a706c2dbdfef765df41a27c3bd551b1af18ddd8db8f4a680bc9",
+    "src/init.ts": "1a9990eaede3440271d7cc00066995c32981c814970e8c3fce5c03a688543e17",
+    "src/output.ts": "416e97c1238fbcbfa679c95748cb11735093a9cb7aeafd436b2b12c1b08d365f",
+    "src/project.ts": "fbaf760e3610b3ae8a832ccb40bbbf672349b190849512abcc2f4110c1eefcb1",
+    "src/similarity.ts": "524ae6dad65d3d77241c1030f0020ad621013d7b8d8c6dc7e0907eb5fdfacabf",
+    "src/types.ts": "39099ef126619aa7806b501a5ce12649551ec1852b59de280cadc43c9f5f018f",
+    "test/skill-agent.test.mjs": "ed6ff22c0d1e80fc08a7d29ec8e333776b8e5ad8a0c8b96c36f8689dd87aa5bd"
+  },
+  "preflight": [
+    {
+      "taskId": "modify",
+      "supportedBaseline": true,
+      "initial": {
+        "passed": false,
+        "exitCode": 1,
+        "error": null,
+        "logHash": "092f5a6a8235fb510eb63b9b010617838fad34d49ae41d64f8005e2cbc8b3e9c"
+      },
+      "referencePass": true
+    },
+    {
+      "taskId": "delete",
+      "supportedBaseline": true,
+      "initial": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "fd413374ee11aeca538186a8056df17b9d0bd71df1668a971348dbb7743d7e22"
+      },
+      "referencePass": true
+    },
+    {
+      "taskId": "refactor",
+      "supportedBaseline": true,
+      "initial": {
+        "passed": false,
+        "exitCode": 1,
+        "error": null,
+        "logHash": "d6f408e93d3a4fb4488e6ae40d501af90794d1c5c5140756eeed30a89812f858"
+      },
+      "referencePass": true
+    }
+  ],
+  "criteria": "Cold fresh sessions receive only ordinary development requirements. The host installs the released skill but does not begin, retrieve, decide, edit source, remind or repair. Workflow ordering and full final verification need observed evidence; behavior and source review are separate.",
+  "runtime": {
+    "node": "v24.20.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "results": [
+    {
+      "artifactId": "modify-session-1",
+      "taskId": "modify",
+      "repetition": 1,
+      "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+      "snapshotHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+      "acceptanceHash": "c132bde3aed671dbc88116a29d90447f5014734b1aa6d880e91d313688c7b70f",
+      "promptHash": "3cc488e9e7e82fd59b5eb065c93482ef8e76d437b59264306c3a735bd7a0bc27",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "9aeae4da2f614927d1daddf7c090e45698ec102518f9292b9b6f31550379adde"
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "--test",
+            "test/orders.test.mjs",
+            "test/routes.test.mjs",
+            "test/acceptance.test.mjs"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+          "firstEditSequence": 10,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": 9,
+          "finalCheckSequence": 13
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "src/orders.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 152379,
+          "cached_input_tokens": 124288,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 869,
+          "reasoning_output_tokens": 24
+        },
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_8",
+              "responseIndex": 0,
+              "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+              "snapshotHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 53706,
+      "evidence": {
+        "patchHash": "8b2718621e3fc6d04dbdb5f3e38ce3d5fc303755800d35ebd9118bce1262b230",
+        "eventHash": "9e3233e4ef2eef8e5a30f847c3a4a4c9c33f2695ef4fd213b9471189cacd112f",
+        "promptHash": "3cc488e9e7e82fd59b5eb065c93482ef8e76d437b59264306c3a735bd7a0bc27",
+        "observationsHash": "860b286ea5114662092abd9274436b237998c55b42171a208883dfcc972dbe12",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "2771be1322f2a2b97914d00b8f30f249f4bab31abb243c572012da47c7e0ebe9"
+      },
+      "patch": "modify-session-1.implementation.patch",
+      "observations": "modify-session-1.observations.json",
+      "analysis": "modify-session-1.analysis.json"
+    },
+    {
+      "artifactId": "delete-session-1",
+      "taskId": "delete",
+      "repetition": 1,
+      "baselineHash": "11ec2c81fdc9cdf83f45ca8cbc1d4fdbe7c6cf45e824a154fab71fc4c8fc5b31",
+      "snapshotHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+      "acceptanceHash": "a6c40eb5da1e04f475d9e16fd56f0352a9097bd34b67ec0f0b5224a4f6806fcc",
+      "promptHash": "abcca9facbd3b3514b398654b6b0be164ed259c9444427d3dded9985fa747bbd",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "0f91ee4e042e07c49611601e1e708d4345c039ee73a825124348c8d8bc9e611d"
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "--test",
+            "test/orders.test.mjs",
+            "test/routes.test.mjs",
+            "test/acceptance.test.mjs"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793949504088-551b1be0-fe23-423d-a823-3dc35c53c133",
+          "firstEditSequence": 10,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": 9,
+          "finalCheckSequence": 13
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "src/legacy.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 237094,
+          "cached_input_tokens": 211456,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 921,
+          "reasoning_output_tokens": 19
+        },
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_7",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "11ec2c81fdc9cdf83f45ca8cbc1d4fdbe7c6cf45e824a154fab71fc4c8fc5b31",
+              "snapshotHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 65767,
+      "evidence": {
+        "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+        "eventHash": "a524ce0ee013582216d486a97c97ad9971bfe53dde0b1952f1e7f7d3d16a7696",
+        "promptHash": "abcca9facbd3b3514b398654b6b0be164ed259c9444427d3dded9985fa747bbd",
+        "observationsHash": "366869f96869751d9c8dd3ae4f3d8c77858c2be5db4b6ea9eaab9c8739951c76",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "1dc99bc5a8f37f1d3900abfa14e2391262a52c1a7e5406fc12b7b4149056b88e"
+      },
+      "patch": "delete-session-1.implementation.patch",
+      "observations": "delete-session-1.observations.json",
+      "analysis": "delete-session-1.analysis.json"
+    },
+    {
+      "artifactId": "refactor-session-1",
+      "taskId": "refactor",
+      "repetition": 1,
+      "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+      "snapshotHash": "1040236f0e183517cdbb90226636719f746af27c87e9cafcba1ffade0916562f",
+      "acceptanceHash": "b8876691c3d162009de7c91845310020c44b82eacabaa71dc2163cc42f0f1cc7",
+      "promptHash": "561a4bf70ce24552e1ae8c45322234c5fe38798897cdbf245090f6e12fccfa5f",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "af58d54d417c5ea82a0dd24efc780b664c85f886a33d1930224fa9af28f82ff6"
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "--test",
+            "test/orders.test.mjs",
+            "test/routes.test.mjs",
+            "test/acceptance.test.mjs"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793949569564-779db238-5ea2-43b9-bd7e-a16a0305ff26",
+          "firstEditSequence": 10,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": 9,
+          "finalCheckSequence": 13
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "src/orders.ts",
+        "src/reporting.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 176950,
+          "cached_input_tokens": 153472,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1349,
+          "reasoning_output_tokens": 47
+        },
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_7",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+              "snapshotHash": "1040236f0e183517cdbb90226636719f746af27c87e9cafcba1ffade0916562f",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 69582,
+      "evidence": {
+        "patchHash": "df4f00ce34279a36fec6bda9f32aec231e87d68cac65016dbfd50b5698c8386d",
+        "eventHash": "0099320854a615b9db0b188393b80fe20dfb6a1ce9736e9d3e0042127d686acc",
+        "promptHash": "561a4bf70ce24552e1ae8c45322234c5fe38798897cdbf245090f6e12fccfa5f",
+        "observationsHash": "4e96ec9cd0ddd8659dd4846903c29c6857dd9966e366354dee0786881ab4bf46",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "86ac186ca64ec131478055433b3e604eecce29acb278131dcf67c2e770cb372e"
+      },
+      "patch": "refactor-session-1.implementation.patch",
+      "observations": "refactor-session-1.observations.json",
+      "analysis": "refactor-session-1.analysis.json"
+    },
+    {
+      "artifactId": "modify-session-2",
+      "taskId": "modify",
+      "repetition": 2,
+      "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+      "snapshotHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+      "acceptanceHash": "c132bde3aed671dbc88116a29d90447f5014734b1aa6d880e91d313688c7b70f",
+      "promptHash": "3cc488e9e7e82fd59b5eb065c93482ef8e76d437b59264306c3a735bd7a0bc27",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "b7ad3fc7456fd960f39a644bf1748adfb97fb6b64c42f9dcbbf3ca6966e39369"
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "--test",
+            "test/orders.test.mjs",
+            "test/routes.test.mjs",
+            "test/acceptance.test.mjs"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+          "firstEditSequence": 10,
+          "beginSequence": 5,
+          "retrievalSequence": 5,
+          "decisionSequence": 9,
+          "finalCheckSequence": 13
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "src/orders.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 174010,
+          "cached_input_tokens": 137344,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1034,
+          "reasoning_output_tokens": 68
+        },
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_7",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+              "snapshotHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 62304,
+      "evidence": {
+        "patchHash": "8b2718621e3fc6d04dbdb5f3e38ce3d5fc303755800d35ebd9118bce1262b230",
+        "eventHash": "3e0d77873bc946cf4109bee57de0a63f5d81266b73640b99264f80298dec6f50",
+        "promptHash": "3cc488e9e7e82fd59b5eb065c93482ef8e76d437b59264306c3a735bd7a0bc27",
+        "observationsHash": "56b4fcd78ac0801536ec86aebedfbcd137c1f61e910b4c9a3f3627c4d0fc460e",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "5a4d6d75a9b816bdbae3591335f76ad60144b98ede48aee8d9c14230b85e492c"
+      },
+      "patch": "modify-session-2.implementation.patch",
+      "observations": "modify-session-2.observations.json",
+      "analysis": "modify-session-2.analysis.json"
+    },
+    {
+      "artifactId": "delete-session-2",
+      "taskId": "delete",
+      "repetition": 2,
+      "baselineHash": "11ec2c81fdc9cdf83f45ca8cbc1d4fdbe7c6cf45e824a154fab71fc4c8fc5b31",
+      "snapshotHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+      "acceptanceHash": "a6c40eb5da1e04f475d9e16fd56f0352a9097bd34b67ec0f0b5224a4f6806fcc",
+      "promptHash": "abcca9facbd3b3514b398654b6b0be164ed259c9444427d3dded9985fa747bbd",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "6a33e2276b4885ab3b509aea535a1f4ff1974bd52edb331316ffa7866e15d15d"
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "--test",
+            "test/orders.test.mjs",
+            "test/routes.test.mjs",
+            "test/acceptance.test.mjs"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793949697639-82fda42c-b045-4a79-8be4-f5a0c879877a",
+          "firstEditSequence": 10,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": 9,
+          "finalCheckSequence": 13
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "src/legacy.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 125720,
+          "cached_input_tokens": 95488,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 787,
+          "reasoning_output_tokens": 0
+        },
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_8",
+              "responseIndex": 0,
+              "baselineHash": "11ec2c81fdc9cdf83f45ca8cbc1d4fdbe7c6cf45e824a154fab71fc4c8fc5b31",
+              "snapshotHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 52603,
+      "evidence": {
+        "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+        "eventHash": "958b186a0647d8829b3e278e99260a6746a7608171ca2da5d70ca3e255bd132d",
+        "promptHash": "abcca9facbd3b3514b398654b6b0be164ed259c9444427d3dded9985fa747bbd",
+        "observationsHash": "c396e14de60aa070299fafcf9fce87957f40547506c3bff8ca5a1d2f3ab374c9",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "001922a0b1641be70925c7e8978f28dc4d11f4d8ea541a3b2686fef59ae9b929"
+      },
+      "patch": "delete-session-2.implementation.patch",
+      "observations": "delete-session-2.observations.json",
+      "analysis": "delete-session-2.analysis.json"
+    },
+    {
+      "artifactId": "refactor-session-2",
+      "taskId": "refactor",
+      "repetition": 2,
+      "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+      "snapshotHash": "1040236f0e183517cdbb90226636719f746af27c87e9cafcba1ffade0916562f",
+      "acceptanceHash": "b8876691c3d162009de7c91845310020c44b82eacabaa71dc2163cc42f0f1cc7",
+      "promptHash": "561a4bf70ce24552e1ae8c45322234c5fe38798897cdbf245090f6e12fccfa5f",
+      "correct": true,
+      "acceptance": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "b103b5083b159394baa63c6d4cf4fa3833b6bac40825d38461b0cdd453263380"
+      },
+      "verification": [
+        {
+          "command": "node",
+          "args": [
+            "--test",
+            "test/orders.test.mjs",
+            "test/routes.test.mjs",
+            "test/acceptance.test.mjs"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "workflow": {
+        "skillReadObserved": true,
+        "singleRun": true,
+        "beginBeforeEdit": true,
+        "retrievalBeforeEdit": true,
+        "decisionBeforeEdit": true,
+        "sourceChanged": true,
+        "fullFinalCheck": true,
+        "checkPassed": true,
+        "completed": true,
+        "evidence": {
+          "run": "1793949754780-4a98b655-4d69-4c98-989b-c9f4c59aaf79",
+          "firstEditSequence": 10,
+          "beginSequence": 7,
+          "retrievalSequence": 7,
+          "decisionSequence": 9,
+          "finalCheckSequence": 15
+        }
+      },
+      "protocolValid": true,
+      "tampered": [],
+      "editViolations": [],
+      "outsideScope": [],
+      "changed": [
+        "src/orders.ts",
+        "src/reporting.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "cleanup": [],
+      "duplicationError": null,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 184478,
+          "cached_input_tokens": 155264,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1316,
+          "reasoning_output_tokens": 43
+        },
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+              "snapshotHash": "1040236f0e183517cdbb90226636719f746af27c87e9cafcba1ffade0916562f",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        },
+        "errors": [
+          "CLI diagnostic; raw detail retained locally"
+        ]
+      },
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "observationErrors": [],
+      "agentMs": 62260,
+      "evidence": {
+        "patchHash": "df4f00ce34279a36fec6bda9f32aec231e87d68cac65016dbfd50b5698c8386d",
+        "eventHash": "16e8e5c07b9c3164114de83530a90b5173313f1a33a1099e7bf65c0babe9a917",
+        "promptHash": "561a4bf70ce24552e1ae8c45322234c5fe38798897cdbf245090f6e12fccfa5f",
+        "observationsHash": "6fcdfac4ee9b8be67add79e9bb6d6b8c7458ffeebc19f38fb56eaa82699f51ae",
+        "analysisHash": "b097d62cedba65b9bf0ce235a679baee542d61c93c8fb3329652b56c96a70127",
+        "initializationHash": "c118b66c6af4eec22c74d6de361106e04e7fe987313930540df5e577749aa4e2"
+      },
+      "patch": "refactor-session-2.implementation.patch",
+      "observations": "refactor-session-2.observations.json",
+      "analysis": "refactor-session-2.analysis.json"
+    }
+  ],
+  "summary": {
+    "sessions": 6,
+    "protocolValid": 6,
+    "behaviorCorrect": 6,
+    "skillReadObserved": 6,
+    "beginBeforeEdit": 6,
+    "retrievalBeforeEdit": 6,
+    "decisionBeforeEdit": 6,
+    "fullFinalCheck": 6,
+    "workflowCompleted": 6,
+    "duplicateFree": 6,
+    "cleanupComplete": 6,
+    "functional": 6,
+    "workflowAndFunctional": 6
+  },
+  "fixtureCanonicalHashes": {
+    "dist/analyze.js": "4fcc548e8e9789d38a06b201b950b10099ab0f04b22a15f604e2c9d6b7a6176a",
+    "dist/check.js": "374779d5ea9a5294a72d7aa4ec9bab2c26cbc34b2c51a56cf46826e054ce859b",
+    "dist/cleanup.js": "176e6fec7ea0f62609bc31047cba8b1c6f23e970ec01d4bb610833de1d485fba",
+    "dist/cli.js": "f463802ef7c27a7ddef9bbdddc76b0534e9ed3fa481aec2e7733ce730261beb3",
+    "dist/decision.js": "0f8098306a657ead815c74e6ee49391478864d810a5a8a9418ea242d2dc351b0",
+    "dist/imports.js": "8447d8ad027eca2ffed9d0c45611c0e127e92d8f577fa26c2134d232a7113544",
+    "dist/init.js": "12389118531b4829890f435a43e903ffdf19e1ea96a38f0819a213bf6863fb30",
+    "dist/output.js": "7d6ce0e5338a96dc53d95ae708dbabc0738928af40e95372f8aff906feacc0c3",
+    "dist/project.js": "0e57afedbbe536075a94076bed633d7bb78e3895e72ea6172ff171617aab79c7",
+    "dist/similarity.js": "87f8f5448c2e27355ea5462b9a93d41db6b8491f050ed02701521360de752f84",
+    "dist/types.js": "a517c6f91040080d849a9576a0922c3edceea50d286170eaeff229580acea3cd",
+    "examples/evaluation/add.test.mjs": "21f3558c85498e2cda1664c6059d44f15c5f4e9ccaea315bcdec33b172d5622e",
+    "examples/evaluation/delete.test.mjs": "1f938c6760ea432e787264f9c7ad61e8e6ec4b4e70f591bc8350f2d95d395a93",
+    "examples/evaluation/dynamic.test.mjs": "16448a1c8224d31d36da5173518ec7fa7e77ba0966b0d421d54b36068c5f5a3e",
+    "examples/evaluation/independent.test.mjs": "6f0f47f29b71945f0f9484a9bc03f34649f86687aa4968886755c496a4d70e12",
+    "examples/evaluation/modify.test.mjs": "ee0d94f72c37ce9c6852247e059b3c20d99b6f12690ccdd662e193e99a7ba16b",
+    "examples/evaluation/refactor.test.mjs": "8c4cc878c8f2b87450bc5553259c926aed5c9342d877fb02c69e0f0ce7ba9bf6",
+    "examples/evaluation/routes.test.mjs": "46f0710035255a828574a5629984e16d44737b29e92372e29f360ad79d5735a4",
+    "examples/evaluation/routes.ts": "39e4c939c2fea4def1db055ea072923d2e3e93479755586d3ef40feff3e462c7",
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "package-lock.json": "afdc6f06c001d11e8f42223e159ad00270671f74baa12986a35c1feb22d379d6",
+    "package.json": "a3662cbe7611bfafecbca2959a053ae3b659ef723153f341ceab682a2b318d3b",
+    "scripts/benchmark-skill.mjs": "194f9ba228dbbe74840ee9bd32f07ff9b4aa2001c22f028991b156e662ceed19",
+    "scripts/evaluation-cases.mjs": "99ee5ca53de9bd0e7ac909df901e4fb7897f065182d99c18367aeef02291dc7d",
+    "scripts/export-skill-benchmark.mjs": "9fac743540bbe719f9d4824ba672e9764afab36d2a7b411737007ece20f09aaa",
+    "scripts/lib/agent-events.mjs": "6d27ebebb5d7722c49d44564cfc0a91fd330ebf5a0e700fb58ac91fe27021780",
+    "scripts/lib/agent-runner.mjs": "dfc98ca478b0799da7c9694e5da57ce18ae47d5c3f137f48102c968e38bc57c8",
+    "scripts/lib/benchmark-project.mjs": "aa1d152ea7375d40997f2cdb2aa135ae47072b6ca9e59bd2a82acedcc6a6779e",
+    "scripts/lib/evaluation-project.mjs": "886c45d74a0143332be14b128bb269653f961477b5fd05c9ae4449d3849ae70f",
+    "scripts/lib/skill-evidence.mjs": "3b164d1dd89e1b7e7bff7bb627bd4e1cac04b0c972bffc4ba4d6f8b4ddbb50e7",
+    "scripts/lib/workspace.mjs": "7c06afb329304777ed7e0141d71a56dd01970cac552148e74c28ed8317d0bcba",
+    "scripts/skill-cases.mjs": "85ae14fd4be5fe80de1016b9a558acc5ced755c549c5fb79eb4baaf721535e04",
+    "skills/terse/SKILL.md": "9f8355731ef5d0ef5e5bed80238f36e54a6f3f48a5f4a5879bbf22ddcb4b734f",
+    "skills/terse/agents/openai.yaml": "8619a54e8c098122a7f3881394f84ca89b684366e848233a29ad18b6ec363935",
+    "skills/terse/scripts/run.mjs": "1dafe783234e30ead765ea649ef078e98b4e3d57302750b96a2c89e4ca9091b7",
+    "src/analyze.ts": "3e664c742f3a8b90093d216acbcb790f7260ce99142fba8818515d2b412d6670",
+    "src/check.ts": "be5d5795d19b0379e23b3153d533604cba5d97ef0b4e5be682eba8dbb95b0fbc",
+    "src/cleanup.ts": "2dce93c27b60f3d2003554a6f6115e9d3618441dc02a9a4bf4bc4297f828829b",
+    "src/cli.ts": "18b6431cf057db7b9eca8b930c0a49e2553fc58ea42b775e7cf9e6a4984531fc",
+    "src/decision.ts": "67eae29bf1a0ef41f5dce48813de8c24df405b7349e21a35abc563c7d5479110",
+    "src/imports.ts": "bd2e256fb1ab6db4aef319b59b1fd324fed90e69fa038d2d5788893092fc5f5f",
+    "src/init.ts": "68ab3815f358a76540385ae039d94f0c19dd08c2b305ace1e3883bb1008bf97b",
+    "src/output.ts": "caa99d67b0e3392d273b5a996047fae83b1e10b754c2c8cb95899ad9f66a342a",
+    "src/project.ts": "22ed57b1709cede96898d8b66104ad97e34ee1dca45ebcf0befd6e1e0c2442f4",
+    "src/similarity.ts": "377cd3146e966aa5314fd205240bada91ccb4ed0b2608b7e9ecfa90e9daf78da",
+    "src/types.ts": "c071777c5cf47fd1f0f8f538b199c7ae6abc420bd26c7ea5e687e06e6f0fd5ca",
+    "test/skill-agent.test.mjs": "ed6ff22c0d1e80fc08a7d29ec8e333776b8e5ad8a0c8b96c36f8689dd87aa5bd"
+  },
+  "publication": "Raw event streams, command outputs, prompts and local initialization paths remain local, identified by SHA-256. Published patches, observations and source review are separate from automatic workflow counts. No control arm or causal improvement claim."
+}

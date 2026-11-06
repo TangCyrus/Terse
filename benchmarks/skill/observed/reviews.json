@@ -1,0 +1,44 @@
+[
+  {
+    "artifactId": "modify-session-1",
+    "patchHash": "8b2718621e3fc6d04dbdb5f3e38ce3d5fc303755800d35ebd9118bce1262b230",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Extends exportOrders with an optional paid parameter in its existing owner-selection predicate and forwards the route argument. Owner guard, amount validation and CSV encoding remain one implementation; no obsolete parallel path is created."
+  },
+  {
+    "artifactId": "delete-session-1",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Deletes the full legacy.ts module and changes the route function/type import to orders.ts. The current exporter remains the sole implementation and no legacy caller or obsolete file remains."
+  },
+  {
+    "artifactId": "refactor-session-1",
+    "patchHash": "df4f00ce34279a36fec6bda9f32aec231e87d68cac65016dbfd50b5698c8386d",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "Moves the only CSV implementation into reporting.ts, imports Order as a type, and replaces the old function body with a re-export while preserving the public Order definition and route facade. There is one substantive exporter body."
+  },
+  {
+    "artifactId": "modify-session-2",
+    "patchHash": "8b2718621e3fc6d04dbdb5f3e38ce3d5fc303755800d35ebd9118bce1262b230",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "The independently inspected patch forwards download status and extends the original exporter selection, retaining all default CSV/permission/amount behavior in the same body. It creates no second exporter or cleanup obligation."
+  },
+  {
+    "artifactId": "delete-session-2",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "The inspected deletion removes the old exporter and Order copy completely, redirects the download import to the current API, and preserves the existing route body. No obsolete implementation or import is retained."
+  },
+  {
+    "artifactId": "refactor-session-2",
+    "patchHash": "df4f00ce34279a36fec6bda9f32aec231e87d68cac65016dbfd50b5698c8386d",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "reason": "The independently inspected patch relocates the original guard/selection/validator/encoder into reporting.ts and leaves a compatibility re-export in orders.ts. The type-only reverse import adds no runtime implementation or stale body."
+  }
+]

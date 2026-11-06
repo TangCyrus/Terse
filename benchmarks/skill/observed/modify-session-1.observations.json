@@ -1,0 +1,366 @@
+[
+  {
+    "sequence": 0,
+    "event": "item.started",
+    "itemId": "item_2",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "e2964b368f91cdf6c75169b0c7e95024a6fbc077fb3a6a4c60eddb7cae777932"
+  },
+  {
+    "sequence": 1,
+    "event": "item.completed",
+    "itemId": "item_2",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": true,
+    "commandHash": "e2964b368f91cdf6c75169b0c7e95024a6fbc077fb3a6a4c60eddb7cae777932"
+  },
+  {
+    "sequence": 2,
+    "event": "item.started",
+    "itemId": "item_3",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "3f2e6c53ddd66c5b45098bb31ffa86d8c48c0611222ee423fa12768475d26d31"
+  },
+  {
+    "sequence": 3,
+    "event": "item.completed",
+    "itemId": "item_3",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "3f2e6c53ddd66c5b45098bb31ffa86d8c48c0611222ee423fa12768475d26d31"
+  },
+  {
+    "sequence": 4,
+    "event": "item.started",
+    "itemId": "item_4",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "e30ddd34f7ed5034f12238ec691679f1b16203ac85c1db01660866864745d310"
+  },
+  {
+    "sequence": 5,
+    "event": "item.completed",
+    "itemId": "item_4",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "e30ddd34f7ed5034f12238ec691679f1b16203ac85c1db01660866864745d310"
+  },
+  {
+    "sequence": 6,
+    "event": "item.started",
+    "itemId": "item_5",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "d2258278319a6bea7d078db5c52ebe1e4518d6c9c95802a1f166bce70481ca45"
+  },
+  {
+    "sequence": 7,
+    "event": "item.completed",
+    "itemId": "item_5",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": false,
+        "decisionHash": null,
+        "strategy": null,
+        "remove": []
+      }
+    ],
+    "responses": [
+      {
+        "command": "begin",
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "status": "pass",
+        "outputKind": "result",
+        "exitCode": 0,
+        "baselineHash": null,
+        "snapshotHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "verification": [],
+        "errors": 0
+      }
+    ],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "d2258278319a6bea7d078db5c52ebe1e4518d6c9c95802a1f166bce70481ca45"
+  },
+  {
+    "sequence": 8,
+    "event": "item.started",
+    "itemId": "item_6",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": false,
+        "decisionHash": null,
+        "strategy": null,
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "677ceeb2dadd0cbc9db3e2e2a941f648b0310f8cd8ef75f447713069fc9fefb7"
+  },
+  {
+    "sequence": 9,
+    "event": "item.completed",
+    "itemId": "item_6",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "796981f80aa464faa039cb13d9524036f1d1ea5e996c387d9f25ff4c5dc43cb9",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [
+      {
+        "command": "decide",
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "status": "pass",
+        "outputKind": "result",
+        "exitCode": 0,
+        "baselineHash": null,
+        "snapshotHash": null,
+        "verification": [],
+        "errors": 0
+      }
+    ],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "677ceeb2dadd0cbc9db3e2e2a941f648b0310f8cd8ef75f447713069fc9fefb7"
+  },
+  {
+    "sequence": 10,
+    "event": "item.started",
+    "itemId": "item_7",
+    "itemType": "file_change",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "796981f80aa464faa039cb13d9524036f1d1ea5e996c387d9f25ff4c5dc43cb9",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [
+      {
+        "path": "src/orders.ts",
+        "kind": "update"
+      },
+      {
+        "path": "src/routes.ts",
+        "kind": "update"
+      }
+    ],
+    "skillRead": false
+  },
+  {
+    "sequence": 11,
+    "event": "item.completed",
+    "itemId": "item_7",
+    "itemType": "file_change",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "796981f80aa464faa039cb13d9524036f1d1ea5e996c387d9f25ff4c5dc43cb9",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [
+      {
+        "path": "src/orders.ts",
+        "kind": "update"
+      },
+      {
+        "path": "src/routes.ts",
+        "kind": "update"
+      }
+    ],
+    "skillRead": false
+  },
+  {
+    "sequence": 12,
+    "event": "item.started",
+    "itemId": "item_8",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "796981f80aa464faa039cb13d9524036f1d1ea5e996c387d9f25ff4c5dc43cb9",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "ce04bbde20beb87d1a56f332374915ab004e271f43748290a5f45062d99c6122"
+  },
+  {
+    "sequence": 13,
+    "event": "item.completed",
+    "itemId": "item_8",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "796981f80aa464faa039cb13d9524036f1d1ea5e996c387d9f25ff4c5dc43cb9",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [
+      {
+        "command": "check",
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "status": "pass",
+        "outputKind": "result",
+        "exitCode": 0,
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "snapshotHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+        "verification": [
+          {
+            "status": "passed",
+            "command": {
+              "command": "node",
+              "args": [
+                "--test",
+                "test/orders.test.mjs",
+                "test/routes.test.mjs",
+                "test/acceptance.test.mjs"
+              ],
+              "timeoutMs": 30000
+            }
+          }
+        ],
+        "errors": 0
+      }
+    ],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "ce04bbde20beb87d1a56f332374915ab004e271f43748290a5f45062d99c6122"
+  },
+  {
+    "sequence": 14,
+    "event": "item.started",
+    "itemId": "item_9",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "796981f80aa464faa039cb13d9524036f1d1ea5e996c387d9f25ff4c5dc43cb9",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "efe30bc0a565a7b7bc062d07807b5fedefee6e533b31b7e79d9ebaff7cb496cb"
+  },
+  {
+    "sequence": 15,
+    "event": "item.completed",
+    "itemId": "item_9",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949443270-211d48d9-4ff5-4053-b5ca-c5c8551ac36b",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "796981f80aa464faa039cb13d9524036f1d1ea5e996c387d9f25ff4c5dc43cb9",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "efe30bc0a565a7b7bc062d07807b5fedefee6e533b31b7e79d9ebaff7cb496cb"
+  }
+]

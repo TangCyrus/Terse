@@ -124,6 +124,8 @@ M5 新增项目接入入口 `init(root, verification?)` / `terse init [--verify 
 
 Skill 冷启动评测入口为 [benchmark-skill.mjs](scripts/benchmark-skill.mjs)，复用现有订单任务、prepareEvaluation、runAgent、保护文件校验和结构分析。任务 [skill-cases.mjs](scripts/skill-cases.mjs) 只提供普通业务需求；宿主仅 init，不提供基线、候选或流程提醒。runAgent 的可选 onEvent 回调在父进程观察事件，不修改模型输入输出，既有套件默认执行方式不变。新的 [skill-evidence.mjs](scripts/lib/skill-evidence.mjs) 将阶段证据与实际磁盘快照绑定，观察不足、过期检查、补写决策及重复基线不能算完整成功。[独立发布器](scripts/export-skill-benchmark.mjs) 校验实际输入、补丁和观察哈希并另存冻结归档，保留全部会话；离线回归见 [skill-agent.test.mjs](test/skill-agent.test.mjs)，规则与结果见 [Skill 评测](docs/SKILL-AGENT-BENCHMARK.md)。
 
+本轮在预登记提交 85d8679 完成六个独立真实会话，各自只有普通业务提示；六次均在修改前读取/检索/决策，并在同一基线上完整 check 通过，父运行时验收和人工复用/清理审查亦达标。原始记录留本地，新发布及冻结输入位于 benchmarks/skill，旧四轮数据不变。[skill-publication.test.mjs](test/skill-publication.test.mjs) 校验所有发布字节和冻结输入、重算工作流并离线重放六份实际补丁。prepareEvaluation / createWorkspace 的可选 fixtureRoot 允许读取冻结夹具，默认路径及旧套件不变。小样本无 control，不外推一般触发率或相对收益。
+
 代码归属：[test/terse.test.mjs](test/terse.test.mjs)、[scripts/demo.mjs](scripts/demo.mjs)、[examples/orders](examples/orders)、[package.json](package.json)、[tsconfig.json](tsconfig.json) 与 [CI 工作流](.github/workflows/ci.yml)。
 
 项目评测由 [scripts/evaluate.mjs](scripts/evaluate.mjs) 执行，[scripts/evaluation-cases.mjs](scripts/evaluation-cases.mjs) 定义任务、变体和预期处置，[examples/evaluation](examples/evaluation) 提供调用入口与独立验收测试。[test/evaluation.test.mjs](test/evaluation.test.mjs) 将评测接入现有 `npm test`；示例和评测共用 [workspace.mjs](scripts/lib/workspace.mjs) 的隔离 Git 工作区与真实 CLI 调用，没有第二套检测器。

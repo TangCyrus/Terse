@@ -40,3 +40,19 @@ node scripts/export-skill-benchmark.mjs --input .terse/skill-agent-<id> --output
 报告分开统计读取、检索、决策、完整检查、行为正确和人工复用/清理判断，耗时仅辅助。六个小样本、非盲补丁审查和固定宿主不足以推断一般自动触发率；没有 control arm，不能证明相对收益。完整输出可证明当前宿主中的实际接入轨迹，不能外推到所有 agent。CI 只跑离线协议、可达性和发布证据检查，不调用模型。
 
 执行方式参照 [官方非交互文档](https://learn.chatgpt.com/docs/non-interactive-mode)，发现规则参照 [官方 Skill 文档](https://learn.chatgpt.com/docs/build-skills)。本节先登记规则，实际会话结束后追加观测，失败样本也必须保留。
+
+## 实际观测（2026-11-06）
+
+在预登记提交 `85d86793b8616af5101880d98f9045aba37f0924` 完成六个真实会话，CLI 0.166.0-alpha.6，Windows / Node 24.20.0。产品源码和 Skill 与 main `2c393a0` 相同。六条原始 thread.started 身份各不相同，六次调用均完成、协议有效，没有补发提示、替换样本、人工修复或重跑模型。原始事件保存在本地 `.terse/skill-agent-hsl2yD`。
+
+**本轮六个会话均完成了安装后的自主接入流程。** 普通需求提示均未出现 Terse 或流程命令；六次都在源码仍匹配初始快照时读取完整 Skill、成功检索并保存有效决策，在实际修改后对同一 run 完成最终完整 check。六次最终 check 均为 pass，父进程独立三份运行时验收全部通过。没有观察或保护文件错误，没有范围外修改或重新建立基线；共六次成功决策、零决策重试、六次完整 check。
+
+- 两份修改补丁均在原 exportOrders 的 owner 选择条件中增加可选 paid 筛选，并由 downloadOrders 转发参数。原金额校验和 CSV 编码保持同一实现，没有另建导出管道。
+- 两份删除补丁均完整删除 legacy.ts，将下载入口的函数与类型导入迁移到 orders.ts；删除声明在修改前已存在，父分析没有残留引用发现。
+- 两份重构补丁均将唯一实现移到 reporting.ts，orders.ts 保留 Order 定义和兼容 re-export，reporting.ts 对 Order 使用 type-only import。下载调用保留公共入口，没有第二份旧函数体。
+
+六份补丁的新增 token 重复、相似实现和清理发现均为零，逐份非盲审查确认职责复用与清理完成。两次重复运行在各自任务上的最终补丁字节相同，但来自不同的冷启动会话，原始事件和观察哈希分别留存。辅助 agentMs 合计 366.2 秒，均值约 61.0 秒；包含父事件观察开销，没有对照组，不作提速判断。
+
+新 [报告](../benchmarks/skill/observed/report.json)、[补丁审查](../benchmarks/skill/observed/reviews.json) 和 [冻结输入](../benchmarks/skill/fixtures/85d86793b8616af5101880d98f9045aba37f0924.json.gz) 单独保留，归档还绑定全部 20 个发布文件的 SHA-256。原始事件、提示、本机初始化路径及模型自由文本不发布；报告保留它们的字节哈希。[发布回归](../test/skill-publication.test.mjs) 复核原始输入/发布字节、重算阶段判断，并把六份补丁应用到冻结夹具，用原验收逻辑离线重放；不会据重放结果改写历史分数。旧 benchmarks/reuse 四轮观测及其归档未改变。
+
+这些结果支持“当前宿主和这三类小型任务中，#22 的项目指令 + Skill 接入可实际工作”。它不是一般触发率或相对收益估计，也没有证明 Skill 单独匹配描述就能触发、能发现所有业务边界，或能在大型项目中稳定减少冗余。本轮只验证普通需求下的真实流程完成，未观察到警告后的修正机会，不应计成新增纠错成功案例。
