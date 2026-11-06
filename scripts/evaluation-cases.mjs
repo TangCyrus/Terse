@@ -21,6 +21,23 @@ export const cases = [
         p.write('routes.ts', "import { exportPaidOrders } from './paid.ts';\n" + p.read('routes.ts')
           .replace('return exportOrders(orders, ownerId);', "return status === 'paid' ? exportPaidOrders(orders, ownerId) : exportOrders(orders, ownerId);"));
       }),
+      {...variant('rewritten-copy', 'new', 'needs-review', false, ['POSSIBLE_DUPLICATION'], 'passed', p => {
+        p.write('paid.ts', `import type {Order} from './orders.ts';
+export function exportPaidOrders(input: Order[], user: string): string {
+  if (user.length === 0) throw Error('ownerId is required');
+  let csv = 'id,customer,total,status';
+  for (const item of input) {
+    if (item.ownerId !== user || item.status !== 'paid') continue;
+    if (item.total < 0 || !Number.isFinite(item.total)) throw Error('Invalid total');
+    const escaped = '"' + item.customer.split('"').join('""') + '"';
+    csv += '\\n' + item.id + ',' + escaped + ',' + Number(item.total).toFixed(2) + ',' + item.status;
+  }
+  return csv;
+}
+`);
+        p.write('routes.ts', "import {exportPaidOrders} from './paid.ts';\n" + p.read('routes.ts')
+          .replace('return exportOrders(orders, ownerId);', "return status === 'paid' ? exportPaidOrders(orders, ownerId) : exportOrders(orders, ownerId);"));
+      }), review: {functional: false, reason: 'A second owner filter, amount validator and CSV encoder uses different tokens; no token finding does not prove responsibility reuse.'}},
       variant('reuse', 'modify', 'pass', false, [], 'passed', p => {
         p.write('orders.ts', p.read('orders.ts').replace(signature, extended)
           .replace('order.ownerId === ownerId);', 'order.ownerId === ownerId && (status === undefined || order.status === status));'));

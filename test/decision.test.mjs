@@ -206,6 +206,35 @@ test('M5 summary log budget remains bounded with tiny remainders', () => {
   }
 });
 
+test('M5 verification guide retains cleanup failures and uncertain references while rerunning every command', t => {
+  const p = project(t);
+  p.write('src/legacy.ts', 'export function obsolete() { return 1; }');
+  p.write('src/loader.ts', 'export function load(name: string) { return import(name); }');
+  p.write('executions.txt', '');
+  p.write('terse.config.json', JSON.stringify({verification: [
+    {command: 'node', args: ['--test', 'test/orders.test.mjs']},
+    {command: 'node', args: ['-e', "require('node:fs').appendFileSync('executions.txt', 'run;')"]},
+  ]}));
+  const begun = start(p);
+  const recorded = save(p, begun, ['--remove', 'src/legacy.ts']);
+  const check = expected => {
+    const report = executeGuide(recorded.verificationGuide.argvTemplate, expected);
+    assert.deepEqual(report.verification.map(item => item.status), ['passed', 'passed']);
+    const stored = JSON.parse(fs.readFileSync(report.reportPath, 'utf8'));
+    for (const key of ['status', 'findings', 'errors', 'changes', 'possibleDuplications', 'similarityAlgorithm']) {
+      assert.deepEqual(report[key], stored[key]);
+    }
+    assert.match(stored.verification[0].output, /tests 1\b/);
+    return report;
+  };
+  assert(check(1).findings.some(item => item.rule === 'REMOVAL_REMAINS'));
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  const review = check(2);
+  assert(review.findings.some(item => item.rule === 'REMOVAL_REFERENCE_UNRESOLVED'));
+  assert.deepEqual(check(2).findings, review.findings);
+  assert.equal(p.read('executions.txt'), 'run;run;run;');
+});
+
 test('M5 combined retrieval errors remain incomplete and cannot create a successful decision', t => {
   const p = project(t);
   p.write('tsconfig.json', '{bad');

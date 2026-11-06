@@ -26,7 +26,11 @@ npm run demo
 
 行数仅说明这个示例的变化。示例证明了检索和重复检查可以运行，不代表已测得不同模型上的自动复用提升率。Terse 不会自动重写或删除项目源码。
 
-`npm run evaluate` 扩展为多文件订单项目的 6 个场景、10 个实现变体，覆盖修改、删除、重构、合理新增，以及独立职责与动态引用反例。配对版本使用相同基线和验收测试，报告保存在 `.terse/evaluation-*/evaluation.json`。方法、结果和限制见 [项目评测](docs/EVALUATION.md)。这是本地受控项目评测，不是外部生产仓库或自主 agent 的统计实验。
+`npm run evaluate` 包含多文件订单项目的 6 个场景、11 个实现变体，覆盖修改、删除、重构、合理新增，以及独立职责与动态引用反例。新增改写式重复反例明确展示：行为通过且新增 token 重复为零，仍可能存在另一套同职责实现。方法、结果和限制见 [项目评测](docs/EVALUATION.md)。这是人工编写变体的受控评测。
+
+`npm run benchmark:reuse` 在同一组六类任务上运行真实 agent 对照，以行为、实际复用、清理和职责边界为主要标准；补丁逐份审查，耗时仅作辅助。运行方式和判定规则见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。模型会话不进入 CI。
+
+首轮 12 次真实会话中，两组各 6/6 行为与补丁审查达标，尚未观察到 Terse 相对对照组的改善。该历史版本未检出改写式重复反例；合并 M3 实现复核后，当前回归预期已改为 needs-review，原观测和哈希保持不变。当前仍不能保证没有同职责重复；详见上述评测的能力边界。
 
 实际 agent 对照入口为 `npm run benchmark:agent -- --source <p-map 工作区>`，使用固定开源版本、独立会话和事后验收，比较有无 Terse 的正确性、重复和墙钟时间。它需要单独登录的 Codex CLI，不在常规 CI 中调用模型。准备方式、真实观测与限制见 [开源项目 agent 评测](docs/AGENT-BENCHMARK.md)。
 
@@ -219,6 +223,10 @@ M4 已适配 M2：`indexSources(state, root?, fallbackFiles?)` 保留第二个�
 工具返回过代码不代表 agent 已理解代码。该约定属于行为引导，首版没有接管编辑工具、强制宿主 hook 或 CI 合并门槛。
 
 ## 分析范围与后续方向
+
+M3 现增加 [改写式实现复核](docs/SIMILARITY.md)：连续 token 没有匹配时，仍可根据函数共有的有效字面量、数据属性和成员操作提示 POSSIBLE_DUPLICATION。已知 CSV 改写反例会从 pass 转为 needs-review，改为委托已有实现后通过；相似证据不等于语义等价。
+
+报告新增 similarityAlgorithm 和 possibleDuplications，后者统计可能重叠的函数对；newDuplications 仍仅计原有 token 序列组。该提示始终为 review，完整行为验证和严格 token 策略保持原有语义。短函数、缺少共同锚点等情况仍可能漏报，独立职责也需结合证据审查。
 
 重复检测复用 [jscpd 的 Node API 组件](https://github.com/kucherenko/jscpd/blob/master/README-v4.md)，只安装检测核心和 tokenizer。它忽略空白与注释，保留标识符和字面量；首版不做变量改名归一化、跨语言语义检测或自动合并。不同 tokenizer 格式间的重复可能漏报。
 

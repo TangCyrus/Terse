@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { spawn, spawnSync, execFileSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 import { repository } from './lib/workspace.mjs';
-import { summarizeEvents, pairedSummary } from './lib/agent-events.mjs';
+import { pairedSummary } from './lib/agent-events.mjs';
+import { runAgent } from './lib/agent-runner.mjs';
 import { begin, rootOf, snapshot } from '../dist/project.js';
 import { clones, newClones, indexSources } from '../dist/analyze.js';
 import { showConfiguration, flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts } from './lib/benchmark-project.mjs';
@@ -104,36 +105,6 @@ function prepareProject(directory, task) {
   return {root, commands, before: state};
 }
 
-async function runAgent(project, prompt, directory) {
-  const args = ['exec', '--ephemeral', '--approve-for-me',
-    '--disable', 'multi_agent', '--json', '--color', 'never', '-m', specification.model,
-    '-c', `model_reasoning_effort="${specification.reasoningEffort}"`, '-C', project, '-'];
-  fs.writeFileSync(path.join(directory, 'prompt.txt'), prompt);
-  const start = performance.now();
-  const stdout = fs.createWriteStream(path.join(directory, 'agent.jsonl'));
-  const stderr = fs.createWriteStream(path.join(directory, 'agent.stderr.log'));
-  const child = spawn(values.codex, args, { cwd: project, env, detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] });
-  child.stdout.pipe(stdout); child.stderr.pipe(stderr);
-  child.stdin.on('error', () => {});
-  child.stdin.end(prompt);
-  let timedOut = false;
-  const heartbeat = setInterval(() => console.error(`Agent still running: ${path.basename(directory)} (${Math.round((performance.now() - start) / 1000)}s)`), 30_000);
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F']);
-    else process.kill(-child.pid, 'SIGKILL');
-  }, specification.timeoutMs);
-  const exit = await new Promise(resolve => {
-    child.once('error', error => resolve({ exitCode: null, error: error.message }));
-    child.once('close', (exitCode, signal) => resolve({ exitCode, signal }));
-  });
-  clearTimeout(timeout); clearInterval(heartbeat);
-  await Promise.all([new Promise(resolve => stdout.end(resolve)), new Promise(resolve => stderr.end(resolve))]);
-  const events = summarizeEvents(fs.readFileSync(path.join(directory, 'agent.jsonl'), 'utf8'), terseCli);
-  const blockedByPolicy = /blocked by policy/.test(fs.readFileSync(path.join(directory, 'agent.stderr.log'), 'utf8'));
-  return { ...exit, timedOut, blockedByPolicy, agentMs: Math.round(performance.now() - start), events };
-}
-
 // Verify the upstream start and the same prepared project before any model is called.
 const preflight = {upstream: verify(source, 'upstream-before', upstreamArguments, output), tasks: []};
 assert(preflight.upstream.passed, 'Upstream baseline tests must pass');
@@ -178,7 +149,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
     const treatment = arm === 'terse' ? `\nUse Terse before editing: node ${JSON.stringify(terseCli)} context --cwd ${JSON.stringify(root)} --run ${run.run} --query ${JSON.stringify(task.query)} --limit 10 --json. ${recordInstructions} ${removalInstructions} Before finishing run node ${JSON.stringify(terseCli)} check --cwd ${JSON.stringify(root)} --run ${run.run}${workflowMode === 'commands' ? ' --summary' : ''} --json once for the final workspace, inspect findings and failureOutput, and resolve duplication where appropriate within the same time limit. Do not repeat successful configured verification manually. If startup fails, inspect the returned diagnostic and retry the full check with normal approval after fixing the environment; do not replace it with a separate full manual suite. Explain unresolved findings honestly; unchanged verification reruns do not resolve member-review findings.\n`
       : '\nWork normally using project source and the supplied tests. Do not invoke Terse or read .terse records.\n';
     console.error(`Starting ${artifactId}`);
-    const agent = await runAgent(root, common + treatment, directory);
+    const agent = await runAgent({project: root, prompt: common + treatment, directory, codex: values.codex, specification, terseCli, env});
     const tampered = protectedFiles.filter(file => !fs.existsSync(path.join(root, file)) || digest(fs.readFileSync(path.join(root, file))) !== protectedHashes[file]);
     tampered.push(...Object.entries(oracleHashes).filter(([file, hash]) => !fs.existsSync(path.join(fixture, file)) || digest(fs.readFileSync(path.join(fixture, file))) !== hash)
       .map(([file]) => `benchmark/${file}`));

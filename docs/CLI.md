@@ -92,6 +92,10 @@ input 不能与 `--strategy`、`--rationale`、`--disposition`、`--reason`、`-
 
 ## Agent 调用顺序
 
+check 兼容性增加 similarityAlgorithm: implementation-anchors/1、possibleDuplications 及发现规则 POSSIBLE_DUPLICATION。每条发现携带两个函数位置和 similarity 的共有字面量/属性/操作列表、两侧锚点数与共有锚点数；列表每类最多 20 项，evidenceTruncated 标记删节，计数仍为完整数量。详情见 [实现复核](SIMILARITY.md)。
+
+possibleDuplications 是需复核的函数对数，不代表已证明的语义重复；newDuplications 与 attributionAlgorithm 的原有 token 含义不变。此规则始终 review，即使 duplicatePolicy 为 fail；独立权限或职责可能合理。Agent 应审查具体证据与需求，在保留行为测试的前提下复用、抽取或说明差异。summary 与持久化报告均保留发现，检查及验证不跳过。
+
 1. begin 成功后保存 run 和 decisionPath；可用 query 合并首轮检索。
 2. 检索成功后阅读 candidates、unresolvedImports 和 limitations，再用 decide 保存实际决策；需要时继续 context。
 3. 修改后执行 check，可选 summary；退出码 1/2/3 都需要处理，不因拿到 JSON 就判定完成。
