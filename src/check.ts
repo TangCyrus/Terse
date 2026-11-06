@@ -6,6 +6,7 @@ import { loadRun, readJson, snapshot, writeJson } from './project.js';
 import { ANALYZER, type Finding, type Status, type VerificationResult } from './types.js';
 import { cleanupFindings } from './cleanup.js';
 import { validateDecision } from './decision.js';
+import { similarImplementations, SIMILARITY_ALGORITHM } from './similarity.js';
 
 export async function check(root: string, run: string, skipVerification = false) {
   const { dir, baseline } = loadRun(root, run);
@@ -21,8 +22,8 @@ export async function check(root: string, run: string, skipVerification = false)
     deleted: Object.keys(before.files).filter(p => !Object.hasOwn(after.files, p)),
   };
   if (JSON.stringify(before.config) !== JSON.stringify(after.config)) errors.push('terse.config.json changed during this run; start a new run after reviewing the policy change');
-  const oldIndex = indexSources(before);
-  const newIndex = indexSources(after, root, before.files);
+  const oldIndex = indexSources(before, undefined, {}, true);
+  const newIndex = indexSources(after, root, before.files, true);
   errors.push(...oldIndex.errors.map(e => `Baseline parse error: ${e}`), ...newIndex.errors.map(e => `Current analysis error: ${e}`));
   if (!Object.keys(after.files).length) add('NO_SOURCE_FILES', 'No supported source files remain; deletion requires explicit review.');
   const gaps = after.skipped.filter(s => !['excluded', 'unsupported-or-declaration'].includes(s.reason));
@@ -56,6 +57,7 @@ export async function check(root: string, run: string, skipVerification = false)
         findings.push({ rule: 'NEW_DUPLICATION', message: `Token occurrences increased from ${clone.attribution.baselineOccurrences} to ${clone.attribution.currentOccurrences}; review reuse before retaining these implementations.`,
           locations: clone.locations, attribution: clone.attribution, severity: before.config.duplicatePolicy === 'fail' ? 'fail' : 'review' });
       }
+      findings.push(...similarImplementations(oldIndex.implementations, newIndex.implementations, findings));
     } catch (error) { errors.push(`Duplicate detector failed: ${error instanceof Error ? error.message : String(error)}`); }
   }
 
@@ -79,10 +81,12 @@ export async function check(root: string, run: string, skipVerification = false)
   if (snapshot(root).hash !== after.hash) errors.push('Project changed during check; results are stale. Run check again on a stable workspace.');
   const status: Status = errors.length ? 'incomplete' : findings.some(f => f.severity === 'fail') ? 'fail' : findings.length ? 'needs-review' : 'pass';
   const report = { command: 'check', run, task: baseline.task, status, analyzer: ANALYZER, checkedAt: new Date().toISOString(),
-    baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', scannedFiles: Object.keys(after.files).length,
+    baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', similarityAlgorithm: SIMILARITY_ALGORITHM, scannedFiles: Object.keys(after.files).length,
     baselineFiles: Object.keys(before.files).length, changes, baselineClones, currentClones,
-    newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length, findings, errors, decisionIssues, verification, skipped: after.skipped,
+    newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length,
+    possibleDuplications: findings.filter(f => f.rule === 'POSSIBLE_DUPLICATION').length, findings, errors, decisionIssues, verification, skipped: after.skipped,
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
+      'Implementation anchor similarity is a conservative review heuristic, not semantic equivalence. Short functions, rewrites without shared literals or operations, and indirect delegation may not be covered.',
       'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
       'Removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports without declared external ownership need review. Unresolved non-builtin require calls remain uncertain. No complete call graph or external consumer analysis.',
       'This report applies only to the recorded snapshot. Local evidence is not a tamper-proof CI attestation.'],

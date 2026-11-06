@@ -218,6 +218,10 @@ M4 已适配 M2：`indexSources(state, root?, fallbackFiles?)` 保留第二个�
 
 ## 分析范围与后续方向
 
+M3 现增加 [改写式实现复核](docs/SIMILARITY.md)：连续 token 没有匹配时，仍可根据函数共有的有效字面量、数据属性和成员操作提示 POSSIBLE_DUPLICATION。已知 CSV 改写反例会从 pass 转为 needs-review，改为委托已有实现后通过；相似证据不等于语义等价。
+
+报告新增 similarityAlgorithm 和 possibleDuplications，后者统计可能重叠的函数对；newDuplications 仍仅计原有 token 序列组。该提示始终为 review，完整行为验证和严格 token 策略保持原有语义。短函数、缺少共同锚点等情况仍可能漏报，独立职责也需结合证据审查。
+
 重复检测复用 [jscpd 的 Node API 组件](https://github.com/kucherenko/jscpd/blob/master/README-v4.md)，只安装检测核心和 tokenizer。它忽略空白与注释，保留标识符和字面量；首版不做变量改名归一化、跨语言语义检测或自动合并。不同 tokenizer 格式间的重复可能漏报。
 
 M3 对当前检测到的每个重复片段，核对其完整 token 序列在基线和当前源码中的出现次数。出现次数没有增长时不报新增，因此旧片段的拆分、缩短、换行、注释调整和移动不会仅因片段指纹改变而触发新增发现。新片段形成至少两处重复，或已有片段增加副本时，仍按 `duplicatePolicy` 返回待评估或失败。

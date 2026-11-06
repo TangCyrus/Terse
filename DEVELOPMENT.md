@@ -62,7 +62,7 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 
 ### M3 重复检测与增量归因
 
-代码归属：[src/analyze.ts](src/analyze.ts) 中的 `clones` 与 `newClones`。当前和 M2 共用文件。
+代码归属：[src/analyze.ts](src/analyze.ts) 中的 `clones` 与 `newClones`，以及 [src/similarity.ts](src/similarity.ts) 的实现锚点复核。原有 token 检测和 M2 共用文件；新增模块承载不同证据及增量配对，不复制 token 扫描器。
 
 `clones(state): Promise<Clone[]>` 返回含 `fingerprint`、完整 token 序列 `tokens` 和 `locations` 的匹配；使用完整文件的词法上下文校验两侧，修正检测窗口多带的末尾 token，再核对长度与行数阈值。检测复用固定版本的 jscpd core/tokenizer；规则阈值来自快照配置。
 
@@ -73,6 +73,10 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 已覆盖拆分、缩短、扩展、多副本、移动和同文件复制。计数包含重叠出现，不等于函数数或作者归因；删除再复制且净次数不变时与移动无法区分。检测忽略空白与注释，保留标识符与字面量，不处理改名后的语义等价；跨 tokenizer 格式可能漏报，大型仓库性能尚待实测。
 
 若后续需要拆文件，应移动既有检测实现并更新调用与测试，确保 M2/M3 使用同一份快照和配置，不复制另一套扫描逻辑。
+
+本轮以 main 4ad831a 为起点增加 POSSIBLE_DUPLICATION。indexSources(state, root?, fallbackFiles?, collectImplementations=false) 复用同一次 AST 解析，可选返回 implementations；只有 check 的历史与当前索引开启采集，默认 context 调用不增加此工作。implementation(body, ast, location) 提取保守的字符串、数据成员、操作证据；similarImplementations(before, after, exactFindings) 做一对一历史匹配并抑制同对精确发现。无新依赖或模型服务。
+
+Finding.similarity 与顶层 similarityAlgorithm: implementation-anchors/1、possibleDuplications 属兼容性增加；旧基线重新由保存源码分析，Baseline.schema、ANALYZER、CLI v1 与 token-occurrences/1 不变。新规则始终 review，不借用 duplicatePolicy 的 fail。已知改写式重复由 pass 变为 needs-review，委托已有实现后通过；详细条件、证据截断、历史边界和负例见 [实现复核](docs/SIMILARITY.md)。一般语义等价或职责判断仍未实现。
 
 ### M4 决策检查与行为验证
 
