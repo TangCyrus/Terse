@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮以 `main` 的 `97f352c` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22 和已合并的 M6 Skill 真实会话 #23；#23 在 Windows/Linux Node 24 CI 各通过 215 项测试（含子用例）及打包预检。M6 行为验收 #21 仍独立待审；本轮 p-queue Skill 接入评测从 main 单独开发，不合并该待审分支。后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮 M5 删除声明约束以 `main` 的 `615ed0f` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22、M6 Skill 会话 #23 及 p-queue Skill 评测 #24；#24 在 Windows/Linux Node 24 CI 各通过 228 项测试（含子用例）及打包预检。本轮不包含 #21 分支，后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -97,6 +97,8 @@ Finding.similarity 与顶层 similarityAlgorithm: implementation-anchors/1、pos
 没有完整调用图或外部消费者保证，也不自动发现全部死代码。验证命令采用基线配置，以参数数组和 `shell: false` 执行；策略变化或检查中快照变化使结果未完成。例外管理仍为后续任务。p-queue 四份历史补丁的独立回放结果见[评测文档](docs/COMPLEX-AGENT-BENCHMARK.md#后续-m4-清理回放)，历史 agent 数据不改写。
 
 ### M5 CLI 与 agent 接入
+
+本轮 [删除声明约束](docs/REMOVAL-DECLARATIONS.md) 在 check 核对观察到的消失目标，漏填返回 REMOVAL_DECLARATION_MISSING / fail 及 undeclaredRemovals。indexSources 在原 AST 遍历中保留声明字符范围，cleanup.undeclaredRemovals 以基线路径/名称对比并折叠退役父声明；check 将推导目标交给原 M4 检查，配置验证照常执行。decisionGuide.removalGuide 和 Skill 说明完整输入与同一 run 修正；原地重构允许空声明，不强制按 strategy 猜删除。声明结构、基线、CLI v1 及归因算法兼容。旧评测发布和归档未修改；活跃手工评测的迁移变体补上应有声明，M3/M4 回归也按实际迁移声明目标。
 
 代码归属：[src/cli.ts](src/cli.ts)、[src/output.ts](src/output.ts) 与 [src/decision.ts](src/decision.ts)。外部契约见 [docs/CLI.md](docs/CLI.md)、[CLI JSON Schema](docs/cli-output.schema.json) 和 [决策形状](docs/decision.schema.json)。
 

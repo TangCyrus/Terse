@@ -38,8 +38,13 @@ report the setup gap. Initialization alone does not verify the project.
    for this baseline. Repeat candidate flags when appropriate. `new` may omit
    candidates when none apply; explain rejected candidates rather than selecting
    the first result or forcing unrelated code together.
-3. Declare replaced files with `--remove <path>`. For per-candidate reasons or
-   symbol removals, use the returned decisionGuide.inputArgvTemplate and its full
+3. Declare files and indexed declarations you will delete, rename or move in
+   `decision.remove` before editing. `--remove <path>` declares a whole file;
+   extracting a method while keeping its file requires a symbol entry such as
+   `{"path":"source/index.ts","symbol":"PQueue.#onEvent"}` using the exact baseline
+   name. A removed parent declaration covers its nested helpers; in-place changes
+   need no invented removal. For per-candidate reasons or symbol removals, use
+   the returned decisionGuide.inputArgvTemplate and its full
    input schema. `--input` replaces the whole decision; do not mix it with strategy,
    rationale, disposition, reason or remove flags. Optional candidate IDs only
    assert entries already present in that input. Fix reported issues fields when
@@ -67,6 +72,13 @@ Read the entire JSON object after process exit and handle the actual exit code:
   findings. Repeating unchanged tests does not remove a review finding.
 - 3 / incomplete: inspect diagnostics/errors for setup, analysis or execution errors;
   do not treat an incomplete scan or missing output as a clean result.
+
+If findings include `REMOVAL_DECLARATION_MISSING`, inspect `undeclaredRemovals`
+and amend the complete decision with `decide --run <same-id> --input <file>`.
+Preserve its considered entries and existing removals, add the missing targets,
+then rerun full check. Do not start a new baseline or change strategy to hide the
+omission. Filling the declaration does not dismiss stale callers or uncertain
+references; handle the remaining M4 findings separately.
 
 Read reportPath if the failure excerpt is insufficient. Keep the same task baseline
 and removal declarations while fixing findings; do not re-begin to hide new issues,

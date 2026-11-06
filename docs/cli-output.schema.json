@@ -26,6 +26,9 @@
     } } },
     "similarityAlgorithm": { "const": "implementation-anchors/1" },
     "possibleDuplications": { "type": "integer", "minimum": 0 },
+    "undeclaredRemovals": { "type": "array", "items": { "type": "object", "required": ["path"], "additionalProperties": false,
+      "properties": { "path": { "type": "string" }, "symbol": { "type": "string" } }
+    } },
     "findings": { "type": "array", "items": { "type": "object", "properties": {
       "similarity": { "type": "object", "required": ["algorithm", "shared", "sharedAnchors", "leftAnchors", "rightAnchors", "evidenceTruncated"],
         "properties": {

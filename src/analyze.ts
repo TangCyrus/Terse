@@ -10,6 +10,7 @@ import { implementation, type Implementation } from './similarity.js';
 
 export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snapshot['files'] = {}, collectImplementations = false) {
   const symbols: SymbolInfo[] = [];
+  const declarations: { location: SymbolInfo; start: number; end: number }[] = [];
   const implementations: Implementation[] = [];
   const imports: ImportReference[] = [];
   const errors: string[] = [];
@@ -35,6 +36,7 @@ export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snap
           endLine: ast.getLineAndCharacterOfPosition(node.end).line + 1,
           signature: source.content.slice(start, body?.getStart(ast) ?? Math.min(node.end, start + 200)).trim(),
           text: source.content.slice(node.getFullStart(), node.end).trim() });
+        declarations.push({ location: symbols.at(-1)!, start, end: node.end });
         if (collectImplementations && body && !diagnostics.length) {
           const profile = implementation(body, ast, symbols.at(-1)!);
           if (profile) implementations.push(profile);
@@ -67,7 +69,7 @@ export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snap
     }
     visit(ast);
   }
-  return { symbols, imports, errors, implementations };
+  return { symbols, imports, errors, implementations, declarations };
 }
 
 function words(query: string): string[] {

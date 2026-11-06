@@ -3,8 +3,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { clones, indexSources, newClones } from './analyze.js';
 import { loadRun, readJson, snapshot, writeJson } from './project.js';
-import { ANALYZER, type Finding, type Status, type VerificationResult } from './types.js';
-import { cleanupFindings } from './cleanup.js';
+import { ANALYZER, type Decision, type Finding, type Status, type VerificationResult } from './types.js';
+import { cleanupFindings, undeclaredRemovals } from './cleanup.js';
 import { validateDecision } from './decision.js';
 import { similarImplementations, SIMILARITY_ALGORITHM } from './similarity.js';
 
@@ -42,8 +42,14 @@ export async function check(root: string, run: string, skipVerification = false)
     for (const c of decision.considered) {
       if (!oldIndex.symbols.some(s => s.path === c.path && s.symbol === c.symbol)) add('CANDIDATE_NOT_FOUND', `Baseline candidate not found: ${c.symbol}`, [{ path: c.path, symbol: c.symbol }]);
     }
-    if (decision.remove.length && !errors.length) findings.push(...cleanupFindings(before, after, oldIndex, newIndex, decision.remove));
   }
+  const missingRemovals: Decision['remove'] = errors.length ? [] : undeclaredRemovals(before, after, oldIndex, newIndex, decision?.remove ?? []);
+  for (const target of missingRemovals) add('REMOVAL_DECLARATION_MISSING',
+    'A baseline file or indexed declaration disappeared without a matching decision.remove entry. Update the complete decision on this run using decide --input, preserve existing entries, then rerun full check.', [target], 'fail');
+  // Inferred targets never rewrite the decision. Run the same M4 checks now so
+  // omissions cannot also hide stale callers or conservative reference review.
+  const removals = [...(decision?.remove ?? []), ...missingRemovals];
+  if (removals.length && !errors.length) findings.push(...cleanupFindings(before, after, oldIndex, newIndex, removals));
 
   let baselineClones = 0;
   let currentClones = 0;
@@ -84,11 +90,12 @@ export async function check(root: string, run: string, skipVerification = false)
     baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', similarityAlgorithm: SIMILARITY_ALGORITHM, scannedFiles: Object.keys(after.files).length,
     baselineFiles: Object.keys(before.files).length, changes, baselineClones, currentClones,
     newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length,
-    possibleDuplications: findings.filter(f => f.rule === 'POSSIBLE_DUPLICATION').length, findings, errors, decisionIssues, verification, skipped: after.skipped,
+    possibleDuplications: findings.filter(f => f.rule === 'POSSIBLE_DUPLICATION').length, undeclaredRemovals: missingRemovals, findings, errors, decisionIssues, verification, skipped: after.skipped,
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
       'Implementation anchor similarity is a conservative review heuristic, not semantic equivalence. Short functions, rewrites without shared literals or operations, and indirect delegation may not be covered.',
       'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
       'Removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports without declared external ownership need review. Unresolved non-builtin require calls remain uncertain. No complete call graph or external consumer analysis.',
+      'Removal declarations cover disappeared scanned files and indexed path/name identities, collapsing removed nested declarations into their parent. Same-path same-name replacements, individual overload signatures and unindexed syntax are not proven removals; coverage loss is not deletion.',
       'This report applies only to the recorded snapshot. Local evidence is not a tamper-proof CI attestation.'],
   };
   writeJson(dir, 'report.json', report);
