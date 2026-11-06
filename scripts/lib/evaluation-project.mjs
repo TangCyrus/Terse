@@ -12,12 +12,17 @@ export function prepareEvaluation(parent, name, scenario) {
   const project = createWorkspace(parent, name);
   const sources = {
     read: name => fs.readFileSync(path.join(project, 'src', name), 'utf8'),
-    write: (name, content) => fs.writeFileSync(path.join(project, 'src', name), content),
+    write: (name, content) => {
+      const target = path.join(project, 'src', name);
+      fs.mkdirSync(path.dirname(target), {recursive: true});
+      fs.writeFileSync(target, content);
+    },
     remove: name => fs.unlinkSync(path.join(project, 'src', name)),
   };
   const fixtures = path.join(repository, 'examples/evaluation');
   sources.write('routes.ts', fs.readFileSync(path.join(fixtures, 'routes.ts'), 'utf8'));
   fs.copyFileSync(path.join(fixtures, 'routes.test.mjs'), path.join(project, 'test/routes.test.mjs'));
+  if (scenario.sourceFixture) fs.cpSync(path.join(repository, scenario.sourceFixture), path.join(project, 'src'), {recursive: true});
   scenario.setup?.(sources);
   fs.copyFileSync(scenario.acceptance ? path.join(repository, scenario.acceptance) : path.join(fixtures, `${scenario.id}.test.mjs`), path.join(project, 'test/acceptance.test.mjs'));
   const config = {minTokens: 50, minLines: 5, duplicatePolicy: 'review', exclude: ['test'], verification: [

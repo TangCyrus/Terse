@@ -24,6 +24,26 @@ export function summarizeEvents(text, terseCli) {
     ...(terseCli ? {decisions: decisionActivity(events, terseCli, completed), checks: checkActivity(events, completed)} : {}) };
 }
 
+// Preserve raw phase logs separately; prefix only derived references so repeated
+// item IDs from independent ephemeral sessions cannot be confused in a report.
+export function summarizePhases(phases, terseCli) {
+  const summaries = phases.map(({text}) => summarizeEvents(text, terseCli));
+  const lines = phases.flatMap(({phase, text}) => text.split(/\r?\n/).filter(Boolean).map(line => {
+    try {
+      const event = JSON.parse(line);
+      if (event?.item && typeof event.item.id === 'string') event.item.id = `${phase}:${event.item.id}`;
+      return JSON.stringify(event);
+    } catch { return line; }
+  }));
+  const result = summarizeEvents(lines.join('\n'), terseCli);
+  if (!summaries.every(item => item.completed)) {
+    result.completed = false;
+    if (result.decisions) Object.assign(result.decisions, {complete: false, retries: null, unrecoveredFailure: null});
+    if (result.checks) result.checks.complete = false;
+  }
+  return result;
+}
+
 // Tool output may contain several pretty-printed CLI objects and shell preambles.
 // Do not count help, source reads, decision-input filenames or ordinary successful revisions as retries.
 function jsonObjects(text) {

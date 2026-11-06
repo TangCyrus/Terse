@@ -180,6 +180,22 @@ test('functional grading requires patch review and cannot promote zero-clone or 
   assert.throws(() => validateFunctionalReviews([{...results[1], correct: false}], [reviews[1]]), /behavior-incorrect/);
 });
 
+test('natural reviews bind both patches and cannot promote incomplete or redundant drafts',()=>{
+  const result={artifactId:'natural',arm:'terse',correct:true,protocolValid:true,evidence:{patchHash:'final',draftPatchHash:'draft'},
+    draft:{acceptance:{passed:true},protocolValid:true}};
+  const review={artifactId:'natural',patchHash:'final',functional:true,reason:'Final shared implementation.',
+    draftReview:{patchHash:'draft',functional:false,duplicateFree:false,cleanupComplete:true,reason:'Draft copied encoding.'},
+    finalReview:{duplicateFree:true,cleanupComplete:true,reason:'Final delegates to the shared formatter.'}};
+  const summary=validateFunctionalReviews([result],[review]);
+  assert.equal(summary.terse.draftFunctional,0);
+  assert.equal(summary.terse.draftDuplicateFree,0);
+  assert.equal(summary.terse.finalDuplicateFree,1);
+  assert.throws(()=>validateFunctionalReviews([result],[{...review,draftReview:{...review.draftReview,functional:true}}]),/redundant drafts/);
+  assert.throws(()=>validateFunctionalReviews([result],[{...review,draftReview:{...review.draftReview,patchHash:'other'}}]),/original candidate/);
+  assert.throws(()=>validateFunctionalReviews([{...result,draft:{...result.draft,protocolValid:false}}],[{
+    ...review,draftReview:{...review.draftReview,functional:true,duplicateFree:true}}]),/Incomplete/);
+});
+
 test('agent publication uses task-specific artifacts and preserves unknown duplicate measurements', t => {
   const parent = workspace(t);
   const label = 'refactor-pair-1-terse';
@@ -266,6 +282,23 @@ test('functional publication requires complete reviews and immutable patch bytes
   const tampered=path.join(parent,'tampered-seed');
   assert.throws(()=>publish(tampered));
   assert(!fs.existsSync(tampered));
+  fs.writeFileSync(path.join(parent,artifactId,'initial.patch'),initialPatch);
+  const draft={snapshotHash:'model-draft',acceptance:{passed:true},protocolValid:true};
+  const draftText=JSON.stringify(draft), draftPatch='model-authored candidate';
+  measured.results[0].draft=draft;
+  measured.results[0].evidence.draftPatchHash=createHash('sha256').update(draftPatch).digest('hex');
+  measured.results[0].evidence.draftAnalysisHash=createHash('sha256').update(draftText).digest('hex');
+  reviews[0].draftReview={patchHash:measured.results[0].evidence.draftPatchHash,functional:true,duplicateFree:true,cleanupComplete:true,reason:'Shared candidate.'};
+  reviews[0].finalReview={duplicateFree:true,cleanupComplete:true,reason:'Shared final implementation.'};
+  fs.writeFileSync(path.join(parent,'functional-reviews.json'),JSON.stringify(reviews));
+  fs.writeFileSync(path.join(parent,artifactId,'draft.patch'),draftPatch);
+  fs.writeFileSync(path.join(parent,artifactId,'draft-analysis.json'),draftText);
+  fs.writeFileSync(path.join(parent,'comparison.json'),JSON.stringify(measured));
+  const natural=path.join(parent,'natural'); publish(natural);
+  assert.equal(fs.readFileSync(path.join(natural,`${artifactId}.draft.patch`),'utf8'),draftPatch);
+  assert(!Object.hasOwn(JSON.parse(fs.readFileSync(path.join(natural,'comparison.json'),'utf8')).results[0].events,'finalMessage'));
+  fs.writeFileSync(path.join(parent,artifactId,'draft-analysis.json'),'changed');
+  const changedDraft=path.join(parent,'changed-draft');assert.throws(()=>publish(changedDraft));assert(!fs.existsSync(changedDraft));
 });
 
 test('seeded challenges expose new problems against the original baseline and permit real checked corrections', async t => {
