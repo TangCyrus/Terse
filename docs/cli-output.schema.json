@@ -11,6 +11,24 @@
     "status": { "enum": ["pass", "fail", "needs-review", "incomplete"] },
     "exitCode": { "enum": [0, 1, 2, 3] },
     "errors": { "type": "array", "items": { "type": "string" } },
+    "similarityAlgorithm": { "const": "implementation-anchors/1" },
+    "possibleDuplications": { "type": "integer", "minimum": 0 },
+    "findings": { "type": "array", "items": { "type": "object", "properties": {
+      "similarity": { "type": "object", "required": ["algorithm", "shared", "sharedAnchors", "leftAnchors", "rightAnchors", "evidenceTruncated"],
+        "properties": {
+          "algorithm": { "const": "implementation-anchors/1" },
+          "shared": { "type": "object", "required": ["literals", "members", "calls"], "properties": {
+            "literals": { "type": "array", "maxItems": 20, "items": { "type": "string" } },
+            "members": { "type": "array", "maxItems": 20, "items": { "type": "string" } },
+            "calls": { "type": "array", "maxItems": 20, "items": { "type": "string" } }
+          } },
+          "sharedAnchors": { "type": "integer", "minimum": 8 },
+          "leftAnchors": { "type": "integer", "minimum": 8 },
+          "rightAnchors": { "type": "integer", "minimum": 8 },
+          "evidenceTruncated": { "type": "boolean" }
+        }
+      }
+    } } },
     "diagnostics": {
       "type": "array",
       "items": {
