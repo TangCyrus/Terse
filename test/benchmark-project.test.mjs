@@ -8,7 +8,8 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts, validateFunctionalReviews, protectedFileEvidence} from '../scripts/lib/benchmark-project.mjs';
-import {analyzeEvaluation} from '../scripts/lib/evaluation-project.mjs';
+import {analyzeEvaluation, prepareEvaluation} from '../scripts/lib/evaluation-project.mjs';
+import {cases} from '../scripts/evaluation-cases.mjs';
 import {snapshot} from '../dist/project.js';
 
 function workspace(t) {
@@ -108,11 +109,15 @@ test('configuration snapshot failures remain persistable invalid samples and do 
       assert.equal(analysis.after, null);
       assert.equal(analysis.duplications, null);
       assert.equal(analysis.newDuplications, null);
+      assert.equal(analysis.possibleDuplications, null);
+      assert.equal(analysis.similarities, null);
       assert.match(analysis.duplicationError, /INVALID_JSON|JSON_READ_FAILED/);
     } else {
       assert.equal(analysis.duplicationError, null);
       assert.equal(analysis.newDuplications, 0);
       assert.deepEqual(analysis.duplications, []);
+      assert.equal(analysis.possibleDuplications, 0);
+      assert.deepEqual(analysis.similarities, []);
     }
     const result = {artifactId: mode, arm:'control', correct:mode === 'healthy', protocolValid:!analysis.duplicationError,
       newDuplications:analysis.newDuplications, duplicationError:analysis.duplicationError, evidence:{patchHash:mode}};
@@ -123,6 +128,28 @@ test('configuration snapshot failures remain persistable invalid samples and do 
   assert.deepEqual(validateFunctionalReviews(results, results.map(result => ({artifactId:result.artifactId,patchHash:result.evidence.patchHash,
     functional:result.protocolValid,reason:result.duplicationError ?? 'Subsequent healthy grading completed.'}))),
     {control:{runs:3,behaviorCorrect:1,functional:1},terse:{runs:0,behaviorCorrect:0,functional:0}});
+});
+
+test('both agent arms are graded for rewritten overlap, exact suppression and cleanup with the same parent analyzer', async t => {
+  const parent = workspace(t);
+  for (const [id, variantId, exact, possible, cleanup] of [
+    ['modify', 'rewritten-copy', false, 1, []], ['modify', 'copy', true, 0, []],
+    ['modify', 'reuse', false, 0, []], ['delete', 'retained', false, 0, ['REMOVAL_REMAINS']],
+    ['delete', 'cleanup', false, 0, []], ['dynamic', 'review', false, 0, ['REMOVAL_REFERENCE_UNRESOLVED']],
+  ]) await t.test(`${id}/${variantId}`, async () => {
+    const scenario = cases.find(item => item.id === id);
+    const {project, sources} = prepareEvaluation(parent, `${id}-${variantId}`, scenario);
+    const before = snapshot(project);
+    scenario.variants.find(item => item.id === variantId).edit(sources);
+    const result = await analyzeEvaluation(project, before, scenario.remove ?? []);
+    assert.equal(result.duplicationError, null);
+    assert.equal(result.newDuplications > 0, exact);
+    assert.equal(result.possibleDuplications, possible);
+    assert.equal(result.similarities.length, possible);
+    assert.equal(result.similarityAlgorithm, 'implementation-anchors/1');
+    assert.deepEqual(result.cleanup.map(item => item.rule), cleanup);
+    if (possible) assert(result.similarities[0].similarity.shared.literals.includes('id,customer,total,status'));
+  });
 });
 
 test('upstream counts distinguish expected failures from passing tests', () => {
@@ -203,6 +230,23 @@ test('functional publication requires complete reviews and immutable patch bytes
   const altered = path.join(parent, 'altered');
   assert.throws(() => publish(altered));
   assert(!fs.existsSync(altered));
+  // New cohorts must publish their independent M3 evidence, including zero findings.
+  const measured = JSON.parse(fs.readFileSync(path.join(parent, 'comparison.json'), 'utf8'));
+  measured.results[0].possibleDuplications = 0;
+  measured.results[0].similarityAlgorithm = 'implementation-anchors/1';
+  fs.writeFileSync(path.join(parent, 'comparison.json'), JSON.stringify(measured));
+  fs.writeFileSync(patchPath, 'reviewed patch');
+  const missing = path.join(parent, 'missing-evidence');
+  assert.throws(() => publish(missing));
+  assert(!fs.existsSync(missing));
+  fs.writeFileSync(path.join(parent, artifactId, 'similarities.json'), '[{}]');
+  assert.throws(() => publish(missing));
+  assert(!fs.existsSync(missing));
+  fs.writeFileSync(path.join(parent, artifactId, 'similarities.json'), '[]');
+  publish(missing);
+  const newReport = JSON.parse(fs.readFileSync(path.join(missing, 'comparison.json'), 'utf8'));
+  assert.equal(newReport.results[0].similarities, `${artifactId}.similarities.json`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(missing, newReport.results[0].similarities), 'utf8')), []);
 });
 
 test('functional preflight checks all six task starts without a live model or credentials', () => {

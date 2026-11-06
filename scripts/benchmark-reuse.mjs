@@ -27,6 +27,7 @@ const list = (root, directory = '') => fs.readdirSync(path.join(root, directory)
 }).sort();
 const env = {...process.env, FORCE_COLOR: '0'};
 delete env.NODE_TEST_CONTEXT;
+const terseRevision = execFileSync('git', ['rev-parse', 'HEAD'], {cwd: repository, encoding: 'utf8'}).trim();
 const terseCli = path.join(repository, 'dist/cli.js');
 fs.mkdirSync(path.join(repository, '.terse'), {recursive: true});
 const output = fs.mkdtempSync(path.join(repository, '.terse/reuse-agent-'));
@@ -62,7 +63,7 @@ const preflight = tasks.map(task => {
   assert.equal(verification.passed, task.id === 'delete');
   return {taskId: task.id, verification};
 });
-const plan = {schemaVersion: 1, kind: 'controlled-agent-comparison', project: specification, repetitions, cliVersion,
+const plan = {schemaVersion: 1, kind: 'controlled-agent-comparison', terseRevision, project: specification, repetitions, cliVersion,
   tasks, fixtureHashes, preflight, criteria: 'Behavior correctness, patch-reviewed reuse/cleanup and independent-responsibility preservation. Token counts and elapsed time alone are not success criteria.'};
 write(path.join(output, 'plan.json'), plan);
 if (values['preflight-only']) { console.log(JSON.stringify({output, preflight}, null, 2)); process.exit(0); }
@@ -85,8 +86,9 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
     const verification = verify(project, config, directory); // Always independent, even if the agent already checked.
     const {tampered, acceptanceHash} = protectedFileEvidence(project, protectedHashes, config.verification[0].args.slice(1));
     tampered.push(...Object.entries(fixtureHashes).filter(([file, hash]) => !fs.existsSync(path.join(repository, file)) || digest(fs.readFileSync(path.join(repository, file))) !== hash).map(([file]) => `fixture/${file}`));
-    const {after, duplications, newDuplications, duplicationError, cleanup} = await analyzeEvaluation(project, before, task.remove);
+    const {after, duplications, newDuplications, similarities, possibleDuplications, similarityAlgorithm, duplicationError, cleanup} = await analyzeEvaluation(project, before, task.remove);
     if (duplications !== null) write(path.join(directory, 'duplications.json'), duplications);
+    if (similarities !== null) write(path.join(directory, 'similarities.json'), similarities);
     // Collect only after grading; this includes new helpers and deleted modules in the patch.
     const changes = collectChanges(project, editable);
     fs.writeFileSync(path.join(directory, 'implementation.patch'), changes.patch);
@@ -109,7 +111,8 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
       correct: verification.passed && !tampered.length, checks: {acceptance: verification}, workflow, candidateHit, terseStatus, terseRules,
       protocolValid: agent.exitCode === 0 && !agent.timedOut && !agent.blockedByPolicy && agent.events.completed && agent.events.commandCount > 0
         && !tampered.length && !changes.outsideScope.length && !duplicationError && !controlUsedTerse && (arm === 'control' || workflow),
-      controlUsedTerse, tampered, outsideScope: changes.outsideScope, changed: changes.changed, newDuplications, duplicationError, cleanup,
+      controlUsedTerse, tampered, outsideScope: changes.outsideScope, changed: changes.changed, newDuplications,
+      possibleDuplications, similarityAlgorithm, duplicationError, cleanup,
       agentMs: agent.agentMs, evaluationMs: Math.round(performance.now() - checkStart), agentExitCode: agent.exitCode, timedOut: agent.timedOut,
       blockedByPolicy: agent.blockedByPolicy, events: agent.events,
       evidence: {patchHash: digest(changes.patch), eventHash: digest(fs.readFileSync(path.join(directory, 'agent.jsonl')))}};
@@ -119,7 +122,8 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
     console.error(`Finished ${artifactId}: correct=${result.correct}, duplicates=${newDuplications}, protocol=${result.protocolValid}`);
   }
 }
-const summary = {...plan, terseRevision: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: repository, encoding: 'utf8'}).trim(),
+assert.equal(execFileSync('git', ['rev-parse', 'HEAD'], {cwd: repository, encoding: 'utf8'}).trim(), terseRevision, 'Repository revision changed during experiment');
+const summary = {...plan,
   runtime: {node: process.version, platform: process.platform, arch: process.arch}, results, pairs: pairedSummary(results), artifactDirectory: output};
 write(path.join(output, 'comparison.json'), summary);
 console.log(JSON.stringify({output, runs: results.length, pairs: summary.pairs}, null, 2));
