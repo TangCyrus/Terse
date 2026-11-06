@@ -72,6 +72,8 @@ for (const scenario of cases) {
       candidates: context.candidates.map(({ path, symbol }) => ({ path, symbol })),
       status: report.status, behavior: report.verification[0].status, rules: report.findings.map(f => f.rule),
       newDuplications: report.newDuplications, duplicates: duplicates.map(({ locations, attribution }) => ({ locations, attribution })),
+      possibleDuplications: report.possibleDuplications, similarityAlgorithm: report.similarityAlgorithm,
+      similarities: report.findings.filter(f => f.rule === 'POSSIBLE_DUPLICATION').map(({locations, similarity}) => ({locations, similarity})),
       sourceBefore: before, sourceAfter: sourceState(project), timingsMs, report: reportFile });
   }
 }

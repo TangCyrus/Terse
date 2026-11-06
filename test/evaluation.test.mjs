@@ -29,9 +29,18 @@ test('project evaluation compares paired behavior and keeps legitimate additions
   }
   const rewritten = result('modify', 'rewritten-copy');
   assert.equal(rewritten.behavior, 'passed');
-  assert.equal(rewritten.status, 'pass');
+  assert.equal(rewritten.status, 'needs-review');
   assert.equal(rewritten.newDuplications, 0);
+  assert.equal(rewritten.possibleDuplications, 1);
+  assert.equal(rewritten.similarityAlgorithm, 'implementation-anchors/1');
+  assert(rewritten.rules.includes('POSSIBLE_DUPLICATION'));
+  assert.equal(rewritten.similarities.length, 1);
+  assert(rewritten.similarities[0].similarity.shared.literals.includes('id,customer,total,status'));
+  assert.equal(rewritten.similarities[0].similarity.algorithm, rewritten.similarityAlgorithm);
   assert.equal(rewritten.authoredReview.functional, false);
+  assert.equal(rewritten.baselineHash, result('modify', 'reuse').baselineHash);
+  assert.equal(rewritten.acceptanceHash, result('modify', 'reuse').acceptanceHash);
+  assert.equal(result('modify', 'reuse').possibleDuplications, 0);
   assert.equal(result('delete', 'retained').behavior, 'passed');
   assert.equal(result('delete', 'retained').status, 'fail');
   assert.equal(result('delete', 'dangling').behavior, 'failed');
@@ -44,5 +53,5 @@ test('project evaluation compares paired behavior and keeps legitimate additions
   assert.equal(result('independent', 'review').status, 'needs-review');
   assert(result('dynamic', 'review').rules.includes('REMOVAL_REFERENCE_UNRESOLVED'));
   for (const r of summary.results) t.diagnostic(JSON.stringify({ scenario: r.scenario, variant: r.variant,
-    behavior: r.behavior, status: r.status, duplicateGroups: r.newDuplications, rules: r.rules, timingsMs: r.timingsMs }));
+    behavior: r.behavior, status: r.status, duplicateGroups: r.newDuplications, possibleDuplicates: r.possibleDuplications, rules: r.rules, timingsMs: r.timingsMs }));
 });

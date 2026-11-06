@@ -36,7 +36,7 @@ node --test test/evaluation.test.mjs
 
 1. 从同一模板建立源码与策略，采集基线。成对变体的初始源码和基线快照哈希必须相同。
 2. 用真实 `context` 检索预期候选；通知任务必须没有匹配候选。候选命中不表示语义理解或检索质量已全面达标。
-3. 保存决策，安装同一份任务验收；实现编辑器只接收 `src` 的读写接口。实现修改后核对测试哈希及配置未变化。
+3. 保存决策；准备阶段已安装同一份任务验收，实现编辑器只接收 `src` 的读写接口。实现修改后核对测试哈希及配置未变化。
 4. `check` 运行原订单测试、调用入口测试和任务验收三个文件。成功变体必须确认三项测试均执行；悬空引用变体必须真实验收失败。
 5. 按任务预期检查状态、行为结果、重复是否出现、必要的清理规则和报告持久化。同一场景的测试哈希必须相同。
 
@@ -67,7 +67,9 @@ node --test test/evaluation.test.mjs
 
 ## 报告含义与限制
 
-后续增加第 11 个变体 modify/rewritten-copy：通过与上述修改任务相同的行为验收，Terse 为 pass、新增 token 重复为 0，但付费模块重写了另一套权限过滤、金额校验和 CSV 编码。`authoredReview.functional: false` 明确保留这个已知漏报；它是人工标注的职责重复，不是检测器的语义结论。原有十个变体及预期保持不变。真实 agent 的实现选择另由 [功能效果评测](FUNCTIONAL-AGENT-BENCHMARK.md) 观察。
+第 11 个变体 modify/rewritten-copy 重写了另一套权限过滤、金额校验和 CSV 编码，仍通过与复用版本相同的行为验收。历史版本为 pass、新增 token 重复为 0；合入 M3 #17 后，当前预期为 needs-review、newDuplications: 0、possibleDuplications: 1，发现包含 POSSIBLE_DUPLICATION 及其共有证据。`authoredReview.functional: false` 保持不变，因为实现本身仍冗余；检测到提示不等于代码已修复。原有十个变体及预期保持不变。
+
+当前报告增补 possibleDuplications、similarityAlgorithm 和 similarities，与精确 token 的 duplicates 分开；测试核对改写版与复用版基线及验收哈希相同，复用版无相似实现提示。历史真实 agent 观测及冻结输入另见 [功能效果评测](FUNCTIONAL-AGENT-BENCHMARK.md)，不按新规则回填旧结果。
 
 报告 `schemaVersion: 1` 描述此评测汇总格式，与 CLI 的同名版本分别使用；`kind` 为 `controlled-project-evaluation`。记录工具版本、运行时平台、仓库 HEAD、每个变体的预期和实际结果。HEAD 标识代码起点，未提交的工作区修改不由该字段证明；正式复现应使用干净的指定提交。
 

@@ -21,7 +21,7 @@ export const cases = [
         p.write('routes.ts', "import { exportPaidOrders } from './paid.ts';\n" + p.read('routes.ts')
           .replace('return exportOrders(orders, ownerId);', "return status === 'paid' ? exportPaidOrders(orders, ownerId) : exportOrders(orders, ownerId);"));
       }),
-      {...variant('rewritten-copy', 'new', 'pass', false, [], 'passed', p => {
+      {...variant('rewritten-copy', 'new', 'needs-review', false, ['POSSIBLE_DUPLICATION'], 'passed', p => {
         p.write('paid.ts', `import type {Order} from './orders.ts';
 export function exportPaidOrders(input: Order[], user: string): string {
   if (user.length === 0) throw Error('ownerId is required');

@@ -6,7 +6,8 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts, validateFunctionalReviews} from '../scripts/lib/benchmark-project.mjs';
+import {gunzipSync} from 'node:zlib';
+import {flattenConfiguration, verifyConfiguration, collectChanges, upstreamCounts, validateFunctionalReviews, protectedFileEvidence} from '../scripts/lib/benchmark-project.mjs';
 
 function workspace(t) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'terse-benchmark-'));
@@ -67,6 +68,25 @@ test('functional benchmark permits new source modules but still catches test edi
   assert.deepEqual(result.changed, ['src/new-module.ts', 'test/acceptance.mjs']);
   assert.deepEqual(result.outsideScope, ['test/acceptance.mjs']);
   assert.match(result.patch, /new-module.ts/);
+});
+
+test('missing, renamed or replaced acceptance files retain their frozen identity and invalidate the run', t => {
+  const root = workspace(t);
+  const files = ['orders.test.mjs', 'routes.test.mjs', 'acceptance.test.mjs'];
+  for (const file of files) fs.writeFileSync(path.join(root, file), `baseline ${file}`);
+  const expected = Object.fromEntries(files.map(file => [file, createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex')]));
+  const initial = protectedFileEvidence(root, expected, files);
+  assert.deepEqual(initial.tampered, []);
+  fs.unlinkSync(path.join(root, files[0]));
+  fs.renameSync(path.join(root, files[1]), path.join(root, 'renamed.mjs'));
+  fs.unlinkSync(path.join(root, files[2]));
+  fs.mkdirSync(path.join(root, files[2]));
+  const invalid = protectedFileEvidence(root, expected, files);
+  assert.deepEqual(invalid.tampered, files);
+  assert.equal(invalid.acceptanceHash, initial.acceptanceHash);
+  const result = {artifactId:'invalid', arm:'terse', correct:false, protocolValid:false, evidence:{patchHash:'unchanged'}};
+  assert.deepEqual(validateFunctionalReviews([result], [{artifactId:'invalid',patchHash:'unchanged',functional:false,reason:'Protected acceptance files were removed or replaced.'}]),
+    {control:{runs:0,behaviorCorrect:0,functional:0},terse:{runs:1,behaviorCorrect:0,functional:0}});
 });
 
 test('upstream counts distinguish expected failures from passing tests', () => {
@@ -165,7 +185,6 @@ test('functional preflight checks all six task starts without a live model or cr
 
 test('published functional observation binds every fixture, pair, patch and implementation review', () => {
   const directory = fileURLToPath(new URL('../benchmarks/reuse/observed/', import.meta.url));
-  const repository = fileURLToPath(new URL('../', import.meta.url));
   const report = JSON.parse(fs.readFileSync(path.join(directory, 'comparison.json'), 'utf8'));
   const reviews = JSON.parse(fs.readFileSync(path.join(directory, 'functional-reviews.json'), 'utf8'));
   const hash = data => createHash('sha256').update(data).digest('hex');
@@ -176,12 +195,22 @@ test('published functional observation binds every fixture, pair, patch and impl
   assert.equal(report.reviewHash, hash(JSON.stringify(reviews)));
   assert.equal(report.functionalSummary.control.functional, 6);
   assert.equal(report.functionalSummary.terse.functional, 6);
+  // Validate the original inputs, not the evolving HEAD's task oracle or helpers.
+  assert.match(report.terseRevision, /^[a-f0-9]{40}$/);
+  const snapshot = JSON.parse(gunzipSync(fs.readFileSync(path.join(directory, '..', 'fixtures', `${report.terseRevision}.json.gz`))).toString('utf8'));
+  assert.equal(snapshot.schemaVersion, 1);
+  assert.equal(snapshot.revision, report.terseRevision);
+  assert.deepEqual(Object.keys(snapshot.files).sort(), Object.keys(report.fixtureHashes).sort());
   assert.deepEqual(Object.keys(report.fixtureCanonicalHashes), Object.keys(report.fixtureHashes));
   for (const [file, expected] of Object.entries(report.fixtureCanonicalHashes)) {
-    const canonical = fs.readFileSync(path.join(repository, file), 'utf8').replaceAll('\r\n', '\n');
+    const input = snapshot.files[file];
+    assert.equal(typeof input, 'string');
+    assert.equal(hash(input), report.fixtureHashes[file], file);
+    const canonical = input.replaceAll('\r\n', '\n');
     assert.equal(hash(canonical), expected, file);
-    assert([hash(canonical), hash(canonical.replaceAll('\n', '\r\n'))].includes(report.fixtureHashes[file]), `Measured LF/CRLF bytes must describe the same fixture: ${file}`);
   }
+  assert.deepEqual(Object.keys(snapshot.publicationHashes).sort(), fs.readdirSync(directory).sort());
+  for (const [file, expected] of Object.entries(snapshot.publicationHashes)) assert.equal(hash(fs.readFileSync(path.join(directory, file))), expected, `Historical publication changed: ${file}`);
   for (const result of report.results) {
     assert.equal(hash(fs.readFileSync(path.join(directory, result.patch))), result.evidence.patchHash);
     const duplicates = JSON.parse(fs.readFileSync(path.join(directory, result.duplications), 'utf8'));

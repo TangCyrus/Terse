@@ -6,9 +6,11 @@ import { Tokenizer, tokenize } from '@jscpd/tokenizer';
 import { digest, loadRun, readJson, snapshot, writeJson } from './project.js';
 import type { DuplicationAttribution, Snapshot, SymbolInfo } from './types.js';
 import { importResolver, type ImportReference } from './imports.js';
+import { implementation, type Implementation } from './similarity.js';
 
-export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snapshot['files'] = {}) {
+export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snapshot['files'] = {}, collectImplementations = false) {
   const symbols: SymbolInfo[] = [];
+  const implementations: Implementation[] = [];
   const imports: ImportReference[] = [];
   const errors: string[] = [];
   const resolver = importResolver(state, errors, root, fallbackFiles);
@@ -33,6 +35,10 @@ export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snap
           endLine: ast.getLineAndCharacterOfPosition(node.end).line + 1,
           signature: source.content.slice(start, body?.getStart(ast) ?? Math.min(node.end, start + 200)).trim(),
           text: source.content.slice(node.getFullStart(), node.end).trim() });
+        if (collectImplementations && body && !diagnostics.length) {
+          const profile = implementation(body, ast, symbols.at(-1)!);
+          if (profile) implementations.push(profile);
+        }
       }
       let expression: ts.Expression | undefined;
       let names: string[] | undefined;
@@ -61,7 +67,7 @@ export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snap
     }
     visit(ast);
   }
-  return { symbols, imports, errors };
+  return { symbols, imports, errors, implementations };
 }
 
 function words(query: string): string[] {

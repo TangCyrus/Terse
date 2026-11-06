@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import {createHash} from 'node:crypto';
 
 export function showConfiguration(root) {
   return JSON.parse(execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '--showConfig'], {cwd: root, encoding: 'utf8'}));
@@ -39,6 +40,19 @@ export function upstreamCounts(output) {
   const plain = output.replace(/\u001b\[[0-9;]*m/g, '');
   return { passed: Number(/(\d+) tests? passed/.exec(plain)?.[1] ?? 0),
     knownFailures: Number(/(\d+) known failures?/.exec(plain)?.[1] ?? 0) };
+}
+
+export function protectedFileEvidence(root, expected, acceptanceFiles) {
+  const acceptance = Object.fromEntries(acceptanceFiles.map(file => {
+    assert(typeof expected[file] === 'string', `Missing baseline acceptance hash: ${file}`);
+    return [file, expected[file]];
+  }));
+  const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+  const tampered = Object.entries(expected).filter(([file, digest]) => {
+    try { return !fs.lstatSync(path.join(root, file)).isFile() || hash(fs.readFileSync(path.join(root, file))) !== digest; }
+    catch { return true; }
+  }).map(([file]) => file);
+  return {tampered, acceptanceHash: hash(JSON.stringify(acceptance))};
 }
 
 // A zero token-clone count or green runtime tests cannot stand in for implementation review.

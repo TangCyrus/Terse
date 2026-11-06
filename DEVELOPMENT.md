@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本文以 `main` 的 `4ad831a` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12、M5 复杂决策优化 #13 及 p-queue 复测 #14 均已合并；起点的 Windows/Linux Node 24 CI 各通过 129 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮已合入 `main` 的 `141a123`，包含 M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12、M5 复杂决策优化 #13、p-queue 复测 #14 及 M3 实现相似度复核 #17；该主线的 Windows/Linux Node 24 CI 各通过 143 项测试（含子用例）及打包预检。本 PR #16 保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -15,7 +15,7 @@
 
 已合并的 [项目评测](docs/EVALUATION.md) 原有 6 个场景、10 个实现变体；本轮增加改写式重复漏报反例，共 11 个变体。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 及复测已合并。本轮 M6 用订单项目六类任务运行实际 agent 对照，以行为、复用、清理和职责边界为主要标准，耗时作辅助；方法与局限见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。
 
-本轮 12 次真实会话已完成，两组各 6/6 行为及非盲补丁审查达标，五个预登记已有候选均在 Terse 基线检索中出现；尚未观察到接入相对对照组的功能改善。改写式同职责重复仍可能被 token 检测漏掉，下一轮产品改进优先处理该缺口并保留合理新增、独立职责的反向验收，不以总耗时下降作为主要目标。该切片合并状态以对应 PR 为准。
+历史 12 次真实会话两组各 6/6 行为及非盲补丁审查达标，五个预登记已有候选均在 Terse 基线检索中出现；尚未观察到接入相对对照组的功能改善。适配 #17 后，当前改写式反例应产生 POSSIBLE_DUPLICATION，而非历史 pass；当前评测输出 possibleDuplications、similarityAlgorithm 和 similarities。历史 observed 目录的 26 个文件及全部原哈希不变，CI 改用当时 13 份输入的冻结归档校验历史证据，避免把当前 oracle 误当成过去的输入。没有重新调用模型或改写旧结论。
 
 ## 开发原则与任务范围
 
@@ -64,7 +64,7 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 
 ### M3 重复检测与增量归因
 
-代码归属：[src/analyze.ts](src/analyze.ts) 中的 `clones` 与 `newClones`。当前和 M2 共用文件。
+代码归属：[src/analyze.ts](src/analyze.ts) 中的 `clones` 与 `newClones`，以及 [src/similarity.ts](src/similarity.ts) 的实现锚点复核。原有 token 检测和 M2 共用文件；新增模块承载不同证据及增量配对，不复制 token 扫描器。
 
 `clones(state): Promise<Clone[]>` 返回含 `fingerprint`、完整 token 序列 `tokens` 和 `locations` 的匹配；使用完整文件的词法上下文校验两侧，修正检测窗口多带的末尾 token，再核对长度与行数阈值。检测复用固定版本的 jscpd core/tokenizer；规则阈值来自快照配置。
 
@@ -75,6 +75,10 @@ M4 使用 `indexSources(after, root, before.files)`：当前配置下的解析�
 已覆盖拆分、缩短、扩展、多副本、移动和同文件复制。计数包含重叠出现，不等于函数数或作者归因；删除再复制且净次数不变时与移动无法区分。检测忽略空白与注释，保留标识符与字面量，不处理改名后的语义等价；跨 tokenizer 格式可能漏报，大型仓库性能尚待实测。
 
 若后续需要拆文件，应移动既有检测实现并更新调用与测试，确保 M2/M3 使用同一份快照和配置，不复制另一套扫描逻辑。
+
+本轮以 main 4ad831a 为起点增加 POSSIBLE_DUPLICATION。indexSources(state, root?, fallbackFiles?, collectImplementations=false) 复用同一次 AST 解析，可选返回 implementations；只有 check 的历史与当前索引开启采集，默认 context 调用不增加此工作。implementation(body, ast, location) 提取保守的字符串、数据成员、操作证据；similarImplementations(before, after, exactFindings) 做一对一历史匹配并抑制同对精确发现。无新依赖或模型服务。
+
+Finding.similarity 与顶层 similarityAlgorithm: implementation-anchors/1、possibleDuplications 属兼容性增加；旧基线重新由保存源码分析，Baseline.schema、ANALYZER、CLI v1 与 token-occurrences/1 不变。新规则始终 review，不借用 duplicatePolicy 的 fail。已知改写式重复由 pass 变为 needs-review，委托已有实现后通过；详细条件、证据截断、历史边界和负例见 [实现复核](docs/SIMILARITY.md)。一般语义等价或职责判断仍未实现。
 
 ### M4 决策检查与行为验证
 
@@ -115,6 +119,8 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 项目评测由 [scripts/evaluate.mjs](scripts/evaluate.mjs) 执行，[scripts/evaluation-cases.mjs](scripts/evaluation-cases.mjs) 定义任务、变体和预期处置，[examples/evaluation](examples/evaluation) 提供调用入口与独立验收测试。[test/evaluation.test.mjs](test/evaluation.test.mjs) 将评测接入现有 `npm test`；示例和评测共用 [workspace.mjs](scripts/lib/workspace.mjs) 的隔离 Git 工作区与真实 CLI 调用，没有第二套检测器。
 
 功能效果对照入口为 [benchmark-reuse.mjs](scripts/benchmark-reuse.mjs)，与人工变体共用 prepareEvaluation；与外部开源项目对照共用 runAgent。每次行为验收都由父进程独立重跑。validateFunctionalReviews 要求每份功能判断绑定实际补丁和具体理由，不允许将行为失败或协议不完整算作成功；发布器进一步核对补丁字节，省略原始事件及最终自由文本。该夹具不使用第三方依赖锁。产品分析器、基线格式、CLI 契约及 token 算法均未改变；真实会话启动仍需具备对应的数据外发授权。
+
+protectedFileEvidence(root, expectedHashes, acceptanceFiles) 用运行前记录构造验收身份，实际文件只用于篡改核对；验收文件缺失、改名或被目录替换时返回 tampered，保留协议无效的样本及原验收哈希，避免中止后续会话。历史输入归档与 observed 发布文件逐字节校验，当前 oracle 的演进不改变旧观测。
 
 实际 agent 对照复用 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs)，`--suite` 选择固定的 [p-map](benchmarks/p-map) 或 [p-queue](benchmarks/p-queue) 输入，默认 p-map 保持兼容。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与按任务 ID、重复编号成对统计；[benchmark-project.mjs](scripts/lib/benchmark-project.mjs) 处理等价配置准备、上游计数和包含新增文件的 Git 补丁。准备后的项目必须编译、可分析且无范围外变更，再启动模型。离线协议与发布测试不需要模型凭据；实际实验使用 `npm run benchmark:agent` 单独启动。方法、真实结果和限制见 [p-map](docs/AGENT-BENCHMARK.md) 与 [p-queue](docs/COMPLEX-AGENT-BENCHMARK.md) 文档。
 

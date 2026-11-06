@@ -9,7 +9,7 @@ import {repository} from './lib/workspace.mjs';
 import {prepareEvaluation} from './lib/evaluation-project.mjs';
 import {runAgent} from './lib/agent-runner.mjs';
 import {pairedSummary} from './lib/agent-events.mjs';
-import {collectChanges} from './lib/benchmark-project.mjs';
+import {collectChanges, protectedFileEvidence} from './lib/benchmark-project.mjs';
 import {begin, snapshot} from '../dist/project.js';
 import {clones, indexSources, newClones} from '../dist/analyze.js';
 import {validateDecision} from '../dist/decision.js';
@@ -84,7 +84,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
     const agent = await runAgent({project, prompt: common + treatment, directory, codex: values.codex, specification, terseCli, env});
     const checkStart = performance.now();
     const verification = verify(project, config, directory); // Always independent, even if the agent already checked.
-    const tampered = Object.entries(protectedHashes).filter(([file, hash]) => !fs.existsSync(path.join(project, file)) || digest(fs.readFileSync(path.join(project, file))) !== hash).map(([file]) => file);
+    const {tampered, acceptanceHash} = protectedFileEvidence(project, protectedHashes, config.verification[0].args.slice(1));
     tampered.push(...Object.entries(fixtureHashes).filter(([file, hash]) => !fs.existsSync(path.join(repository, file)) || digest(fs.readFileSync(path.join(repository, file))) !== hash).map(([file]) => `fixture/${file}`));
     const after = snapshot(project);
     let newDuplications = null, duplicationError = null, cleanup = [];
@@ -114,7 +114,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
     } catch { /* Missing/invalid evidence is never a successful integration. */ }
     const controlUsedTerse = arm === 'control' && (agent.events.decisions.attempts > 0 || ['context.json', 'report.json'].some(file => fs.existsSync(path.join(dir, file))));
     const result = {taskId: task.id, artifactId, arm, repetition, baselineHash: before.hash,
-      acceptanceHash: digest(JSON.stringify(hashFiles(project, ['test/orders.test.mjs', 'test/routes.test.mjs', 'test/acceptance.test.mjs']))),
+      acceptanceHash,
       correct: verification.passed && !tampered.length, checks: {acceptance: verification}, workflow, candidateHit, terseStatus, terseRules,
       protocolValid: agent.exitCode === 0 && !agent.timedOut && !agent.blockedByPolicy && agent.events.completed && agent.events.commandCount > 0
         && !tampered.length && !changes.outsideScope.length && !duplicationError && !controlUsedTerse && (arm === 'control' || workflow),

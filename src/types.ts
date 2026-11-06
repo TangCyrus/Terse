@@ -33,6 +33,13 @@ export interface Finding {
   rule: string; severity: 'review' | 'fail'; message: string;
   locations: { path: string; line?: number; endLine?: number; symbol?: string }[];
   attribution?: DuplicationAttribution;
+  similarity?: SimilarityEvidence;
+}
+export interface SimilarityEvidence {
+  algorithm: 'implementation-anchors/1';
+  shared: { literals: string[]; members: string[]; calls: string[] };
+  sharedAnchors: number; leftAnchors: number; rightAnchors: number;
+  evidenceTruncated: boolean;
 }
 export interface DuplicationAttribution {
   kind: 'new-or-expanded' | 'additional-copy';
