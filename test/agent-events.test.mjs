@@ -67,6 +67,13 @@ test('correction evidence requires an observed warning followed by a full later 
   const combined = summarize([commandEvent('combined','node cli.js check --run r; node cli.js check --run r',JSON.stringify(warned)+'\n'+JSON.stringify(clean))]);
   assert.equal(correctionEvidence(combined,options).observedCorrection,true);
   assert.equal(correctionEvidence(combined,options).finalCheck.responseIndex,1);
+  const draftOptions={...options,seeded:false,startingHash:'baseline',draftHash:'saved-draft'};
+  const cleanDraft=commandEvent('clean-draft','node cli.js check --run r',JSON.stringify(response('saved-draft')));
+  const reviewRegression=commandEvent('review-regression','node cli.js check --run r',JSON.stringify(response('review-change',['POSSIBLE_DUPLICATION'])));
+  assert.equal(correctionEvidence(summarize([cleanDraft,reviewRegression,last]),draftOptions).observedCorrection,false);
+  const draftWarning=commandEvent('draft-warning','node cli.js check --run r',JSON.stringify(response('saved-draft',['POSSIBLE_DUPLICATION'])));
+  assert.equal(correctionEvidence(summarize([draftWarning,last]),draftOptions).observedCorrection,true);
+  assert.equal(correctionEvidence(summarize([reviewRegression,last]),draftOptions).observedCorrection,false);
 });
 
 test('agent pairs require identical inherited starting work as well as baseline and tests', () => {

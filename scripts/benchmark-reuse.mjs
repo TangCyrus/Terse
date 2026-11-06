@@ -180,6 +180,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
     const controlUsedTerse = arm === 'control' && (agent.events.decisions.attempts > 0 || agent.events.checks.reports.length > 0 || ['context.json', 'report.json'].some(file => fs.existsSync(path.join(dir, file))));
     const correction = task.mode && arm === 'terse' ? correctionEvidence(agent.events.checks, {baselineHash: before.hash,
       startingHash: initial.snapshotHash, finalHash: after?.hash, targetRules: task.targetRules, seeded: task.mode === 'seeded',
+      draftHash: draft?.snapshotHash,
       finalClean: !duplicationError && newDuplications === 0 && possibleDuplications === 0 && !cleanup.length,
       verificationCount: config.verification.length}) : null;
     const firstReview = agent.events.checks.reports[0];

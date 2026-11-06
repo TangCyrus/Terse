@@ -461,7 +461,7 @@ for (const cohort of ['observed', 'optimized-observed', 'challenge-observed', 'n
       const task=report.tasks.find(item=>item.id===result.taskId);
       if(result.arm==='terse') {
         assert.deepEqual(result.correction,correctionEvidence(result.events.checks,{baselineHash:result.baselineHash,
-          startingHash:result.startingHash,finalHash:result.snapshotHash,targetRules:task.targetRules,seeded:task.mode==='seeded',
+          startingHash:result.startingHash,finalHash:result.snapshotHash,targetRules:task.targetRules,seeded:task.mode==='seeded',draftHash:result.draft?.snapshotHash,
           finalClean:!result.duplicationError&&result.newDuplications===0&&result.possibleDuplications===0&&!result.cleanup.length,verificationCount:1}));
         assert.equal(result.correction.observedCorrection,task.mode==='seeded');
         assert(result.events.checks.reports.every(item=>item.verification.length===1&&item.verification[0]==='passed'));
