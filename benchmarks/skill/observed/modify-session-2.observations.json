@@ -1,0 +1,386 @@
+[
+  {
+    "sequence": 0,
+    "event": "item.started",
+    "itemId": "item_2",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "e2964b368f91cdf6c75169b0c7e95024a6fbc077fb3a6a4c60eddb7cae777932"
+  },
+  {
+    "sequence": 1,
+    "event": "item.completed",
+    "itemId": "item_2",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": true,
+    "commandHash": "e2964b368f91cdf6c75169b0c7e95024a6fbc077fb3a6a4c60eddb7cae777932"
+  },
+  {
+    "sequence": 2,
+    "event": "item.started",
+    "itemId": "item_3",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "da9c76f1a3bb8e92278f6d5a00af304c798144f9057d2f7d094bbe3c270d2648"
+  },
+  {
+    "sequence": 3,
+    "event": "item.completed",
+    "itemId": "item_3",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "da9c76f1a3bb8e92278f6d5a00af304c798144f9057d2f7d094bbe3c270d2648"
+  },
+  {
+    "sequence": 4,
+    "event": "item.started",
+    "itemId": "item_4",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "b300f3c89a2b6859f706f204ca3dde44e7fa4c823a43465deaed03f94070ed21"
+  },
+  {
+    "sequence": 5,
+    "event": "item.completed",
+    "itemId": "item_4",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": false,
+        "decisionHash": null,
+        "strategy": null,
+        "remove": []
+      }
+    ],
+    "responses": [
+      {
+        "command": "begin",
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "status": "pass",
+        "outputKind": "result",
+        "exitCode": 0,
+        "baselineHash": null,
+        "snapshotHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "verification": [],
+        "errors": 0
+      }
+    ],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "b300f3c89a2b6859f706f204ca3dde44e7fa4c823a43465deaed03f94070ed21"
+  },
+  {
+    "sequence": 6,
+    "event": "item.started",
+    "itemId": "item_5",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": false,
+        "decisionHash": null,
+        "strategy": null,
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "e8982d20434047dfc608d7a29e7c969920488472b996140f29de03a5c255d4c5"
+  },
+  {
+    "sequence": 7,
+    "event": "item.completed",
+    "itemId": "item_5",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": false,
+        "decisionHash": null,
+        "strategy": null,
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "e8982d20434047dfc608d7a29e7c969920488472b996140f29de03a5c255d4c5"
+  },
+  {
+    "sequence": 8,
+    "event": "item.started",
+    "itemId": "item_7",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": false,
+        "decisionHash": null,
+        "strategy": null,
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "90ae601aa5eb0bc075deb075eb4da3ad063463c26fe66a16a28b8221319c914e"
+  },
+  {
+    "sequence": 9,
+    "event": "item.completed",
+    "itemId": "item_7",
+    "itemType": "command_execution",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "6cb4ae88d7661a134d9b3de7f17cbb38b3f9b38c7fafc819d8a5be5c8bb483af",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [
+      {
+        "command": "decide",
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "status": "pass",
+        "outputKind": "result",
+        "exitCode": 0,
+        "baselineHash": null,
+        "snapshotHash": null,
+        "verification": [],
+        "errors": 0
+      }
+    ],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "90ae601aa5eb0bc075deb075eb4da3ad063463c26fe66a16a28b8221319c914e"
+  },
+  {
+    "sequence": 10,
+    "event": "item.started",
+    "itemId": "item_8",
+    "itemType": "file_change",
+    "sourceHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "6cb4ae88d7661a134d9b3de7f17cbb38b3f9b38c7fafc819d8a5be5c8bb483af",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [
+      {
+        "path": "src/orders.ts",
+        "kind": "update"
+      },
+      {
+        "path": "src/routes.ts",
+        "kind": "update"
+      }
+    ],
+    "skillRead": false
+  },
+  {
+    "sequence": 11,
+    "event": "item.completed",
+    "itemId": "item_8",
+    "itemType": "file_change",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "6cb4ae88d7661a134d9b3de7f17cbb38b3f9b38c7fafc819d8a5be5c8bb483af",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [
+      {
+        "path": "src/orders.ts",
+        "kind": "update"
+      },
+      {
+        "path": "src/routes.ts",
+        "kind": "update"
+      }
+    ],
+    "skillRead": false
+  },
+  {
+    "sequence": 12,
+    "event": "item.started",
+    "itemId": "item_9",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "6cb4ae88d7661a134d9b3de7f17cbb38b3f9b38c7fafc819d8a5be5c8bb483af",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "55bd8e14ec7738ab12d549742da2a19a2fe6a5493ebaf94066d202c013ea5fb4"
+  },
+  {
+    "sequence": 13,
+    "event": "item.completed",
+    "itemId": "item_9",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "6cb4ae88d7661a134d9b3de7f17cbb38b3f9b38c7fafc819d8a5be5c8bb483af",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [
+      {
+        "command": "check",
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "status": "pass",
+        "outputKind": "result",
+        "exitCode": 0,
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "snapshotHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+        "verification": [
+          {
+            "status": "passed",
+            "command": {
+              "command": "node",
+              "args": [
+                "--test",
+                "test/orders.test.mjs",
+                "test/routes.test.mjs",
+                "test/acceptance.test.mjs"
+              ],
+              "timeoutMs": 30000
+            }
+          }
+        ],
+        "errors": 0
+      }
+    ],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "55bd8e14ec7738ab12d549742da2a19a2fe6a5493ebaf94066d202c013ea5fb4"
+  },
+  {
+    "sequence": 14,
+    "event": "item.started",
+    "itemId": "item_10",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "6cb4ae88d7661a134d9b3de7f17cbb38b3f9b38c7fafc819d8a5be5c8bb483af",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "458fb7699c8fd7648056133ce5c8a957b5366db3ad47e97bd922737236af61e1"
+  },
+  {
+    "sequence": 15,
+    "event": "item.completed",
+    "itemId": "item_10",
+    "itemType": "command_execution",
+    "sourceHash": "88d1deb1166235a0ce89439049e021445c7edfae9ad5c4ae81f26c6591fff17a",
+    "runStates": [
+      {
+        "run": "1793949636585-c5f54e8e-d248-4d5e-bfd8-98b182823df6",
+        "baselineHash": "bfcdd9f77e471c2fe80e594d103fee6eafb4682e84934ceb5ef6f9e904fa2ead",
+        "retrieved": true,
+        "decided": true,
+        "decisionHash": "6cb4ae88d7661a134d9b3de7f17cbb38b3f9b38c7fafc819d8a5be5c8bb483af",
+        "strategy": "modify",
+        "remove": []
+      }
+    ],
+    "responses": [],
+    "tampered": [],
+    "sourceEdits": [],
+    "skillRead": false,
+    "commandHash": "458fb7699c8fd7648056133ce5c8a957b5366db3ad47e97bd922737236af61e1"
+  }
+]

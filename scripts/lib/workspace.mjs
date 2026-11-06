@@ -7,9 +7,9 @@ import { spawnSync, execFileSync } from 'node:child_process';
 export const repository = fileURLToPath(new URL('../../', import.meta.url));
 const cli = path.join(repository, 'dist/cli.js');
 
-export function createWorkspace(parent, name) {
+export function createWorkspace(parent, name, fixtureRoot = repository) {
   const directory = path.join(parent, name);
-  fs.cpSync(path.join(repository, 'examples/orders'), directory, { recursive: true });
+  fs.cpSync(path.join(fixtureRoot, 'examples/orders'), directory, { recursive: true });
   fs.writeFileSync(path.join(directory, '.gitignore'), '.terse/\n');
   execFileSync('git', ['init', '-q'], { cwd: directory });
   // Match CLI root normalization, including Windows 8.3 TEMP paths.

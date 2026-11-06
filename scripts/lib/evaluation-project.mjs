@@ -8,8 +8,8 @@ import {cleanupFindings} from '../../dist/cleanup.js';
 import {similarImplementations, SIMILARITY_ALGORITHM} from '../../dist/similarity.js';
 
 // Both authored variants and live agents receive the same project and acceptance files.
-export function prepareEvaluation(parent, name, scenario) {
-  const project = createWorkspace(parent, name);
+export function prepareEvaluation(parent, name, scenario, fixtureRoot = repository) {
+  const project = createWorkspace(parent, name, fixtureRoot);
   const sources = {
     read: name => fs.readFileSync(path.join(project, 'src', name), 'utf8'),
     write: (name, content) => {
@@ -19,12 +19,12 @@ export function prepareEvaluation(parent, name, scenario) {
     },
     remove: name => fs.unlinkSync(path.join(project, 'src', name)),
   };
-  const fixtures = path.join(repository, 'examples/evaluation');
+  const fixtures = path.join(fixtureRoot, 'examples/evaluation');
   sources.write('routes.ts', fs.readFileSync(path.join(fixtures, 'routes.ts'), 'utf8'));
   fs.copyFileSync(path.join(fixtures, 'routes.test.mjs'), path.join(project, 'test/routes.test.mjs'));
-  if (scenario.sourceFixture) fs.cpSync(path.join(repository, scenario.sourceFixture), path.join(project, 'src'), {recursive: true});
+  if (scenario.sourceFixture) fs.cpSync(path.join(fixtureRoot, scenario.sourceFixture), path.join(project, 'src'), {recursive: true});
   scenario.setup?.(sources);
-  fs.copyFileSync(scenario.acceptance ? path.join(repository, scenario.acceptance) : path.join(fixtures, `${scenario.id}.test.mjs`), path.join(project, 'test/acceptance.test.mjs'));
+  fs.copyFileSync(scenario.acceptance ? path.join(fixtureRoot, scenario.acceptance) : path.join(fixtures, `${scenario.id}.test.mjs`), path.join(project, 'test/acceptance.test.mjs'));
   const config = {minTokens: 50, minLines: 5, duplicatePolicy: 'review', exclude: ['test'], verification: [
     {command: 'node', args: ['--test', 'test/orders.test.mjs', 'test/routes.test.mjs', 'test/acceptance.test.mjs'], timeoutMs: 30_000},
   ]};

@@ -46,7 +46,7 @@ export function summarizePhases(phases, terseCli) {
 
 // Tool output may contain several pretty-printed CLI objects and shell preambles.
 // Do not count help, source reads, decision-input filenames or ordinary successful revisions as retries.
-function jsonObjects(text) {
+export function jsonObjects(text) {
   const objects = [];
   for (let start = 0; start < text.length; start++) {
     if (text[start] !== '{') continue;
@@ -106,6 +106,16 @@ function decisionActivity(events, terseCli, completed) {
     retries: complete ? retries : null, unrecoveredFailure: complete ? pending : null, helpCalls, evidence: attempts};
 }
 
+export function checkInvocationCount(command) {
+  command = command.replace(/['"]/g, '');
+  if (!/\bnode(?:\.exe)?\b/.test(command)) return 0;
+  const calls = [...command.matchAll(/\bcheck\s+--/g)];
+  return calls.filter((call, index) => {
+    const part = command.slice(call.index, calls[index + 1]?.index);
+    return /--run\b/.test(part) && !/--(?:help|version)\b/.test(part);
+  }).length;
+}
+
 function checkActivity(events, completed) {
   const reports = [];
   let unknownCalls = 0;
@@ -116,11 +126,7 @@ function checkActivity(events, completed) {
     if (!/\bnode(?:\.exe)?\b/.test(command)) continue;
     const responses = jsonObjects(item.aggregated_output ?? '').filter(value => value.schemaVersion === 1
       && value.command === 'check' && value.outputKind === 'result');
-    const calls = [...command.matchAll(/\bcheck\s+--/g)];
-    const expected = calls.filter((call, index) => {
-      const part = command.slice(call.index, calls[index + 1]?.index);
-      return /--run\b/.test(part) && !/--(?:help|version)\b/.test(part);
-    }).length;
+    const expected = checkInvocationCount(command);
     unknownCalls += Math.max(0, expected - responses.length);
     for (const [responseIndex, response] of responses.entries()) reports.push({itemId: item.id, responseIndex,
       baselineHash: response.baselineHash ?? null, snapshotHash: response.snapshotHash ?? null, status: response.status,

@@ -15,7 +15,8 @@
     "demo:agent": "npm run build && node scripts/demo-agent.mjs",
     "evaluate": "npm run build && node scripts/evaluate.mjs",
     "benchmark:agent": "npm run build && node scripts/benchmark-agent.mjs",
-    "benchmark:reuse": "npm run build && node scripts/benchmark-reuse.mjs"
+    "benchmark:reuse": "npm run build && node scripts/benchmark-reuse.mjs",
+    "benchmark:skill": "npm run build && node scripts/benchmark-skill.mjs"
   },
   "dependencies": { "@jscpd/core": "4.2.5", "@jscpd/tokenizer": "4.2.6", "typescript": "5.9.3" },
   "devDependencies": { "@types/node": "24.0.0" }
