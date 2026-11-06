@@ -1,0 +1,31 @@
+diff --git a/src/notifications.ts b/src/notifications.ts
+new file mode 100644
+index 0000000..eb1c247
+--- /dev/null
++++ b/src/notifications.ts
+@@ -0,0 +1,25 @@
++export interface Notification {
++  readonly id: string;
++  readonly to: string;
++  readonly message: string;
++}
++
++export function enqueueNotification(
++  pending: readonly Notification[],
++  item: Notification,
++): Notification[] {
++  if (
++    !item ||
++    [item.id, item.to, item.message].some(
++      value => typeof value !== 'string' || value.trim().length === 0,
++    )
++  ) {
++    throw new Error('Invalid notification: id, to and message are required');
++  }
++
++  if (pending.some(notification => notification.id === item.id)) {
++    return [...pending];
++  }
++
++  return [...pending, { ...item }];
++}

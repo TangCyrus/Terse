@@ -263,8 +263,8 @@ test('functional preflight checks all six task starts without a live model or cr
   for (const task of plan.tasks) assert(!fs.existsSync(path.join(directory, `preflight-${task.id}`, 'agent.jsonl')));
 });
 
-test('published functional observation binds every fixture, pair, patch and implementation review', () => {
-  const directory = fileURLToPath(new URL('../benchmarks/reuse/observed/', import.meta.url));
+for (const cohort of ['observed', 'optimized-observed']) test(`published functional observation ${cohort} binds every fixture, pair, patch and implementation review`, () => {
+  const directory = fileURLToPath(new URL(`../benchmarks/reuse/${cohort}/`, import.meta.url));
   const report = JSON.parse(fs.readFileSync(path.join(directory, 'comparison.json'), 'utf8'));
   const reviews = JSON.parse(fs.readFileSync(path.join(directory, 'functional-reviews.json'), 'utf8'));
   const hash = data => createHash('sha256').update(data).digest('hex');
@@ -295,6 +295,13 @@ test('published functional observation binds every fixture, pair, patch and impl
     assert.equal(hash(fs.readFileSync(path.join(directory, result.patch))), result.evidence.patchHash);
     const duplicates = JSON.parse(fs.readFileSync(path.join(directory, result.duplications), 'utf8'));
     assert.equal(duplicates.length, result.newDuplications);
+    if (cohort === 'optimized-observed') {
+      assert.equal(result.similarityAlgorithm, 'implementation-anchors/1');
+      const similarities = JSON.parse(fs.readFileSync(path.join(directory, result.similarities), 'utf8'));
+      assert.equal(similarities.length, result.possibleDuplications);
+      assert(similarities.every(item => item.rule === 'POSSIBLE_DUPLICATION' && item.similarity.algorithm === result.similarityAlgorithm));
+      assert.deepEqual(result.cleanup, []);
+    }
     assert.equal(result.events.completed, true);
     assert.equal(result.correct, true);
     assert.equal(result.protocolValid, true);
