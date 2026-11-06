@@ -10,6 +10,7 @@ import {cases} from '../scripts/evaluation-cases.mjs';
 import {hash, hashFiles, list, write, skillObserver, skillWorkflow, skillSummary} from '../scripts/lib/skill-evidence.mjs';
 import {runAgent} from '../scripts/lib/agent-runner.mjs';
 import {exportSkillBenchmark} from '../scripts/export-skill-benchmark.mjs';
+import {gzipSync, gunzipSync} from 'node:zlib';
 import {prepareEvaluation} from '../scripts/lib/evaluation-project.mjs';
 import {invoke, repository} from '../scripts/lib/workspace.mjs';
 import {snapshot} from '../dist/project.js';
@@ -164,7 +165,11 @@ test('skill exporter preserves incomplete sessions, verifies hashes and refuses 
   const result = {artifactId: id, taskId: 'modify', repetition: 1, baselineHash: options.initialHash, snapshotHash: options.finalHash,
     promptHash: evidence.promptHash, correct: false, protocolValid: false, verification: options.verification, workflow: skillWorkflow(observer.observations, {...options, traceComplete: false}),
     observationErrors: [], events: {completed: false, errors: [], finalMessage: 'local prose'}, evidence};
+  const upstreamInputs = {files: {'package.json': '{"name":"fixture"}', license: 'MIT fixture license\r\n'}, dependencyLock: '{}'};
+  const packed = gzipSync(Buffer.from(JSON.stringify(upstreamInputs)));
+  fs.writeFileSync(path.join(source, 'upstream-inputs.json.gz'), packed);
   write(path.join(source, 'report.json'), {kind: 'agent-skill-integration', terseRevision: 'a'.repeat(40), repetitions: 1,
+    upstream: {inputHash: hash(packed), sourceHashes: Object.fromEntries(Object.entries(upstreamInputs.files).map(([file, input]) => [file, hash(input)])), dependencyLockHash: hash(upstreamInputs.dependencyLock)},
     tasks: [{id: 'modify', promptHash: result.promptHash, remove: []}], fixtureHashes: hashFiles(repository, [fixture]), results: [result]});
   write(path.join(source, 'reviews.json'), [{artifactId: id, patchHash: evidence.patchHash, duplicateFree: true, cleanupComplete: true, reason: 'Inspected source.'}]);
   fs.unlinkSync(path.join(directory, 'project/terse.config.json'));
@@ -173,6 +178,8 @@ test('skill exporter preserves incomplete sessions, verifies hashes and refuses 
   fs.writeFileSync(path.join(directory, 'implementation.patch'), '');
   const published = exportSkillBenchmark(source, target, archive);assert.equal(published.summary.sessions, 1);
   assert.equal(published.summary.functional, 0);assert.equal(published.summary.workflowCompleted, 0);
+  assert.equal(fs.readFileSync(path.join(target, 'LICENSE'), 'utf8'), upstreamInputs.files.license);
+  assert.deepEqual(JSON.parse(gunzipSync(fs.readFileSync(published.archive)).toString('utf8')).upstreamInputs, upstreamInputs);
   const reportBytes = fs.readFileSync(path.join(target, 'report.json'));
   assert(!JSON.parse(reportBytes).results[0].events.finalMessage);
   assert.throws(() => exportSkillBenchmark(source, target, archive));

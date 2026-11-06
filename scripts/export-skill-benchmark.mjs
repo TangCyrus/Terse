@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import {gzipSync} from 'node:zlib';
+import {gzipSync, gunzipSync} from 'node:zlib';
 import {parseArgs} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import {repository} from './lib/workspace.mjs';
@@ -23,6 +23,18 @@ export function exportSkillBenchmark(source, target, archiveDirectory) {
     const input = fs.readFileSync(path.join(repository, file), 'utf8');
     assert.equal(hash(input), expected, `Input changed after running: ${file}`);return [file, input];
   }));
+  let upstreamInputs, upstreamLicense;
+  if (report.upstream) {
+    const packed = fs.readFileSync(path.join(source, 'upstream-inputs.json.gz'));
+    assert.equal(hash(packed), report.upstream.inputHash);
+    upstreamInputs = JSON.parse(gunzipSync(packed).toString('utf8'));
+    assert.deepEqual(Object.keys(upstreamInputs.files).sort(), Object.keys(report.upstream.sourceHashes).sort());
+    for (const [file, input] of Object.entries(upstreamInputs.files)) assert.equal(hash(input), report.upstream.sourceHashes[file], file);
+    assert.equal(hash(upstreamInputs.dependencyLock), report.upstream.dependencyLockHash);
+    const license = Object.keys(upstreamInputs.files).find(file => /^licen[cs]e(?:\.md)?$/i.test(file));
+    assert(license, 'Upstream license must accompany derived patches');
+    upstreamLicense = upstreamInputs.files[license];
+  }
   const copies = [];
   const results = report.results.map(result => {
     assert(/^[a-z0-9-]+$/.test(result.artifactId));
@@ -33,6 +45,7 @@ export function exportSkillBenchmark(source, target, archiveDirectory) {
     }
     const observations = JSON.parse(fs.readFileSync(path.join(directory, 'observations.json'), 'utf8'));
     assert.deepEqual(result.workflow, skillWorkflow(observations, {initialHash: result.baselineHash, finalHash: result.snapshotHash,
+      editable: result.editable, initialScopeHash: result.initialScopeHash, finalScopeHash: result.finalScopeHash,
       verification: result.verification, removals: report.tasks.find(item => item.id === result.taskId).remove,
       traceComplete: result.events.completed && !result.observationErrors.length}));
     for (const [file, key] of [['agent.jsonl', 'eventHash'], ['prompt.txt', 'promptHash'], ['initialization.json', 'initializationHash']]) {
@@ -49,11 +62,14 @@ export function exportSkillBenchmark(source, target, archiveDirectory) {
   assert(!fs.existsSync(target));assert(!fs.existsSync(archive));
   fs.mkdirSync(target, {recursive: true});fs.mkdirSync(archiveDirectory, {recursive: true});
   for (const [from, to] of copies) fs.copyFileSync(from, path.join(target, to), fs.constants.COPYFILE_EXCL);
+  if (upstreamInputs) {
+    fs.writeFileSync(path.join(target, 'LICENSE'), upstreamLicense, {flag: 'wx'});
+  }
   write(path.join(target, 'reviews.json'), reviews);
   write(path.join(target, 'report.json'), {...report, results, summary,
     fixtureCanonicalHashes: Object.fromEntries(Object.entries(files).map(([file, input]) => [file, hash(input.replaceAll('\r\n', '\n'))])),
     publication: 'Raw event streams, command outputs, prompts and local initialization paths remain local, identified by SHA-256. Published patches, observations and source review are separate from automatic workflow counts. No control arm or causal improvement claim.'});
-  fs.writeFileSync(archive, gzipSync(Buffer.from(JSON.stringify({schemaVersion: 1, revision: report.terseRevision, files,
+  fs.writeFileSync(archive, gzipSync(Buffer.from(JSON.stringify({schemaVersion: 1, revision: report.terseRevision, files, ...(upstreamInputs ? {upstreamInputs} : {}),
     publicationHashes: hashFiles(target, fs.readdirSync(target).sort())}))), {flag: 'wx'});
   return {output: target, summary, archive};
 }

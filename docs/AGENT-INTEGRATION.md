@@ -74,3 +74,5 @@ npm run demo:agent
 示例复用订单项目、原行为验收和新增付款筛选验收，调用实际 init 与项目启动器。先构造行为通过但复制实现的草稿，完整 check 返回 needs-review 和新增重复；随后修改原函数，用同一 run 和完整验证得到 pass。两次完整报告及 integration.json 保存在 `.terse/agent-demo-<id>/`。
 
 这是确定性接入回归，标记 scripted-integration / modelSessions: 0，不声称证明自然语言自动选择率、模型自主纠错成功率或新增对照收益。[初始化测试](../test/init.test.mjs) 另覆盖已有配置与指令保留、重复安装、根 override、未知验证、命令校验、路径冲突、目录链接拒绝、工作目录和退出码传递。另设 [Skill 真实会话评测](SKILL-AGENT-BENCHMARK.md)，在普通任务提示下独立测量实际接入阶段；与 demo 分开解释，历史评测、输入归档和哈希不改写。
+
+真实开源项目的扩展使用 [p-queue Skill 接入评测](PQUEUE-SKILL-BENCHMARK.md)，保留原有构建、任务验收、上游和类型验证。它与订单示例分开发布，不把历史显式提示会话当成普通需求下的自动接入。

@@ -1,0 +1,51 @@
+# p-queue 的 Agent Skill 真实会话接入评测
+
+本轮承接已合并的 #23，将普通需求下的 Skill 接入验证扩展到真实开源项目。固定 [p-queue v8.0.1](https://github.com/sindresorhus/p-queue/tree/47a4f19ab3d4422e06cb1b618f4c45a11b5def30)，提交 `47a4f19ab3d4422e06cb1b618f4c45a11b5def30`，沿用 [原三类任务和验收](COMPLEX-AGENT-BENCHMARK.md)，不冒充最新版本或大型应用。上游代码及派生补丁遵守 [MIT 许可](../benchmarks/p-queue/LICENSE)。
+
+## 预登记范围
+
+修改、删除、重构各两次，共六个全新独立会话，使用 gpt-6.1-sol / medium，每次最多 600 秒。每个会话都从同一固定上游和依赖锁建立新副本，不共享可写 node_modules，不 resume、不补发提示、不人工修复或替换样本。耗时只作辅助，不以变快作为验收条件。
+
+- 修改：为 onEmpty / onIdle 增加可选 AbortSignal，保留默认和已中止时的语义，清理队列/信号监听器且不取消工作，补充类型和 README。
+- 删除：退役 lower-bound.ts，将二分插入职责并入 PriorityQueue；保留优先级、相同优先级 FIFO、filter 和空队列契约，比较次数仍为对数级。
+- 重构：将私有 #onEvent 提取为可独立用于 EventEmitter3 的 waitForEvent，三种公开等待方法委托它，删除旧私有声明与调用，保留快路径、过滤条件和其他监听器。
+
+[任务适配器](../scripts/lib/pqueue-skill.mjs) 沿用原业务段落，移除旧显式提示中的工具/执行说明；发给 agent 的提示只有普通需求、允许修改的文件及交付要求，不包含 Terse、Skill、AGENTS、run、候选或 CLI 命令。宿主只在准备阶段调用实际 init，安装 main 的原样 Skill 和项目指令，不替 agent begin、检索、决定或编辑。测试可读，配置、依赖、锁和验收受保护。
+
+本轮评估 AGENTS + Skill 的整体接入，保留当前宿主全局配置和正常自动审批。该组合不是仅凭 Skill 描述匹配的实验，也没有宿主强制 hook。父进程预检用正常权限运行；受限 Windows 进程中 tsx/os.userInfo 的环境错误不能视为项目行为失败或通过。真实会话中的权限错误、重试、超时和证据不足仍按原样保留。
+
+## 四组完整验证
+
+每次完整 check 和父进程独立复验都执行：
+
+1. 上游项目的 TypeScript noEmit 编译。
+2. 原任务运行时验收：修改 5 项、删除与重构各 4 项；缺失、零项、取消或计数不符均不能算通过。
+3. 上游 AVA：固定要求 45 项通过、2 项既有预期失败，不能只根据退出码判断。
+4. 原严格 TypeScript 类型验收，包括应当报错的调用形状。
+
+沿用原等价平铺 tsconfig 准备：用上游编译器比较配置及覆盖文件，保留动态 include，确保新 helper 仍被编译。任务验收复制到项目内 acceptance/，该只读测试目录从产品源码分析中排除；类型验收仅将原 ./project/ 导入前缀改为 ../，不修改断言或编译参数。准备后的字节哈希固定。四组验证不等于完整 npm test，未运行其中的 XO 与 tsd。
+
+会话启动前，上游和各准备副本的既有行为必须健康，任务验收必须尚未满足。既有已发布补丁只在独立预检目录验证可达性，并校验原 SHA-256；不给模型参考补丁或预检目录，不把历史补丁充作本轮输出。
+
+## 阶段、复用和清理判断
+
+复用 [Skill 阶段判定](SKILL-AGENT-BENCHMARK.md)：实际读取完整 Skill，修改前自行建立正确基线、检索并保存有效决策，随后修改，在同一 run 上完成与最终状态匹配的完整检查。文件删除和私有方法删除均须在修改前正确声明。最后的错误、缺失结果或其他 run 检查不能复用旧 pass。
+
+编辑范围按任务精确匹配 source/ 文件及 README；父观察同时记录允许编辑文件的 scopeHash，覆盖源码快照不包含的 Markdown。先改 README 再补决策，或完整 check 后再改 README 而不复验，都不能取得完整流程计分。旧订单观察没有这些新字段，保留原字节和规则兼容，不回填。
+
+行为、工作流、源码审查分别计分。父进程独立执行四组检查，并对实际差异运行重复/相似实现/清理分析，逐份非盲审查职责是否共用、旧入口是否真正删除；不能用 token 零发现代替代码复用。合理监听器清理与不同业务守卫不要求机械合并。所有失败或不完整样本都保留，没有对照组，不推断相对收益或一般触发率。
+
+## 执行与冻结
+
+```sh
+npm run build
+node scripts/benchmark-skill.mjs --suite p-queue --source <固定上游工作区> --preflight-only
+node scripts/benchmark-skill.mjs --suite p-queue --source <固定上游工作区> --repetitions 2
+node scripts/export-skill-benchmark.mjs --input .terse/skill-agent-<id> --output benchmarks/skill/p-queue-observed --archive benchmarks/skill/fixtures
+```
+
+上游先按原评测安装开发依赖并保留 package-lock.json；本轮使用与原 p-queue optimized-observed 相同的锁，SHA-256 为 `7b8a942b4606345bd51f5eea912c0f4c43d9bc05c6274ae93e048b7a3393ab4c`。准备、验证和工作区复制抽取为共享函数，旧显式提示评测与新 Skill 套件使用同一机制。
+
+模型启动前固定代码提交、提示、验收、产品与 Skill 字节及上游源文件/锁。原始事件、命令输出和本机路径留本地，发布实际补丁、父观察、分析和审查；上游文本、依赖锁及全部发布字节进入新的冻结归档，附上游许可。旧 p-queue 两轮、reuse 四轮及首轮 Skill 数据不覆盖、不回填。CI 执行离线协议与冻结证据检查，不调用模型；真实依赖下的四组行为检查由运行器独立执行，不能将离线检查冒充再次运行完整上游测试。
+
+以上规则先登记，真实会话结束后追加结果和限制。

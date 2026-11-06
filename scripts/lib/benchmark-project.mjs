@@ -1,8 +1,24 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {createHash} from 'node:crypto';
+
+export const inScope = (file, editable) => editable.some(entry => entry.endsWith('/') ? file.startsWith(entry) : file === entry);
+
+export function verifyCommand(project, label, args, directory, {env = process.env, expectedCounts, expectedTests, timeoutMs = 120_000} = {}) {
+  const start = performance.now();
+  const result = spawnSync(process.execPath, args, {cwd: project, env, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024});
+  const log = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+  fs.writeFileSync(path.join(directory, `${label}.log`), log);
+  const counts = expectedCounts ? upstreamCounts(log) : undefined;
+  const testCounts = expectedTests === undefined ? undefined : Object.fromEntries(['tests', 'pass', 'fail', 'cancelled'].map(name => [name,
+    Number(new RegExp(`(?:^|\\n)[^\\n]*?\\b${name} (\\d+)\\b`).exec(log)?.[1] ?? NaN)]));
+  return {exitCode: result.status, error: result.error?.message ?? null,
+    passed: result.status === 0 && !result.error && !result.signal && (!counts || JSON.stringify(counts) === JSON.stringify(expectedCounts))
+      && (!testCounts || testCounts.tests === expectedTests && testCounts.pass === expectedTests && testCounts.fail === 0 && testCounts.cancelled === 0),
+    elapsedMs: Math.round(performance.now() - start), logHash: createHash('sha256').update(log).digest('hex'), ...(counts ? {counts} : {}), ...(testCounts ? {testCounts} : {})};
+}
 
 export function showConfiguration(root) {
   return JSON.parse(execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '--showConfig'], {cwd: root, encoding: 'utf8'}));
@@ -27,7 +43,7 @@ export function collectChanges(root, editable) {
   const lines = text => text.trim().split(/\r?\n/).filter(Boolean);
   const changed = lines(git('diff', '--name-only'));
   const untracked = lines(git('ls-files', '--others', '--exclude-standard'));
-  const permitted = file => editable.some(entry => entry.endsWith('/') ? file.startsWith(entry) : file === entry);
+  const permitted = file => inScope(file, editable);
   const added = untracked.filter(permitted);
   // Capture accepted newly created helpers too; ordinary git diff omits untracked files.
   if (added.length) git('add', '--intent-to-add', '--', ...added);
