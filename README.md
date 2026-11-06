@@ -38,6 +38,8 @@ npm run demo
 
 [复杂自然开发对照](docs/NATURAL-AGENT-BENCHMARK.md) 从正常的 12 模块项目运行三个任务、每类两对，共 12 个首稿/复核运行（24 次模型调用）。两组各六份首稿已通过固定验收并复用、清理到位，未观察到 Terse 减少自然重复或遗漏。首稿和终稿分别留证；未覆盖的兼容边界另作不计分观察，不能把固定 pass 当成完整正确性证明。四轮历史数据均单独保留。
 
+后续行为验收已覆盖空字符串游标及 downloadOrders 的 status 兼容语义。将两类任务的 16 份历史首稿/终稿补丁离线重放，新验收拒绝 7 份、通过 9 份；旧轮次的评分、数据和哈希保持不变。这是验收增强，尚未产生新的真实 agent 对照结果。
+
 实际 agent 对照入口为 `npm run benchmark:agent -- --source <p-map 工作区>`，使用固定开源版本、独立会话和事后验收，比较有无 Terse 的正确性、重复和墙钟时间。它需要单独登录的 Codex CLI，不在常规 CI 中调用模型。准备方式、真实观测与限制见 [开源项目 agent 评测](docs/AGENT-BENCHMARK.md)。
 
 多文件 TypeScript 评测使用 `npm run benchmark:agent -- --suite p-queue --source <p-queue 工作区>`，覆盖修改、删除和重构三类任务，以优化后的命令式接入做 12 次独立会话对照。任务、验收、配置准备边界与结果见 [p-queue agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md)。

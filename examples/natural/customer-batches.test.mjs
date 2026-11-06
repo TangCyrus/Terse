@@ -23,6 +23,41 @@ test('customer batches preserve selection, cursor, record boundaries and deliver
   const after=[];
   await streamCustomerBatches(orders,'a',{size:1,status:'paid',afterId:'3'},async batch=>after.push(batch));
   assert.deepEqual(after,[batches[1]]);
+  // Empty IDs are still IDs: undefined alone means that no cursor was supplied.
+  const emptyIdOrders=[
+    {id:'head',ownerId:'a',customer:'Head',total:1,status:'paid'},
+    {id:'',ownerId:'a',customer:'Empty',total:2,status:'paid'},
+    {id:'tail',ownerId:'a',customer:'Tail',total:3,status:'paid'},
+  ];
+  const emptyIdOriginal=structuredClone(emptyIdOrders), paged=[];
+  await streamCustomerBatches(emptyIdOrders,'a',{size:1},async batch=>paged.push(batch));
+  assert.deepEqual(paged,[
+    {csv:'id,customer,total,status\nhead,"Head",1.00,paid',nextCursor:'head'},
+    {csv:'id,customer,total,status\n,"Empty",2.00,paid',nextCursor:''},
+    {csv:'id,customer,total,status\ntail,"Tail",3.00,paid',nextCursor:null},
+  ]);
+  const resumed=[];
+  await streamCustomerBatches(emptyIdOrders,'a',{size:1,afterId:''},async batch=>resumed.push(batch));
+  assert.deepEqual(resumed,[paged[2]]);
+  const firstEmpty=[];
+  await streamCustomerBatches(emptyIdOrders.slice(1),'a',{size:1,afterId:''},async batch=>firstEmpty.push(batch));
+  assert.deepEqual(firstEmpty,[paged[2]]);
+  const lastEmpty=[];
+  await streamCustomerBatches(emptyIdOrders.slice(0,2),'a',{size:1,afterId:''},async batch=>lastEmpty.push(batch));
+  assert.deepEqual(lastEmpty,[{csv:'id,customer,total,status',nextCursor:null}]);
+  for(const input of [
+    [emptyIdOrders[0],emptyIdOrders[2]],
+    [{...emptyIdOrders[1],ownerId:'b'},emptyIdOrders[2]],
+    [{...emptyIdOrders[1],status:'pending'},emptyIdOrders[2]],
+  ]) {
+    const emitted=[];
+    await assert.rejects(()=>streamCustomerBatches(input,'a',{size:1,status:'paid',afterId:''},async batch=>emitted.push(batch)));
+    assert.deepEqual(emitted,[]);
+  }
+  const duplicateEmpty=[];
+  await assert.rejects(()=>streamCustomerBatches([emptyIdOrders[1],emptyIdOrders[1]],'a',{size:1},async batch=>duplicateEmpty.push(batch)),/Duplicate/i);
+  assert.deepEqual(duplicateEmpty,[]);
+  assert.deepEqual(emptyIdOrders,emptyIdOriginal);
   for(const input of [[],orders.filter(order=>order.ownerId==='b')]) {
     const empty=[]; await streamCustomerBatches(input,'a',{size:2},async batch=>empty.push(batch));
     assert.deepEqual(empty,[{csv:'id,customer,total,status',nextCursor:null}]);

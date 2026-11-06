@@ -4,6 +4,7 @@ import {createBillingCsv} from '../src/reports/billing.ts';
 import {readArchiveCsv,weeklyDigest,downloadBilling,billingCsv} from '../src/api.ts';
 import {manualDigest} from '../src/jobs/manual.ts';
 import {loadBilling} from '../src/plugins.ts';
+import {downloadOrders} from '../src/routes.ts';
 
 test('billing migration preserves all consumer and plugin contracts', async () => {
   const orders=[{id:'1',ownerId:'a',customer:'A "quoted",\nname',total:12,status:'paid'},
@@ -20,6 +21,16 @@ test('billing migration preserves all consumer and plugin contracts', async () =
   assert.equal(downloadBilling(orders,'a'),all);
   assert.equal(downloadBilling(orders,'a',true),paid);
   assert.equal(billingCsv(orders,'a'),all);
+  // This existing route historically ignores status. It is not paidOnly.
+  assert.equal(downloadOrders(orders,'a'),all);
+  for(const status of [undefined,'paid']) {
+    assert.equal(downloadOrders(orders,'a',status),all);
+    assert.throws(()=>downloadOrders(orders,'',status),/ownerId/);
+    assert.throws(()=>downloadOrders([orders[0],{...orders[1],total:NaN}],'a',status),/Invalid total/);
+  }
+  // Paid-only billing retains its separate filtering contract.
+  const invalidPending=[orders[0],{...orders[1],total:NaN}];
+  for(const entry of [createBillingCsv,downloadBilling,billingCsv]) assert.equal(entry(invalidPending,'a',true),paid);
   const plugin=await loadBilling();
   assert.equal(plugin.createBillingCsv(orders,'a',true),paid);
   for(const entry of [createBillingCsv,readArchiveCsv,downloadBilling,billingCsv,plugin.createBillingCsv]) {

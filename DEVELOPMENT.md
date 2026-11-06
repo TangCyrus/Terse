@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮以 `main` 的 `e7aee52` 为起点，包含已合并的 M1–M6 首轮、评测与接入优化 #8–#19；其中 #19 在 Windows/Linux Node 24 CI 各通过 171 项测试（含子用例）及打包预检。本轮 M6 复杂自然开发对照保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮以 `main` 的 `44067b2` 为起点，包含已合并的 M1–M6 首轮、评测与接入优化 #8–#20；其中 #20 在 Windows/Linux Node 24 CI 各通过 179 项测试（含子用例）及打包预检。本轮 M6 行为验收增强独立提交，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -131,6 +131,8 @@ analyzeEvaluation(project, before, removals) 复用 M1 快照及 M3/M4 分析，
 发现与修正套件复用 benchmark-reuse 的 --suite challenge，任务归属 [challenge-cases.mjs](scripts/challenge-cases.mjs)，新流式验收位于 examples/challenge；prepareEvaluation 的可选 acceptance 路径沿用相同三份验证编排。接手 WIP 在 begin 和真实基线检索之后安装，不回填检索，不把已知新问题作为历史基线。initial.patch / initial-analysis.json 分别绑定哈希，两组 startingHash 必须相同。agent-events 的 checks 保留工具返回快照与发现，correctionEvidence 仅在先警告、后完整 pass、父分析干净且源码改变时计为观察到修正；无机会、输出缺失和未修正不计为成功。新 [发现与修正文档](docs/CORRECTION-AGENT-BENCHMARK.md) 分开报告自然开发与接手修复，八次实际会话和冻结证据另存 challenge-observed，前两轮数据不变。
 
 复杂自然套件复用 --suite natural-complex，任务位于 [natural-cases.mjs](scripts/natural-cases.mjs)，prepareEvaluation 的 sourceFixture 复制正常多模块起点，禁止 seed 和非空初始 patch。每个运行复用 runAgent 两次，首稿留档后再复核；summarizePhases 只给派生事件加阶段前缀，保留两份原始 eventHash，并防止缺失首稿完成事件被复核掩盖。draft.patch / draft-analysis.json 绑定原字节，validateFunctionalReviews 分别校验首稿与终稿审查，补充 duplicateFree / cleanupComplete 计量。任一阶段篡改保护文件都不能通过协议，首稿不得提前 check，Terse 首次复核须匹配首稿快照；固定验收外观察单独保留而不改主分数。12 个运行及 24 次实际调用另存 natural-observed，前三轮及其归档不变。详见 [自然开发评测](docs/NATURAL-AGENT-BENCHMARK.md)。
+
+当前 natural-complex 行为验收进一步区分 undefined / 空字符串游标 / null 终止标记，并固定 downloadOrders 忽略 status 与 billing paidOnly 筛选的不同契约。沿用相同三份完整验证，正确共享实现、两个错误游标变体及 16 份历史补丁重放由 [natural.test.mjs](test/natural.test.mjs) 验证；代表性缺陷还通过实际 CLI 完整 check 返回 VERIFICATION_FAILED。任务提示同步说明边界，后续会话采用新输入哈希；全部历史补丁、观测、评分和冻结输入保持原样，离线重放不计为新增模型观测或纠错成功。
 
 实际 agent 对照复用 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs)，`--suite` 选择固定的 [p-map](benchmarks/p-map) 或 [p-queue](benchmarks/p-queue) 输入，默认 p-map 保持兼容。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与按任务 ID、重复编号成对统计；[benchmark-project.mjs](scripts/lib/benchmark-project.mjs) 处理等价配置准备、上游计数和包含新增文件的 Git 补丁。准备后的项目必须编译、可分析且无范围外变更，再启动模型。离线协议与发布测试不需要模型凭据；实际实验使用 `npm run benchmark:agent` 单独启动。方法、真实结果和限制见 [p-map](docs/AGENT-BENCHMARK.md) 与 [p-queue](docs/COMPLEX-AGENT-BENCHMARK.md) 文档。
 
