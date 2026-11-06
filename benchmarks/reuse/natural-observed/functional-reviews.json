@@ -1,0 +1,333 @@
+[
+  {
+    "artifactId": "customer-batches-pair-1-control",
+    "patchHash": "9f0ce768e57f3ca41332aa967b2624fba8e5e1376d6c565b05c1261eaba8f243",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the independently reviewed draft and retains shared selection/CSV encoding with batching-only new logic.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The draft delegates owner/status selection to selectCustomerOrders and every CSV batch to renderOrderCsv. New cursor, duplicate-ID, size validation and sequential delivery belong to batching; no second amount validator or encoder is introduced.",
+      "patchHash": "9f0ce768e57f3ca41332aa967b2624fba8e5e1376d6c565b05c1261eaba8f243"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the independently reviewed draft and retains shared selection/CSV encoding with batching-only new logic."
+    },
+    "supplemental": [
+      {
+        "artifactId": "customer-batches-pair-1-control",
+        "patchHash": "9f0ce768e57f3ca41332aa967b2624fba8e5e1376d6c565b05c1261eaba8f243",
+        "phase": "final",
+        "scored": false,
+        "check": "existing-empty-string-cursor",
+        "passed": true,
+        "observed": [
+          {
+            "csv": "id,customer,total,status\ntail,\"Tail\",2.00,paid",
+            "nextCursor": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "artifactId": "customer-batches-pair-1-terse",
+    "patchHash": "a8989ff53e549dc3ca6bd6964c6fc24a55944bbcd3c902adb439f09d27575602",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the draft and meets the fixed runtime and structural criteria with shared selection/encoding.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "Under the preregistered runtime/reuse/cleanup criteria, the draft is complete: it delegates selection and CSV encoding, adding only batching/cursor orchestration.",
+      "patchHash": "a8989ff53e549dc3ca6bd6964c6fc24a55944bbcd3c902adb439f09d27575602"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the draft and meets the fixed runtime and structural criteria with shared selection/encoding."
+    },
+    "observations": [
+      "Adds a nonempty-string restriction to afterId before membership checking. Empty string IDs/cursors are outside the fixed runtime acceptance; retained as an unscored boundary observation."
+    ],
+    "supplemental": [
+      {
+        "artifactId": "customer-batches-pair-1-terse",
+        "patchHash": "a8989ff53e549dc3ca6bd6964c6fc24a55944bbcd3c902adb439f09d27575602",
+        "phase": "final",
+        "scored": false,
+        "check": "existing-empty-string-cursor",
+        "passed": false,
+        "error": "Invalid afterId cursor"
+      }
+    ]
+  },
+  {
+    "artifactId": "customer-batches-pair-2-terse",
+    "patchHash": "11ae6d83e1033af521a37c832d8ce831419fa1cd76ed35156f2cf8cf2a4f487c",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed draft: it reuses the existing selector and renderer, preserves cursor membership semantics and adds only batch orchestration and boundary validation.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The candidate delegates selection to selectCustomerOrders and batches to renderOrderCsv. Cursor membership, duplicate-ID validation and awaited delivery are new orchestration; existing amount validation and encoding remain shared. Empty string cursor membership is handled without an extra nonempty restriction.",
+      "patchHash": "11ae6d83e1033af521a37c832d8ce831419fa1cd76ed35156f2cf8cf2a4f487c"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed draft: it reuses the existing selector and renderer, preserves cursor membership semantics and adds only batch orchestration and boundary validation."
+    },
+    "supplemental": [
+      {
+        "artifactId": "customer-batches-pair-2-terse",
+        "patchHash": "11ae6d83e1033af521a37c832d8ce831419fa1cd76ed35156f2cf8cf2a4f487c",
+        "phase": "final",
+        "scored": false,
+        "check": "existing-empty-string-cursor",
+        "passed": true,
+        "observed": [
+          {
+            "csv": "id,customer,total,status\ntail,\"Tail\",2.00,paid",
+            "nextCursor": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "artifactId": "customer-batches-pair-2-control",
+    "patchHash": "b81aab63a4f9189281c88364b8f8b2e6dc3a760f1f47dbadbf7070c7ee9cb854",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed draft and retains shared selection/serialization with valid cursor batching semantics.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The draft uses selectCustomerOrders and renderOrderCsv, adding only cursor/ID/size orchestration and awaited batches. It preserves empty-string cursor membership and does not duplicate amount validation or CSV encoding.",
+      "patchHash": "b81aab63a4f9189281c88364b8f8b2e6dc3a760f1f47dbadbf7070c7ee9cb854"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed draft and retains shared selection/serialization with valid cursor batching semantics."
+    },
+    "supplemental": [
+      {
+        "artifactId": "customer-batches-pair-2-control",
+        "patchHash": "b81aab63a4f9189281c88364b8f8b2e6dc3a760f1f47dbadbf7070c7ee9cb854",
+        "phase": "final",
+        "scored": false,
+        "check": "existing-empty-string-cursor",
+        "passed": true,
+        "observed": [
+          {
+            "csv": "id,customer,total,status\ntail,\"Tail\",2.00,paid",
+            "nextCursor": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "artifactId": "billing-migration-pair-1-terse",
+    "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed migration; the old file and references are removed, with one exporter implementation.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The old implementation is moved, every API/barrel/job/plugin/namespace reference is migrated, and existing exporter/CSV code is reused. Fixed runtime acceptance and the declared cleanup criteria pass.",
+      "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed migration; the old file and references are removed, with one exporter implementation."
+    },
+    "observations": [
+      "routes.ts now maps status==='paid' to paidOnly, whereas the baseline ignored that optional parameter. The fixed runtime suite covers default download behavior, not this parameter; retained as an unscored compatibility observation."
+    ],
+    "supplemental": [
+      {
+        "artifactId": "billing-migration-pair-1-terse",
+        "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+        "phase": "final",
+        "scored": false,
+        "check": "baseline-download-status",
+        "passed": false,
+        "observed": "id,customer,total,status\n1,\"Paid\",1.00,paid"
+      }
+    ]
+  },
+  {
+    "artifactId": "billing-migration-pair-1-control",
+    "patchHash": "1a6d5bfb45341762dbd7a5c7d1e53ff9090f76820db80dd488b6dc371181ff33",
+    "functional": true,
+    "reason": "Final code retains the complete migration and shared renderer/selector. Ordinary self-review removed the draft's paid-status mapping from downloadOrders, restoring its baseline behavior while keeping the new billing implementation.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The candidate moves the billing entry to reports, delegates original exportOrders to the shared selection/renderer pipeline, updates all barrels/jobs/plugin/namespace references and deletes the old file. Fixed acceptance and cleanup criteria pass.",
+      "patchHash": "d79ba3c2f1f88c8a7dbf9e05c0f2d810021dee0ea4177fdbfd8e04af9cc1d8a7"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "Final code retains the complete migration and shared renderer/selector. Ordinary self-review removed the draft's paid-status mapping from downloadOrders, restoring its baseline behavior while keeping the new billing implementation."
+    },
+    "observations": [
+      "Draft mapped downloadOrders status to paidOnly beyond the old behavior. The review stage removed that mapping without Terse feedback; retained as an unscored compatibility correction, not a duplicate/cleanup correction."
+    ],
+    "supplemental": [
+      {
+        "artifactId": "billing-migration-pair-1-control",
+        "patchHash": "1a6d5bfb45341762dbd7a5c7d1e53ff9090f76820db80dd488b6dc371181ff33",
+        "phase": "final",
+        "scored": false,
+        "check": "baseline-download-status",
+        "passed": true,
+        "observed": "id,customer,total,status\n1,\"Paid\",1.00,paid\n2,\"Pending\",2.00,pending"
+      }
+    ]
+  },
+  {
+    "artifactId": "billing-migration-pair-2-control",
+    "patchHash": "3cf62f4914fcdf576b92e65f92f1023b32bcd325d11b0d270892a3a0c756498c",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed draft, preserving one selector/renderer pipeline and completing all declared removals.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "Billing moves to reports and directly reuses the shared selector and CSV renderer; exportOrders becomes a thin delegate. Every old barrel/job/plugin/namespace import is migrated and the old file is deleted; the original route remains unchanged.",
+      "patchHash": "3cf62f4914fcdf576b92e65f92f1023b32bcd325d11b0d270892a3a0c756498c"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed draft, preserving one selector/renderer pipeline and completing all declared removals."
+    },
+    "supplemental": [
+      {
+        "artifactId": "billing-migration-pair-2-control",
+        "patchHash": "3cf62f4914fcdf576b92e65f92f1023b32bcd325d11b0d270892a3a0c756498c",
+        "phase": "final",
+        "scored": false,
+        "check": "baseline-download-status",
+        "passed": true,
+        "observed": "id,customer,total,status\n1,\"Paid\",1.00,paid\n2,\"Pending\",2.00,pending"
+      }
+    ]
+  },
+  {
+    "artifactId": "billing-migration-pair-2-terse",
+    "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed migration. Old source and references are removed, with no additional encoder.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The original billing wrapper is relocated without retaining a copy, all old API/barrel/job/plugin/namespace references migrate, and formatting/validation still delegate to exportOrders.",
+      "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed migration. Old source and references are removed, with no additional encoder."
+    },
+    "observations": [
+      "As in the first treatment migration, routes.ts now maps status==='paid' to paidOnly while the baseline ignored status. This compatibility boundary is not part of the fixed runtime suite and is reported separately."
+    ],
+    "supplemental": [
+      {
+        "artifactId": "billing-migration-pair-2-terse",
+        "patchHash": "1f6317b0ab6acf610a7bfcd15a570abb2cc91dadfdef236072f2c5aac89d3502",
+        "phase": "final",
+        "scored": false,
+        "check": "baseline-download-status",
+        "passed": false,
+        "observed": "id,customer,total,status\n1,\"Paid\",1.00,paid"
+      }
+    ]
+  },
+  {
+    "artifactId": "audit-delivery-pair-1-control",
+    "patchHash": "671a378ab5e0e6b610de2b0061ec502d07447d882c7a0f2cb1b87e04825ab96f",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The new audit facade performs strict auditor authorization and independent owner/status selection, then delegates header, owner-cell escaping and complete order formatting to ORDER_HEADER/csvCell/orderRecord. Callbacks are awaited; customer isolation and original APIs remain unchanged.",
+      "patchHash": "671a378ab5e0e6b610de2b0061ec502d07447d882c7a0f2cb1b87e04825ab96f"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code."
+    }
+  },
+  {
+    "artifactId": "audit-delivery-pair-1-terse",
+    "patchHash": "7ea9f79b858dec5769fc58a01c7825a86d93daa71d836147ae9d2c939d5fd0b1",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The new audit facade performs strict auditor authorization and independent owner/status selection, then delegates header, owner-cell escaping and complete order formatting to ORDER_HEADER/csvCell/orderRecord. Callbacks are awaited; customer isolation and original APIs remain unchanged.",
+      "patchHash": "7ea9f79b858dec5769fc58a01c7825a86d93daa71d836147ae9d2c939d5fd0b1"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code."
+    }
+  },
+  {
+    "artifactId": "audit-delivery-pair-2-terse",
+    "patchHash": "ff7acdb875d721de07a1bb6cb6238dad4e61a5e0a9011a79331f44e83d2d12ce",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The new audit facade performs strict auditor authorization and independent owner/status selection, then delegates header, owner-cell escaping and complete order formatting to ORDER_HEADER/csvCell/orderRecord. Callbacks are awaited; customer isolation and original APIs remain unchanged.",
+      "patchHash": "ff7acdb875d721de07a1bb6cb6238dad4e61a5e0a9011a79331f44e83d2d12ce"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code."
+    }
+  },
+  {
+    "artifactId": "audit-delivery-pair-2-control",
+    "patchHash": "dca30cac38d40a0c9a3a214a382a0e203f5c594860954d10fdc9642fce312628",
+    "functional": true,
+    "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code.",
+    "draftReview": {
+      "functional": true,
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The new audit facade performs strict auditor authorization and independent owner/status selection, then delegates header, owner-cell escaping and complete order formatting to ORDER_HEADER/csvCell/orderRecord. Callbacks are awaited; customer isolation and original APIs remain unchanged.",
+      "patchHash": "dca30cac38d40a0c9a3a214a382a0e203f5c594860954d10fdc9642fce312628"
+    },
+    "finalReview": {
+      "duplicateFree": true,
+      "cleanupComplete": true,
+      "reason": "The final patch is byte-identical to the reviewed draft. It adds an independent audit delivery policy while retaining a single shared amount/CSV implementation and all existing customer code."
+    }
+  }
+]

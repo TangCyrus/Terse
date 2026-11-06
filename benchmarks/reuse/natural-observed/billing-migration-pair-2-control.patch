@@ -1,0 +1,100 @@
+diff --git a/src/api.ts b/src/api.ts
+index 5597eec..17e82f9 100644
+--- a/src/api.ts
++++ b/src/api.ts
+@@ -1,4 +1,4 @@
+ export {readArchiveCsv} from './archive.ts';
+ export {weeklyDigest} from './jobs/weekly.ts';
+ export {downloadBilling} from './integrations/download.ts';
+-export {createBillingCsv as billingCsv} from './legacy/billing.ts';
++export {createBillingCsv as billingCsv} from './reports/billing.ts';
+diff --git a/src/integrations/download.ts b/src/integrations/download.ts
+index a50a606..3d8c314 100644
+--- a/src/integrations/download.ts
++++ b/src/integrations/download.ts
+@@ -1,4 +1,4 @@
+-import * as billing from '../legacy/billing.ts';
++import * as billing from '../reports/billing.ts';
+ import type {Order} from '../orders.ts';
+ 
+ export function downloadBilling(orders: readonly Order[], ownerId: string, paidOnly = false) {
+diff --git a/src/jobs/manual.ts b/src/jobs/manual.ts
+index 9bef822..21ef6a7 100644
+--- a/src/jobs/manual.ts
++++ b/src/jobs/manual.ts
+@@ -1,4 +1,4 @@
+-import {createBillingCsv} from '../legacy/billing.ts';
++import {createBillingCsv} from '../reports/billing.ts';
+ import type {Order} from '../orders.ts';
+ 
+ // A separate integration entry point; not imported by the download route.
+diff --git a/src/jobs/weekly.ts b/src/jobs/weekly.ts
+index d285bcb..33d9369 100644
+--- a/src/jobs/weekly.ts
++++ b/src/jobs/weekly.ts
+@@ -1,4 +1,4 @@
+-import {createBillingCsv as build} from '../legacy/billing.ts';
++import {createBillingCsv as build} from '../reports/billing.ts';
+ import type {Order} from '../orders.ts';
+ 
+ export function weeklyDigest(orders: readonly Order[], ownerId: string) {
+diff --git a/src/legacy/billing.ts b/src/legacy/billing.ts
+deleted file mode 100644
+index 5ae0dc4..0000000
+--- a/src/legacy/billing.ts
++++ /dev/null
+@@ -1,7 +0,0 @@
+-import {exportOrders, type Order} from '../orders.ts';
+-
+-// Supported historical API; retiring it is a new migration request, not a defect.
+-export function createBillingCsv(orders: readonly Order[], ownerId: string, paidOnly = false): string {
+-  const selected = paidOnly ? orders.filter(order => order.status === 'paid') : orders;
+-  return exportOrders(selected, ownerId);
+-}
+diff --git a/src/orders.ts b/src/orders.ts
+index e56dd46..7355e66 100644
+--- a/src/orders.ts
++++ b/src/orders.ts
+@@ -1,5 +1,4 @@
+-import {selectCustomerOrders} from './domain/selection.ts';
+-import {renderOrderCsv} from './reporting/csv.ts';
++import {createBillingCsv} from './reports/billing.ts';
+ 
+ export interface Order {
+   id: string;
+@@ -10,5 +9,5 @@ export interface Order {
+ }
+ 
+ export function exportOrders(orders: readonly Order[], ownerId: string): string {
+-  return renderOrderCsv(selectCustomerOrders(orders, ownerId));
++  return createBillingCsv(orders, ownerId);
+ }
+diff --git a/src/plugins.ts b/src/plugins.ts
+index c6d4967..a524215 100644
+--- a/src/plugins.ts
++++ b/src/plugins.ts
+@@ -1,3 +1,3 @@
+ export async function loadBilling() {
+-  return import('./legacy/billing.ts');
++  return import('./reports/billing.ts');
+ }
+diff --git a/src/providers.ts b/src/providers.ts
+index 4a6fff0..41e986a 100644
+--- a/src/providers.ts
++++ b/src/providers.ts
+@@ -1 +1 @@
+-export {createBillingCsv as archiveExporter} from './legacy/billing.ts';
++export {createBillingCsv as archiveExporter} from './reports/billing.ts';
+diff --git a/src/reports/billing.ts b/src/reports/billing.ts
+new file mode 100644
+index 0000000..d2b305c
+--- /dev/null
++++ b/src/reports/billing.ts
+@@ -0,0 +1,7 @@
++import {selectCustomerOrders} from '../domain/selection.ts';
++import {renderOrderCsv} from '../reporting/csv.ts';
++import type {Order} from '../orders.ts';
++
++export function createBillingCsv(orders: readonly Order[], ownerId: string, paidOnly = false): string {
++  return renderOrderCsv(selectCustomerOrders(orders, ownerId, paidOnly ? 'paid' : undefined));
++}

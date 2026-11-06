@@ -38,3 +38,26 @@ node scripts/export-agent-benchmark.mjs --input .terse/reuse-agent-<id> --output
 运行前固定提交、输入字节哈希和任务标准。所有实际样本留存，新数据只写 natural-observed，并为其输入和全部发布字节另建冻结归档；三轮历史目录与归档不回填、不覆盖。原始事件和模型自由文本留在本地。CI 只运行离线预检、契约与证据校验，不调用模型。
 
 本文先登记规则，完成实际会话和逐份审查后追加观测。执行方式参照 [OpenAI 官方非交互文档](https://learn.chatgpt.com/docs/non-interactive-mode)。
+
+## 实际观测（2026-11-06）
+
+在固定提交 `07757da` 上完成 12 个运行、24 次真实调用，产品源码与 main `e7aee52` 相同；CLI 0.166.0-alpha.6，Windows / Node 24.20.0。全部阶段完成，12/12 协议有效，无替换、剔除或另抽样。原始日志保存在本地 .terse/reuse-agent-7RkJMc，新 [报告](../benchmarks/reuse/natural-observed/comparison.json)、[首稿/终稿审查](../benchmarks/reuse/natural-observed/functional-reviews.json) 和 [冻结输入](../benchmarks/reuse/fixtures/07757da03ec1856fb9d5aba53270379805490d70.json.gz) 绑定 31 份输入和 86 个发布文件。宿主对每个运行核对初始 patch 为空及 startingHash 等于 baselineHash。
+
+**本轮没有观察到 Terse 相对 control 减少改写式重复或清理遗漏。** 两组各六份首稿已通过独立三份运行时验收，并按预登记的复用/清理标准达标；六份终稿也相同。首稿与终稿的新增精确重复、相似实现和清理发现均为 0；人工审查确认编码规则共用，迁移均实际删除旧模块并更新所有调用。这里的 functional 计分限于固定验收、协议和预登记结构标准，不是对所有输入与契约边界的完整正确性证明。
+
+- 四个 customer-batches 首稿都复用 selectCustomerOrders 与 renderOrderCsv，仅新增游标、ID/size 校验和顺序交付逻辑，复核后源码均未变化。
+- 四个 billing-migration 首稿都迁移了 API 别名、archive provider、weekly/manual jobs、namespace download 与 lazy plugin，旧文件被移除。两个 control 将原 exportOrders 改成新 billing 的薄委托，两个 Terse 保留由新 billing 委托原 exporter；都只有一份选择与编码管道。一个 control 在常规复核中改动了 download 参数映射，其余迁移源码不变。
+- 四个 audit-delivery 首稿均保留独立严格授权与 owners/statuses 选择，共用 ORDER_HEADER、csvCell、orderRecord，并 await 每次交付；复核后源码不变，客户隔离 API 未改动。
+
+六个已有候选均命中。六个 Terse 复核阶段的首次完整 check 都对应各自模型首稿，且均 pass、没有目标问题发现；observedCorrection 均为 false，应解释为没有观察到结构性修正机会，不能算工具漏报或纠错成功。首稿阶段没有提前 check，六次完整 check 均执行全部配置验证；decide 共七次成功、无失败/重试，另有三次帮助查询。控制组有同等常规复核机会，不以只有 Terse 能复核来制造优势。
+
+辅助 agentMs 两组分别为 control 545.3 秒、Terse 620.0 秒，约多 13.7%；均为两阶段调用之和，不含父进程的中间验收。两阶段干预、每类两对和非盲审查仍不足以推断一般自然重复率、召回率或跨项目收益。基线虽有 12 个源码模块，仍是受控示例，不能替代大型项目实测。
+
+### 不计分的兼容边界补充观察
+
+阅读补丁时发现固定验收未覆盖的边界，随后对两个相关任务的全部八份终稿统一执行了补充探查，结果附在审查文件的 supplemental 中，标记 scored:false 并绑定最终 patchHash。没有改动预登记测试、主指标、模型源码或重新调用模型。
+
+- 一个 Terse 批次实现额外拒绝空字符串 afterId，即便该 ID 存在；其它三份批次实现支持该边界。此输入未进入固定验收，不能从固定 pass 推断它已被验证。
+- 两份 Terse 迁移将 downloadOrders 的 status 映射为 paidOnly，而原实现忽略该可选参数，补充探查复现了输出差异。一份 control 首稿也做了该映射，但常规复核自行移除了它；另一份 control 保持了原语义。此变化既不是重复实现，也不是清理遗漏，Terse 的结构检查没有指出它。
+
+这些补充结果说明固定验收与结构零发现仍可能漏掉兼容边界；不把它们隐藏成“全部行为完全正确”，也不事后加入主分数或据两对样本宣称工具造成退化。评测的主要问题仍未得到正收益证据：各组自然首稿本来就复用并完成清理。四轮数据各自冻结，旧观测与归档全部原样保留。
