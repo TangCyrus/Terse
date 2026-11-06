@@ -3,12 +3,14 @@ import test from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {naturalCases} from '../scripts/natural-cases.mjs';
 import {prepareEvaluation,analyzeEvaluation} from '../scripts/lib/evaluation-project.mjs';
 import {snapshot} from '../dist/project.js';
 import {clones,indexSources} from '../dist/analyze.js';
+import {invoke} from '../scripts/lib/workspace.mjs';
 
 const env={...process.env}; delete env.NODE_TEST_CONTEXT;
 function workspace(t) {
@@ -22,6 +24,12 @@ function workspace(t) {
   return parent;
 }
 const files=directory=>fs.readdirSync(directory,{withFileTypes:true}).flatMap(item=>item.isDirectory()?files(path.join(directory,item.name)):[path.join(directory,item.name)]);
+const verification=(project,config)=>{
+  const result=spawnSync(process.execPath,config.verification[0].args,{cwd:project,env,encoding:'utf8',timeout:30_000});
+  assert.equal(result.error,undefined);assert.equal(result.signal,null);
+  assert.match(result.stdout,/tests 3\b/);
+  return result;
+};
 
 // Authored sanity implementations prove the fixture is attainable; they are
 // never supplied as an agent draft or counted as real observations.
@@ -96,4 +104,67 @@ test('complex natural preflight starts without injected work and with unmet new 
   const plan=JSON.parse(fs.readFileSync(path.join(output.output,'plan.json'),'utf8'));
   assert.equal(plan.suite,'natural-complex');
   assert(plan.tasks.every(item=>item.mode==='natural'));
+});
+
+test('empty cursor acceptance rejects truthiness shortcuts in both lookup and nextCursor',async t=>{
+  const parent=workspace(t), scenario=naturalCases.find(item=>item.id==='customer-batches');
+  for(const [name,source] of [
+    ['omitted-empty-input',batchReference.replace('if(options.afterId!==undefined)','if(options.afterId)')],
+    ['collapsed-empty-output',batchReference.replace('selected.at(-1)!.id:null','(selected.at(-1)!.id || null):null')],
+  ]) await t.test(name,()=>{
+    assert.notEqual(source,batchReference);
+    const {project,sources,config}=prepareEvaluation(parent,name,scenario);
+    sources.write('reports/batches.ts',source);
+    const result=verification(project,config);
+    assert.equal(result.status,1,result.stdout+result.stderr);
+    assert.match(result.stdout,/fail 1\b/);
+  });
+});
+
+test('current behavior acceptance catches historical boundary defects without regrading the old cohort',async t=>{
+  const parent=workspace(t);
+  const publication=fileURLToPath(new URL('../benchmarks/reuse/natural-observed/',import.meta.url));
+  const report=JSON.parse(fs.readFileSync(path.join(publication,'comparison.json'),'utf8'));
+  const failures=new Set([
+    'customer-batches-pair-1-terse/draft','customer-batches-pair-1-terse/final',
+    'billing-migration-pair-1-terse/draft','billing-migration-pair-1-terse/final',
+    'billing-migration-pair-2-terse/draft','billing-migration-pair-2-terse/final',
+    'billing-migration-pair-1-control/draft',
+  ]);
+  let rejected=0,accepted=0;
+  for(const run of report.results.filter(item=>['customer-batches','billing-migration'].includes(item.taskId))) {
+    for(const phase of ['draft','final']) await t.test(`${run.artifactId}/${phase}`,()=>{
+      const scenario=naturalCases.find(item=>item.id===run.taskId);
+      const {project,config}=prepareEvaluation(parent,`${run.artifactId}-${phase}`,scenario);
+      execFileSync('git',['add','.'],{cwd:project,stdio:'pipe'});
+      // Verify one real failure of each boundary through the unchanged full CLI.
+      const throughCli=run.arm==='terse'&&run.repetition===1&&phase==='final';
+      let begun;
+      if(throughCli) {
+        begun=invoke(project,['begin','--task','Verify stronger behavior acceptance','--query',scenario.candidate.symbol]);
+        const candidate=begun.context.candidates.find(item=>item.path===scenario.candidate.path&&item.symbol===scenario.candidate.symbol);
+        assert(candidate);
+        invoke(project,['decide','--run',begun.run,'--strategy','refactor','--rationale','Reuse the existing exporter and preserve compatibility.',
+          '--candidate',candidate.candidateId,...(scenario.remove??[]).flatMap(item=>['--remove',item.path])]);
+      }
+      const patch=path.join(publication,phase==='draft'?run.draftPatch:run.patch);
+      const expectedHash=phase==='draft'?run.evidence.draftPatchHash:run.evidence.patchHash;
+      assert.equal(createHash('sha256').update(fs.readFileSync(patch)).digest('hex'),expectedHash);
+      execFileSync('git',['apply','--',patch],{cwd:project,stdio:'pipe'});
+      const result=verification(project,config), shouldFail=failures.has(`${run.artifactId}/${phase}`);
+      assert.equal(result.status,shouldFail?1:0,result.stdout+result.stderr);
+      if(shouldFail) rejected++;else accepted++;
+      if(throughCli) {
+        const checked=invoke(project,['check','--run',begun.run,'--summary'],1);
+        assert.equal(checked.verification.length,config.verification.length);
+        assert.equal(checked.verification[0].status,'failed');
+        assert(checked.findings.some(item=>item.rule==='VERIFICATION_FAILED'));
+        assert.deepEqual(checked.errors,[]);
+      }
+    });
+  }
+  assert.equal(rejected,7);assert.equal(accepted,9);
+  // Historical scores stay tied to their frozen acceptance, not today's tests.
+  assert.equal(report.functionalSummary.control.behaviorCorrect,6);
+  assert.equal(report.functionalSummary.terse.behaviorCorrect,6);
 });

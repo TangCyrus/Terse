@@ -63,3 +63,16 @@ node scripts/export-agent-benchmark.mjs --input .terse/reuse-agent-<id> --output
 这些补充结果说明固定验收与结构零发现仍可能漏掉兼容边界；不把它们隐藏成“全部行为完全正确”，也不事后加入主分数或据两对样本宣称工具造成退化。评测的主要问题仍未得到正收益证据：各组自然首稿本来就复用并完成清理。四轮数据各自冻结，旧观测与归档全部原样保留。
 
 自动评审后的回归补严了计量边界：双阶段运行只有首个完整复核检查在已保存 draftHash 上发现目标问题，才可计为修正首稿。先对干净首稿 pass、复核中另引入问题再消除的序列不能获得此项修正计分；这类后续警告仍留在原始检查轨迹中。本轮 12 个结果在更严格规则下均不变，冻结归档仍保存实际运行时 07757da 的输入，没有重跑模型或修改观测文件。
+
+## 行为验收增强（基于 #20 的边界发现）
+
+以下是后续运行使用的新验收，不追溯改写上述固定轮次。当前 [任务提示](../scripts/natural-cases.mjs) 与验收同时明确两类契约：
+
+- [批次验收](../examples/natural/customer-batches.test.mjs)：订单 ID 可以是空字符串，只有 undefined 表示没有提供 afterId。空字符串游标必须在 owner/status 筛选结果中查找；覆盖它位于首、中、末位置的恢复、不可见或不存在的游标，以及重复空 ID 在交付前被拒绝。仍有后续批次时 nextCursor 可以是空字符串，不能被转换成结束标记 null。
+- [迁移验收](../examples/natural/billing-migration.test.mjs)：downloadOrders 原本忽略可选 status；省略、undefined 和 paid 都保留全部 owner 可见订单的输出与金额验证。createBillingCsv、downloadBilling 和 billingCsv 的 paidOnly 布尔参数仍独立生效，能过滤含无效金额的 pending 记录，不能为保留旧 download 行为而取消 billing 筛选。
+
+既有选择、CSV、背压、错误传播、调用方与插件验收全部保留，仍由同一三份测试执行。正确的共享实现可通过新验收；另对“把空游标当未提供”和“把空 nextCursor 当 null”两个错误变体验证验收确实失败。
+
+[离线回归](../test/natural.test.mjs) 将 natural-observed 中两类任务的八个运行分别按首稿和终稿重放，共 16 份补丁；每次先核对原始 SHA-256，再应用到当前验收工作区。新验收拒绝 7 份（4 份首稿、3 份终稿），其余 9 份通过：一个 Terse 批次运行的两个阶段拒绝空游标；两个 Terse 迁移运行的四份补丁错误映射 status；一个 control 迁移首稿同样错误，而其复核终稿恢复兼容并通过。每类缺陷还各选一份终稿，经真实 begin / decide / 完整 check 验证所有配置验证均执行，并输出 VERIFICATION_FAILED。
+
+上述结果是新标准下的离线回放，不是新的 agent 会话或发现后修正证据。没有重新调用模型、编辑旧补丁或覆盖历史评分：旧轮次两组各 6/6 的固定验收记录及 scored:false 补充观察仍按原输入解释；benchmarks/reuse 下全部观测、四份冻结输入与发布哈希原样保留。以后开展真实对照时须固定新的提交、任务与验收哈希，并使用新的输出目录。
