@@ -96,8 +96,16 @@ test('M5 init leaves an explicit setup gap when verification is unknown', t => {
 test('M5 init accepts multiple real commands without executing them and preserves the full verification set', t => {
   const p = workspace(t);p.remove('terse.config.json');
   const tests = {command: 'node', args: ['--test', 'test/orders.test.mjs']};
-  const syntax = {command: 'node', args: ['--check', 'src/orders.ts']};
-  const configured = p.run(['init', '--verify', JSON.stringify(tests), '--verify', JSON.stringify(syntax)]);
+  p.write('test/amount.test.mjs', `import assert from 'node:assert/strict';
+import test from 'node:test';
+import {exportOrders} from '../src/orders.ts';
+test('invalid visible totals are rejected', () => {
+  for (const total of [-1, NaN, Infinity]) assert.throws(() => exportOrders([
+    {id:'a',ownerId:'alice',customer:'A',total,status:'paid'}
+  ],'alice'), /Invalid total/);
+});`);
+  const amounts = {command: 'node', args: ['--test', 'test/amount.test.mjs']};
+  const configured = p.run(['init', '--verify', JSON.stringify(tests), '--verify', JSON.stringify(amounts)]);
   assert.equal(configured.verificationConfigured, true);assert.equal(p.exists('.terse/runs'), false);
   const begun = p.run(['begin', '--task', 'Preserve export behavior', '--query', 'exportOrders']);
   const candidate = begun.context.candidates.find(item => item.symbol === 'exportOrders');
@@ -105,7 +113,7 @@ test('M5 init accepts multiple real commands without executing them and preserve
   const checked = p.run(begun.verificationGuide.argvTemplate);
   assert.equal(checked.verification.length, 2);
   assert(checked.verification.every(item => item.status === 'passed'));
-  assert.deepEqual(checked.verification.map(item => item.command.args), [tests.args, syntax.args]);
+  assert.deepEqual(checked.verification.map(item => item.command.args), [tests.args, amounts.args]);
   assert.equal(p.run(['init', '--verify', JSON.stringify(tests)], 3).outputKind, 'error');
   assert.equal(JSON.parse(p.read('terse.config.json')).verification.length, 2);
 });
