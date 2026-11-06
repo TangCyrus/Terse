@@ -1,0 +1,70 @@
+diff --git a/src/order-csv.ts b/src/order-csv.ts
+new file mode 100644
+index 0000000..4366171
+--- /dev/null
++++ b/src/order-csv.ts
+@@ -0,0 +1,20 @@
++import type { Order } from './orders.ts';
++
++// Yield complete CSV records: quoted customer names may contain newlines.
++export function* orderCsvRows(
++  orders: readonly Order[],
++  ownerId: string,
++  status?: Order['status'],
++): Generator<string> {
++  if (!ownerId) throw new Error('ownerId is required');
++  yield 'id,customer,total,status';
++
++  for (const order of orders) {
++    if (order.ownerId !== ownerId || (status !== undefined && order.status !== status)) continue;
++    if (!Number.isFinite(order.total) || order.total < 0) {
++      throw new Error(`Invalid total for ${order.id}`);
++    }
++    const customer = `"${order.customer.replaceAll('"', '""')}"`;
++    yield [order.id, customer, order.total.toFixed(2), order.status].join(',');
++  }
++}
+diff --git a/src/orders.ts b/src/orders.ts
+index 87dffc7..f980249 100644
+--- a/src/orders.ts
++++ b/src/orders.ts
+@@ -1,3 +1,5 @@
++import { orderCsvRows } from './order-csv.ts';
++
+ export interface Order {
+   id: string;
+   ownerId: string;
+@@ -8,14 +10,5 @@ export interface Order {
+ 
+ // 订单导出：权限过滤、金额校验、CSV 转义共用同一条处理路径。
+ export function exportOrders(orders: Order[], ownerId: string): string {
+-  if (!ownerId) throw new Error('ownerId is required');
+-  const visible = orders.filter(order => order.ownerId === ownerId);
+-  const rows = visible.map(order => {
+-    if (!Number.isFinite(order.total) || order.total < 0) {
+-      throw new Error(`Invalid total for ${order.id}`);
+-    }
+-    const customer = `"${order.customer.replaceAll('"', '""')}"`;
+-    return [order.id, customer, order.total.toFixed(2), order.status].join(',');
+-  });
+-  return ['id,customer,total,status', ...rows].join('\n');
++  return Array.from(orderCsvRows(orders, ownerId)).join('\n');
+ }
+diff --git a/src/stream.ts b/src/stream.ts
+new file mode 100644
+index 0000000..e708cb9
+--- /dev/null
++++ b/src/stream.ts
+@@ -0,0 +1,12 @@
++import { orderCsvRows } from './order-csv.ts';
++import type { Order } from './orders.ts';
++
++export async function streamPaidOrders(
++  orders: readonly Order[],
++  ownerId: string,
++  emit: (row: string) => void | Promise<void>,
++): Promise<void> {
++  for (const row of orderCsvRows(orders, ownerId, 'paid')) {
++    await emit(row);
++  }
++}

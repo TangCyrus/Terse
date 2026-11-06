@@ -1,0 +1,42 @@
+diff --git a/src/orders.ts b/src/orders.ts
+index 87dffc7..18b6816 100644
+--- a/src/orders.ts
++++ b/src/orders.ts
+@@ -7,9 +7,11 @@ export interface Order {
+ }
+ 
+ // 订单导出：权限过滤、金额校验、CSV 转义共用同一条处理路径。
+-export function exportOrders(orders: Order[], ownerId: string): string {
++export function exportOrders(orders: Order[], ownerId: string, status?: 'paid'): string {
+   if (!ownerId) throw new Error('ownerId is required');
+-  const visible = orders.filter(order => order.ownerId === ownerId);
++  const visible = orders.filter(order =>
++    order.ownerId === ownerId && (status === undefined || order.status === status)
++  );
+   const rows = visible.map(order => {
+     if (!Number.isFinite(order.total) || order.total < 0) {
+       throw new Error(`Invalid total for ${order.id}`);
+diff --git a/src/paid.ts b/src/paid.ts
+new file mode 100644
+index 0000000..8c0128f
+--- /dev/null
++++ b/src/paid.ts
+@@ -0,0 +1,5 @@
++import { exportOrders, type Order } from './orders.ts';
++
++export function exportPaidOrders(input: Order[], user: string): string {
++  return exportOrders(input, user, 'paid');
++}
+diff --git a/src/routes.ts b/src/routes.ts
+index e09f194..b382800 100644
+--- a/src/routes.ts
++++ b/src/routes.ts
+@@ -1,6 +1,7 @@
++import {exportPaidOrders} from './paid.ts';
+ import { exportOrders, type Order } from './orders.ts';
+ 
+ // Application entry point: preserve the public contract while changing its implementation.
+ export function downloadOrders(orders: Order[], ownerId: string, status?: 'paid'): string {
+-  return exportOrders(orders, ownerId);
++  return status === 'paid' ? exportPaidOrders(orders, ownerId) : exportOrders(orders, ownerId);
+ }

@@ -12,6 +12,7 @@ import {analyzeEvaluation, prepareEvaluation} from '../scripts/lib/evaluation-pr
 import {cases} from '../scripts/evaluation-cases.mjs';
 import {challenges} from '../scripts/challenge-cases.mjs';
 import {invoke} from '../scripts/lib/workspace.mjs';
+import {correctionEvidence, pairedSummary} from '../scripts/lib/agent-events.mjs';
 import {snapshot} from '../dist/project.js';
 
 function workspace(t) {
@@ -377,18 +378,20 @@ test('functional preflight checks all six task starts without a live model or cr
   for (const task of plan.tasks) assert(!fs.existsSync(path.join(directory, `preflight-${task.id}`, 'agent.jsonl')));
 });
 
-for (const cohort of ['observed', 'optimized-observed']) test(`published functional observation ${cohort} binds every fixture, pair, patch and implementation review`, () => {
+for (const cohort of ['observed', 'optimized-observed', 'challenge-observed']) test(`published functional observation ${cohort} binds every fixture, pair, patch and implementation review`, () => {
   const directory = fileURLToPath(new URL(`../benchmarks/reuse/${cohort}/`, import.meta.url));
   const report = JSON.parse(fs.readFileSync(path.join(directory, 'comparison.json'), 'utf8'));
   const reviews = JSON.parse(fs.readFileSync(path.join(directory, 'functional-reviews.json'), 'utf8'));
   const hash = data => createHash('sha256').update(data).digest('hex');
   assert.equal(report.kind, 'controlled-agent-comparison');
-  assert.equal(report.tasks.length, 6);
-  assert.equal(report.results.length, 12);
+  const count=cohort==='challenge-observed'?4:6;
+  assert.equal(report.tasks.length, count);
+  assert.equal(report.results.length, count*2);
+  assert.deepEqual(report.pairs,pairedSummary(report.results));
   assert.deepEqual(validateFunctionalReviews(report.results, reviews), report.functionalSummary);
   assert.equal(report.reviewHash, hash(JSON.stringify(reviews)));
-  assert.equal(report.functionalSummary.control.functional, 6);
-  assert.equal(report.functionalSummary.terse.functional, 6);
+  assert.equal(report.functionalSummary.control.functional, count);
+  assert.equal(report.functionalSummary.terse.functional, count);
   // Validate the original inputs, not the evolving HEAD's task oracle or helpers.
   assert.match(report.terseRevision, /^[a-f0-9]{40}$/);
   const snapshot = JSON.parse(gunzipSync(fs.readFileSync(path.join(directory, '..', 'fixtures', `${report.terseRevision}.json.gz`))).toString('utf8'));
@@ -409,12 +412,26 @@ for (const cohort of ['observed', 'optimized-observed']) test(`published functio
     assert.equal(hash(fs.readFileSync(path.join(directory, result.patch))), result.evidence.patchHash);
     const duplicates = JSON.parse(fs.readFileSync(path.join(directory, result.duplications), 'utf8'));
     assert.equal(duplicates.length, result.newDuplications);
-    if (cohort === 'optimized-observed') {
+    if (cohort !== 'observed') {
       assert.equal(result.similarityAlgorithm, 'implementation-anchors/1');
       const similarities = JSON.parse(fs.readFileSync(path.join(directory, result.similarities), 'utf8'));
       assert.equal(similarities.length, result.possibleDuplications);
       assert(similarities.every(item => item.rule === 'POSSIBLE_DUPLICATION' && item.similarity.algorithm === result.similarityAlgorithm));
       assert.deepEqual(result.cleanup, []);
+    }
+    if(cohort==='challenge-observed') {
+      assert.equal(result.startingHash,result.initial.snapshotHash);
+      assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory,result.initialAnalysis),'utf8')),result.initial);
+      assert.equal(hash(fs.readFileSync(path.join(directory,result.initialPatch))),result.evidence.initialPatchHash);
+      assert.equal(hash(fs.readFileSync(path.join(directory,result.initialAnalysis))),result.evidence.initialAnalysisHash);
+      const task=report.tasks.find(item=>item.id===result.taskId);
+      if(result.arm==='terse') {
+        assert.deepEqual(result.correction,correctionEvidence(result.events.checks,{baselineHash:result.baselineHash,
+          startingHash:result.startingHash,finalHash:result.snapshotHash,targetRules:task.targetRules,seeded:task.mode==='seeded',
+          finalClean:!result.duplicationError&&result.newDuplications===0&&result.possibleDuplications===0&&!result.cleanup.length,verificationCount:1}));
+        assert.equal(result.correction.observedCorrection,task.mode==='seeded');
+        assert(result.events.checks.reports.every(item=>item.verification.length===1&&item.verification[0]==='passed'));
+      }
     }
     assert.equal(result.events.completed, true);
     assert.equal(result.correct, true);
@@ -427,10 +444,14 @@ for (const cohort of ['observed', 'optimized-observed']) test(`published functio
     assert.deepEqual(new Set(runs.map(result => result.arm)), new Set(['control', 'terse']));
     assert.equal(runs[0].baselineHash, runs[1].baselineHash);
     assert.equal(runs[0].acceptanceHash, runs[1].acceptanceHash);
+    if(cohort==='challenge-observed') {
+      assert.equal(runs[0].startingHash,runs[1].startingHash);
+      assert.equal(runs[0].evidence.initialPatchHash,runs[1].evidence.initialPatchHash);
+    }
     assert.equal(report.pairs.find(pair => pair.taskId === task.id).comparable, true);
   }
   const terse = report.results.filter(result => result.arm === 'terse');
-  assert.equal(terse.filter(result => result.candidateHit === true).length, 5);
+  assert.equal(terse.filter(result => result.candidateHit === true).length, cohort==='challenge-observed'?4:5);
   assert(terse.every(result => result.workflow && result.terseStatus === 'pass'));
   assert(!Object.hasOwn(report, 'artifactDirectory'));
   assert(!fs.existsSync(path.join(directory, 'dependency-lock.json.gz')));

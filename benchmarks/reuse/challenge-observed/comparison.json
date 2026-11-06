@@ -1,0 +1,1342 @@
+{
+  "schemaVersion": 1,
+  "kind": "controlled-agent-comparison",
+  "suite": "challenge",
+  "terseRevision": "9a7f55918fc31ce0be38f24dc1ec4cbbfaa1dfa3",
+  "project": {
+    "fixture": "examples/orders + examples/evaluation",
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "timeoutMs": 600000
+  },
+  "repetitions": 1,
+  "cliVersion": "codex-cli 0.166.0-alpha.6",
+  "tasks": [
+    {
+      "id": "rewrite-resume",
+      "task": "Finish the uncommitted paid-order download feature. Preserve defaults, owner isolation, amount validation and CSV encoding. Consolidate overlapping export responsibilities without losing the paid API or changing tests.",
+      "remove": [],
+      "candidate": {
+        "path": "src/orders.ts",
+        "symbol": "exportOrders"
+      },
+      "mode": "seeded",
+      "targetRules": [
+        "POSSIBLE_DUPLICATION"
+      ],
+      "query": "Finish the uncommitted paid-order download feature. Preserve defaults, owner isolation, amount validation and CSV encoding. Consolidate overlapping export responsibilities without losing the paid API or changing tests.",
+      "acceptanceHash": "9751bb774f1cc40c31989f84e53858d248db91a0448c3272085617d25bde5381"
+    },
+    {
+      "id": "cleanup-resume",
+      "task": "Finish the uncommitted migration away from src/legacy.ts. Retire that implementation and migrate every caller to the current exporter, preserving the download API and CSV behavior.",
+      "remove": [
+        {
+          "path": "src/legacy.ts"
+        }
+      ],
+      "candidate": {
+        "path": "src/orders.ts",
+        "symbol": "exportOrders"
+      },
+      "mode": "seeded",
+      "targetRules": [
+        "REMOVAL_REMAINS",
+        "REMOVAL_REFERENCE_REMAINS"
+      ],
+      "query": "Finish the uncommitted migration away from src/legacy.ts. Retire that implementation and migrate every caller to the current exporter, preserving the download API and CSV behavior.",
+      "acceptanceHash": "8da2db669649ba5651f00bec8500aa9075863c6f0b564e37b8b60de8dd01f6cd"
+    },
+    {
+      "id": "stream-paid",
+      "task": "Add async streamPaidOrders(orders, ownerId, emit) in src/stream.ts. Await emit once for the CSV header then once per paid order visible to the owner, in input order, with backpressure. Retain customer quoting (including embedded newlines), two-decimal amounts and finite nonnegative amount validation. Reject an empty owner before emitting anything. Preserve exportOrders and downloadOrders, immutable inputs and a single owner for shared export rules; do not split a complete CSV by newline.",
+      "remove": [],
+      "candidate": {
+        "path": "src/orders.ts",
+        "symbol": "exportOrders"
+      },
+      "mode": "natural",
+      "targetRules": [
+        "POSSIBLE_DUPLICATION",
+        "NEW_DUPLICATION"
+      ],
+      "query": "Add async streamPaidOrders(orders, ownerId, emit) in src/stream.ts. Await emit once for the CSV header then once per paid order visible to the owner, in input order, with backpressure. Retain customer quoting (including embedded newlines), two-decimal amounts and finite nonnegative amount validation. Reject an empty owner before emitting anything. Preserve exportOrders and downloadOrders, immutable inputs and a single owner for shared export rules; do not split a complete CSV by newline.",
+      "acceptanceHash": "e725decec7d8b876d48abeb738660c5c6f6fdce11ea9ccba29782f1df44c899c"
+    },
+    {
+      "id": "cleanup-indirect",
+      "task": "Retire src/legacy.ts and move every consumer to the current exporter. Preserve downloadOrders and the readArchiveCsv API, including imports through the providers barrel. Do not leave an obsolete implementation or dangling reference just because the download tests pass.",
+      "remove": [
+        {
+          "path": "src/legacy.ts"
+        }
+      ],
+      "candidate": {
+        "path": "src/orders.ts",
+        "symbol": "exportOrders"
+      },
+      "mode": "natural",
+      "targetRules": [
+        "REMOVAL_REMAINS",
+        "REMOVAL_REFERENCE_REMAINS"
+      ],
+      "query": "Retire src/legacy.ts and move every consumer to the current exporter. Preserve downloadOrders and the readArchiveCsv API, including imports through the providers barrel. Do not leave an obsolete implementation or dangling reference just because the download tests pass.",
+      "acceptanceHash": "8da2db669649ba5651f00bec8500aa9075863c6f0b564e37b8b60de8dd01f6cd"
+    }
+  ],
+  "fixtureHashes": {
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "examples/evaluation/add.test.mjs": "1f2889d72485724c1b7b95790235fd5e6233109b80ccac85f9f49201d03154b1",
+    "examples/evaluation/delete.test.mjs": "8da2db669649ba5651f00bec8500aa9075863c6f0b564e37b8b60de8dd01f6cd",
+    "examples/evaluation/dynamic.test.mjs": "dda586393770be26212bb8431d2ab04308a556b32571bbd73e35598188d30be4",
+    "examples/evaluation/independent.test.mjs": "75e62ffb11f25da6af752cbcddbb2f780b901d4a9ed2926bd0b4dbb6932f23df",
+    "examples/evaluation/modify.test.mjs": "9751bb774f1cc40c31989f84e53858d248db91a0448c3272085617d25bde5381",
+    "examples/evaluation/refactor.test.mjs": "15d97c2d1ba41be88896a7ab52eef6fd6a3109b63f2b7c9281fbed3d3d8497e8",
+    "examples/evaluation/routes.test.mjs": "d02be4705e97862dea941cd95d2881c5520f20decfa2c63fd96c9d344dc8e155",
+    "examples/evaluation/routes.ts": "ee14a302026ab2332ad2f926c4524ee868118b9b9b913bc3ded8b9d3c89973f7",
+    "scripts/evaluation-cases.mjs": "09695404df2aa7038aac014eb6ac144576548d7a417d8f48638bab9fffa4ae70",
+    "scripts/lib/evaluation-project.mjs": "6695d7acd7037497403a44d1150971ee3d950491b4d51e076fe42b9dbba352a5",
+    "examples/challenge/stream-paid.test.mjs": "e725decec7d8b876d48abeb738660c5c6f6fdce11ea9ccba29782f1df44c899c",
+    "scripts/challenge-cases.mjs": "07b3e646e29cc95ff7434c9d3a5b2f5584d90235ae4f55266e23b854341e332f",
+    "scripts/benchmark-reuse.mjs": "92e356bc90f8ab24f04f8c2444cd3a309f0bc3c3b37114e7713f79ef545fb6f1",
+    "scripts/lib/agent-events.mjs": "cc263d11c5941f0c59a0b5ddfca81c3d43664f6bcf54550208f5a065781fc776"
+  },
+  "preflight": [
+    {
+      "taskId": "rewrite-resume",
+      "verification": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "c30ea91f99a2119fa431cef99569158bc689c80e4cd194e0c4d061ea25f7c115"
+      }
+    },
+    {
+      "taskId": "cleanup-resume",
+      "verification": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "aee3a464da0267c2ac6306079e0d1ed050c7734672c02fa50f38102e13f0d744"
+      }
+    },
+    {
+      "taskId": "stream-paid",
+      "verification": {
+        "passed": false,
+        "exitCode": 1,
+        "error": null,
+        "logHash": "e45915e27a635e186e2efda4789fcb5d98f1b0bfd96354a0d3b4175a08f7dcef"
+      }
+    },
+    {
+      "taskId": "cleanup-indirect",
+      "verification": {
+        "passed": true,
+        "exitCode": 0,
+        "error": null,
+        "logHash": "6e3f0ac697d66b0ed36cbd09b1b50d575636ea2f257d2d8c0226b09f8df0de8c"
+      }
+    }
+  ],
+  "criteria": "Behavior correctness, patch-reviewed reuse/cleanup and independent-responsibility preservation. Token counts and elapsed time alone are not success criteria.",
+  "runtime": {
+    "node": "v24.20.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "results": [
+    {
+      "taskId": "rewrite-resume",
+      "artifactId": "rewrite-resume-pair-1-control",
+      "arm": "control",
+      "repetition": 1,
+      "baselineHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "acceptanceHash": "c132bde3aed671dbc88116a29d90447f5014734b1aa6d880e91d313688c7b70f",
+      "startingHash": "b667479e95a138dc6962d361177085423277534e2aa982e9439bb9e41e9362bc",
+      "snapshotHash": "4aa96e94b9854a4262d608814be619fed61988693e232f370670e55ff1190c2a",
+      "initial": {
+        "snapshotHash": "b667479e95a138dc6962d361177085423277534e2aa982e9439bb9e41e9362bc",
+        "newDuplications": 0,
+        "possibleDuplications": 1,
+        "similarities": [
+          {
+            "rule": "POSSIBLE_DUPLICATION",
+            "severity": "review",
+            "similarity": {
+              "algorithm": "implementation-anchors/1",
+              "shared": {
+                "literals": [
+                  "id,customer,total,status"
+                ],
+                "members": [
+                  "customer",
+                  "id",
+                  "ownerId",
+                  "status",
+                  "total"
+                ],
+                "calls": [
+                  "isFinite",
+                  "toFixed"
+                ]
+              },
+              "sharedAnchors": 8,
+              "leftAnchors": 9,
+              "rightAnchors": 9,
+              "evidenceTruncated": false
+            },
+            "locations": [
+              {
+                "path": "src/orders.ts",
+                "symbol": "exportOrders",
+                "line": 10,
+                "endLine": 21
+              },
+              {
+                "path": "src/paid.ts",
+                "symbol": "exportPaidOrders",
+                "line": 2,
+                "endLine": 12
+              }
+            ],
+            "message": "These implementations newly share literal, data-member and operation anchors. Review responsibility overlap and reuse; distinct behavior or authorization may justify both. Similarity is not proof of equivalence."
+          }
+        ],
+        "cleanup": []
+      },
+      "correction": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "7443bf8dc6aeedc4280226656460439ed1ab3b67a64eeb6662fc0615e1b08f05"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/orders.ts",
+        "src/paid.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 52122,
+      "evaluationMs": 224,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 109621,
+          "cached_input_tokens": 99712,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1403,
+          "reasoning_output_tokens": 193
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 5,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "bc82ee5cb68a58a0694f10f51804af9aecd8095ecfb702b128d1ae9a5f231dc1",
+        "eventHash": "60268930bb5556e5bbc38fc1bfa8e3297b2f7c0c85350d13b0a3baa38910f438",
+        "initialPatchHash": "af7bd6ae1d13de60fa443bcf113d04509dce2db02073d0d99313b77a0a560109",
+        "initialAnalysisHash": "55ecff037a02b990320ef5235918459b6eafeb0a751bd0006d231fe22360fb9d"
+      },
+      "patch": "rewrite-resume-pair-1-control.patch",
+      "duplications": "rewrite-resume-pair-1-control.duplications.json",
+      "similarities": "rewrite-resume-pair-1-control.similarities.json",
+      "initialPatch": "rewrite-resume-pair-1-control.initial.patch",
+      "initialAnalysis": "rewrite-resume-pair-1-control.initial-analysis.json"
+    },
+    {
+      "taskId": "rewrite-resume",
+      "artifactId": "rewrite-resume-pair-1-terse",
+      "arm": "terse",
+      "repetition": 1,
+      "baselineHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "acceptanceHash": "c132bde3aed671dbc88116a29d90447f5014734b1aa6d880e91d313688c7b70f",
+      "startingHash": "b667479e95a138dc6962d361177085423277534e2aa982e9439bb9e41e9362bc",
+      "snapshotHash": "4aa96e94b9854a4262d608814be619fed61988693e232f370670e55ff1190c2a",
+      "initial": {
+        "snapshotHash": "b667479e95a138dc6962d361177085423277534e2aa982e9439bb9e41e9362bc",
+        "newDuplications": 0,
+        "possibleDuplications": 1,
+        "similarities": [
+          {
+            "rule": "POSSIBLE_DUPLICATION",
+            "severity": "review",
+            "similarity": {
+              "algorithm": "implementation-anchors/1",
+              "shared": {
+                "literals": [
+                  "id,customer,total,status"
+                ],
+                "members": [
+                  "customer",
+                  "id",
+                  "ownerId",
+                  "status",
+                  "total"
+                ],
+                "calls": [
+                  "isFinite",
+                  "toFixed"
+                ]
+              },
+              "sharedAnchors": 8,
+              "leftAnchors": 9,
+              "rightAnchors": 9,
+              "evidenceTruncated": false
+            },
+            "locations": [
+              {
+                "path": "src/orders.ts",
+                "symbol": "exportOrders",
+                "line": 10,
+                "endLine": 21
+              },
+              {
+                "path": "src/paid.ts",
+                "symbol": "exportPaidOrders",
+                "line": 2,
+                "endLine": 12
+              }
+            ],
+            "message": "These implementations newly share literal, data-member and operation anchors. Review responsibility overlap and reuse; distinct behavior or authorization may justify both. Similarity is not proof of equivalence."
+          }
+        ],
+        "cleanup": []
+      },
+      "correction": {
+        "targetRules": [
+          "POSSIBLE_DUPLICATION"
+        ],
+        "warningObserved": true,
+        "seededCheckpoint": true,
+        "observedCorrection": true,
+        "warning": {
+          "itemId": "item_6",
+          "responseIndex": 0,
+          "snapshotHash": "b667479e95a138dc6962d361177085423277534e2aa982e9439bb9e41e9362bc"
+        },
+        "finalCheck": {
+          "itemId": "item_8",
+          "responseIndex": 0,
+          "snapshotHash": "4aa96e94b9854a4262d608814be619fed61988693e232f370670e55ff1190c2a"
+        }
+      },
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "0a9bf19e67d38b7209175baa21a365b01792211e8dd2cc69f5b928c3c1f8fcac"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/orders.ts",
+        "src/paid.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 75572,
+      "evaluationMs": 220,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 179263,
+          "cached_input_tokens": 163968,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1913,
+          "reasoning_output_tokens": 159
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 6,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "baselineHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+              "snapshotHash": "b667479e95a138dc6962d361177085423277534e2aa982e9439bb9e41e9362bc",
+              "status": "needs-review",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "POSSIBLE_DUPLICATION",
+                  "severity": "review",
+                  "locations": [
+                    {
+                      "path": "src/orders.ts",
+                      "symbol": "exportOrders",
+                      "line": 10,
+                      "endLine": 21
+                    },
+                    {
+                      "path": "src/paid.ts",
+                      "symbol": "exportPaidOrders",
+                      "line": 2,
+                      "endLine": 12
+                    }
+                  ],
+                  "similarity": {
+                    "algorithm": "implementation-anchors/1",
+                    "shared": {
+                      "literals": [
+                        "id,customer,total,status"
+                      ],
+                      "members": [
+                        "customer",
+                        "id",
+                        "ownerId",
+                        "status",
+                        "total"
+                      ],
+                      "calls": [
+                        "isFinite",
+                        "toFixed"
+                      ]
+                    },
+                    "sharedAnchors": 8,
+                    "leftAnchors": 9,
+                    "rightAnchors": 9,
+                    "evidenceTruncated": false
+                  }
+                }
+              ]
+            },
+            {
+              "itemId": "item_8",
+              "responseIndex": 0,
+              "baselineHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+              "snapshotHash": "4aa96e94b9854a4262d608814be619fed61988693e232f370670e55ff1190c2a",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "bc82ee5cb68a58a0694f10f51804af9aecd8095ecfb702b128d1ae9a5f231dc1",
+        "eventHash": "3fc4e9f8493aa40864e1d2de759d8c471f42343c4ab0586026624a31b58236e0",
+        "initialPatchHash": "af7bd6ae1d13de60fa443bcf113d04509dce2db02073d0d99313b77a0a560109",
+        "initialAnalysisHash": "55ecff037a02b990320ef5235918459b6eafeb0a751bd0006d231fe22360fb9d"
+      },
+      "patch": "rewrite-resume-pair-1-terse.patch",
+      "duplications": "rewrite-resume-pair-1-terse.duplications.json",
+      "similarities": "rewrite-resume-pair-1-terse.similarities.json",
+      "initialPatch": "rewrite-resume-pair-1-terse.initial.patch",
+      "initialAnalysis": "rewrite-resume-pair-1-terse.initial-analysis.json"
+    },
+    {
+      "taskId": "cleanup-resume",
+      "artifactId": "cleanup-resume-pair-1-terse",
+      "arm": "terse",
+      "repetition": 1,
+      "baselineHash": "19f2bc364ae42caba084c3732a4d01c34512e04e81ff43d156be98d21fee3c4e",
+      "acceptanceHash": "a6c40eb5da1e04f475d9e16fd56f0352a9097bd34b67ec0f0b5224a4f6806fcc",
+      "startingHash": "188b0ad60aecb79a19f838eb519e724cbf83f7000462081027c670693490827e",
+      "snapshotHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "initial": {
+        "snapshotHash": "188b0ad60aecb79a19f838eb519e724cbf83f7000462081027c670693490827e",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": {
+        "targetRules": [
+          "REMOVAL_REMAINS",
+          "REMOVAL_REFERENCE_REMAINS"
+        ],
+        "warningObserved": true,
+        "seededCheckpoint": true,
+        "observedCorrection": true,
+        "warning": {
+          "itemId": "item_6",
+          "responseIndex": 0,
+          "snapshotHash": "188b0ad60aecb79a19f838eb519e724cbf83f7000462081027c670693490827e"
+        },
+        "finalCheck": {
+          "itemId": "item_9",
+          "responseIndex": 0,
+          "snapshotHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d"
+        }
+      },
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "7c044f73090d840bdd46c27c1a99f515968f707c7a3e0c67024f55e29bdbc824"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/legacy.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 51911,
+      "evaluationMs": 218,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 159597,
+          "cached_input_tokens": 142080,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1065,
+          "reasoning_output_tokens": 133
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 6,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 1,
+          "evidence": [
+            {
+              "itemId": "item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_6",
+              "responseIndex": 0,
+              "baselineHash": "19f2bc364ae42caba084c3732a4d01c34512e04e81ff43d156be98d21fee3c4e",
+              "snapshotHash": "188b0ad60aecb79a19f838eb519e724cbf83f7000462081027c670693490827e",
+              "status": "fail",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": [
+                {
+                  "rule": "REMOVAL_REMAINS",
+                  "severity": "fail",
+                  "locations": [
+                    {
+                      "path": "src/legacy.ts"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "19f2bc364ae42caba084c3732a4d01c34512e04e81ff43d156be98d21fee3c4e",
+              "snapshotHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+        "eventHash": "f83ddc767f77dbfe155daa39dd56c47f85513466df55fd7bfce45d08cee893d8",
+        "initialPatchHash": "eb4795aa824b9b00d54be53ed128fede90b685781739b02540367130a6c76119",
+        "initialAnalysisHash": "8b6f286ede9a2ee021bfabe0645083f451983a5beaafbf66975a4eee95ba2c3b"
+      },
+      "patch": "cleanup-resume-pair-1-terse.patch",
+      "duplications": "cleanup-resume-pair-1-terse.duplications.json",
+      "similarities": "cleanup-resume-pair-1-terse.similarities.json",
+      "initialPatch": "cleanup-resume-pair-1-terse.initial.patch",
+      "initialAnalysis": "cleanup-resume-pair-1-terse.initial-analysis.json"
+    },
+    {
+      "taskId": "cleanup-resume",
+      "artifactId": "cleanup-resume-pair-1-control",
+      "arm": "control",
+      "repetition": 1,
+      "baselineHash": "19f2bc364ae42caba084c3732a4d01c34512e04e81ff43d156be98d21fee3c4e",
+      "acceptanceHash": "a6c40eb5da1e04f475d9e16fd56f0352a9097bd34b67ec0f0b5224a4f6806fcc",
+      "startingHash": "188b0ad60aecb79a19f838eb519e724cbf83f7000462081027c670693490827e",
+      "snapshotHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "initial": {
+        "snapshotHash": "188b0ad60aecb79a19f838eb519e724cbf83f7000462081027c670693490827e",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "d6bbb02c7a499fcec57e8f9ff27b5b0ec525887243c57dc81a4ce797dbdbe965"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/legacy.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 44289,
+      "evaluationMs": 205,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 108409,
+          "cached_input_tokens": 90240,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 614,
+          "reasoning_output_tokens": 85
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 5,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+        "eventHash": "6093a3df408e92bc7dd9c27707cd04a42db0c7f5955a6ceeb33428e2a875aeb9",
+        "initialPatchHash": "eb4795aa824b9b00d54be53ed128fede90b685781739b02540367130a6c76119",
+        "initialAnalysisHash": "8b6f286ede9a2ee021bfabe0645083f451983a5beaafbf66975a4eee95ba2c3b"
+      },
+      "patch": "cleanup-resume-pair-1-control.patch",
+      "duplications": "cleanup-resume-pair-1-control.duplications.json",
+      "similarities": "cleanup-resume-pair-1-control.similarities.json",
+      "initialPatch": "cleanup-resume-pair-1-control.initial.patch",
+      "initialAnalysis": "cleanup-resume-pair-1-control.initial-analysis.json"
+    },
+    {
+      "taskId": "stream-paid",
+      "artifactId": "stream-paid-pair-1-control",
+      "arm": "control",
+      "repetition": 1,
+      "baselineHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "acceptanceHash": "47f5c381aa3ec8134f358e1c0441d0dfe947ede307bcbb0c509ec8607048648d",
+      "startingHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "snapshotHash": "2d7ccaa9ad116754c69355628c472f8f228e1f4999b4b36d4b592f22de3acd43",
+      "initial": {
+        "snapshotHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "91c23148be5715a55112fe0514cc7b9f71dc8e0ebf2e88c4e77513aba186eeb6"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/order-csv.ts",
+        "src/orders.ts",
+        "src/stream.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 55225,
+      "evaluationMs": 286,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 106493,
+          "cached_input_tokens": 91776,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1341,
+          "reasoning_output_tokens": 226
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 4,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "d6fa7d3fbaf0994b255692c7dde833f649d872f2d30e4100f841c12fd710036c",
+        "eventHash": "a7d8e28a7a6418f23ef5b972e2783b9864c4e446e3516f9220b10c752067ef24",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "f478764426fc6b79f9f80077e48761cb3b55efd01faea5d092387c1581fbf377"
+      },
+      "patch": "stream-paid-pair-1-control.patch",
+      "duplications": "stream-paid-pair-1-control.duplications.json",
+      "similarities": "stream-paid-pair-1-control.similarities.json",
+      "initialPatch": "stream-paid-pair-1-control.initial.patch",
+      "initialAnalysis": "stream-paid-pair-1-control.initial-analysis.json"
+    },
+    {
+      "taskId": "stream-paid",
+      "artifactId": "stream-paid-pair-1-terse",
+      "arm": "terse",
+      "repetition": 1,
+      "baselineHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "acceptanceHash": "47f5c381aa3ec8134f358e1c0441d0dfe947ede307bcbb0c509ec8607048648d",
+      "startingHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+      "snapshotHash": "9b89b8927080b76a351868abf5dfa79d06ef22ffa992e1cf06209b9a46846254",
+      "initial": {
+        "snapshotHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": []
+      },
+      "correction": {
+        "targetRules": [
+          "POSSIBLE_DUPLICATION",
+          "NEW_DUPLICATION"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "item_9",
+          "responseIndex": 0,
+          "snapshotHash": "9b89b8927080b76a351868abf5dfa79d06ef22ffa992e1cf06209b9a46846254"
+        }
+      },
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "1fc6cd4968c583e34b5daf8e074bb9187ccae0f6336ded641c5dce6d84967736"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/orders.ts",
+        "src/stream.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 66894,
+      "evaluationMs": 278,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 166294,
+          "cached_input_tokens": 137728,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1794,
+          "reasoning_output_tokens": 204
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 7,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_7",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_9",
+              "responseIndex": 0,
+              "baselineHash": "0c32e978d8ed677bafe5de25eedf9c386fc526ab0c4ef64ea6bc0cf6af736c9d",
+              "snapshotHash": "9b89b8927080b76a351868abf5dfa79d06ef22ffa992e1cf06209b9a46846254",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "c6944ac08e75cfdb4ffb1189f13d659d5c9a17dc47d928d0b61040040748a198",
+        "eventHash": "dc492cf3250256d53f15d3cc904163ed4c5aba4be066f8ce8d7982e40ce86095",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "f478764426fc6b79f9f80077e48761cb3b55efd01faea5d092387c1581fbf377"
+      },
+      "patch": "stream-paid-pair-1-terse.patch",
+      "duplications": "stream-paid-pair-1-terse.duplications.json",
+      "similarities": "stream-paid-pair-1-terse.similarities.json",
+      "initialPatch": "stream-paid-pair-1-terse.initial.patch",
+      "initialAnalysis": "stream-paid-pair-1-terse.initial-analysis.json"
+    },
+    {
+      "taskId": "cleanup-indirect",
+      "artifactId": "cleanup-indirect-pair-1-terse",
+      "arm": "terse",
+      "repetition": 1,
+      "baselineHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+      "acceptanceHash": "a6c40eb5da1e04f475d9e16fd56f0352a9097bd34b67ec0f0b5224a4f6806fcc",
+      "startingHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+      "snapshotHash": "d493c31442049d8e10d5cb8183495a46a4c526749966b345a1696ca5d904d902",
+      "initial": {
+        "snapshotHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": {
+        "targetRules": [
+          "REMOVAL_REMAINS",
+          "REMOVAL_REFERENCE_REMAINS"
+        ],
+        "warningObserved": false,
+        "seededCheckpoint": null,
+        "observedCorrection": false,
+        "warning": null,
+        "finalCheck": {
+          "itemId": "item_7",
+          "responseIndex": 0,
+          "snapshotHash": "d493c31442049d8e10d5cb8183495a46a4c526749966b345a1696ca5d904d902"
+        }
+      },
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "eaaca42685da82e8173ba5e6274d9ad69188ec09f29fac89dd750b8dd2f5cf3b"
+        }
+      },
+      "workflow": true,
+      "candidateHit": true,
+      "terseStatus": "pass",
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/legacy.ts",
+        "src/providers.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 63190,
+      "evaluationMs": 227,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 158481,
+          "cached_input_tokens": 142464,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1640,
+          "reasoning_output_tokens": 106
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 5,
+        "decisions": {
+          "complete": true,
+          "attempts": 1,
+          "successfulWrites": 1,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": [
+            {
+              "itemId": "item_5",
+              "responseIndex": 0,
+              "outcome": "saved",
+              "exitCode": 0,
+              "diagnosticCodes": [],
+              "issueCodes": []
+            }
+          ]
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": [
+            {
+              "itemId": "item_7",
+              "responseIndex": 0,
+              "baselineHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+              "snapshotHash": "d493c31442049d8e10d5cb8183495a46a4c526749966b345a1696ca5d904d902",
+              "status": "pass",
+              "verification": [
+                "passed"
+              ],
+              "errors": 0,
+              "findings": []
+            }
+          ]
+        }
+      },
+      "evidence": {
+        "patchHash": "c47e40b6b73171adb040dee44d2ee15806234cad6148bd27763dea5fafab6726",
+        "eventHash": "4917c596d5383095df87b116f1b1a9aa700c29dca622004d4415c258f3cbed23",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "c7afddaab7d0d11a65d573daddbe6da873865255249df1b378ee33cc419a477a"
+      },
+      "patch": "cleanup-indirect-pair-1-terse.patch",
+      "duplications": "cleanup-indirect-pair-1-terse.duplications.json",
+      "similarities": "cleanup-indirect-pair-1-terse.similarities.json",
+      "initialPatch": "cleanup-indirect-pair-1-terse.initial.patch",
+      "initialAnalysis": "cleanup-indirect-pair-1-terse.initial-analysis.json"
+    },
+    {
+      "taskId": "cleanup-indirect",
+      "artifactId": "cleanup-indirect-pair-1-control",
+      "arm": "control",
+      "repetition": 1,
+      "baselineHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+      "acceptanceHash": "a6c40eb5da1e04f475d9e16fd56f0352a9097bd34b67ec0f0b5224a4f6806fcc",
+      "startingHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+      "snapshotHash": "d493c31442049d8e10d5cb8183495a46a4c526749966b345a1696ca5d904d902",
+      "initial": {
+        "snapshotHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+        "newDuplications": 0,
+        "possibleDuplications": 0,
+        "similarities": [],
+        "cleanup": [
+          {
+            "rule": "REMOVAL_REMAINS",
+            "severity": "fail",
+            "message": "An implementation declared for removal is still present.",
+            "locations": [
+              {
+                "path": "src/legacy.ts"
+              }
+            ]
+          }
+        ]
+      },
+      "correction": null,
+      "correct": true,
+      "checks": {
+        "acceptance": {
+          "passed": true,
+          "exitCode": 0,
+          "error": null,
+          "logHash": "3509c350aa421aecb45b32ba4613e59c380628adec307744669461c96bd83103"
+        }
+      },
+      "workflow": null,
+      "candidateHit": null,
+      "terseStatus": null,
+      "terseRules": [],
+      "protocolValid": true,
+      "controlUsedTerse": false,
+      "tampered": [],
+      "outsideScope": [],
+      "changed": [
+        "src/legacy.ts",
+        "src/providers.ts",
+        "src/routes.ts"
+      ],
+      "newDuplications": 0,
+      "possibleDuplications": 0,
+      "similarityAlgorithm": "implementation-anchors/1",
+      "duplicationError": null,
+      "cleanup": [],
+      "agentMs": 55550,
+      "evaluationMs": 207,
+      "agentExitCode": 0,
+      "timedOut": false,
+      "blockedByPolicy": false,
+      "events": {
+        "completed": true,
+        "malformed": 0,
+        "usage": {
+          "input_tokens": 130357,
+          "cached_input_tokens": 110592,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1279,
+          "reasoning_output_tokens": 123
+        },
+        "errors": [
+          "Local configuration feature warning"
+        ],
+        "commandCount": 5,
+        "decisions": {
+          "complete": true,
+          "attempts": 0,
+          "successfulWrites": 0,
+          "failedAttempts": 0,
+          "retries": 0,
+          "unrecoveredFailure": false,
+          "helpCalls": 0,
+          "evidence": []
+        },
+        "checks": {
+          "complete": true,
+          "unknownCalls": 0,
+          "reports": []
+        }
+      },
+      "evidence": {
+        "patchHash": "c47e40b6b73171adb040dee44d2ee15806234cad6148bd27763dea5fafab6726",
+        "eventHash": "fa6fc92a82f891f309eeafc82fa149379670e8bd0d33a3f5ef6956129aa18b8f",
+        "initialPatchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "initialAnalysisHash": "c7afddaab7d0d11a65d573daddbe6da873865255249df1b378ee33cc419a477a"
+      },
+      "patch": "cleanup-indirect-pair-1-control.patch",
+      "duplications": "cleanup-indirect-pair-1-control.duplications.json",
+      "similarities": "cleanup-indirect-pair-1-control.similarities.json",
+      "initialPatch": "cleanup-indirect-pair-1-control.initial.patch",
+      "initialAnalysis": "cleanup-indirect-pair-1-control.initial-analysis.json"
+    }
+  ],
+  "pairs": [
+    {
+      "taskId": "rewrite-resume",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 52122,
+        "terse": 75572
+      },
+      "terseMinusControlMs": 23450
+    },
+    {
+      "taskId": "cleanup-resume",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 44289,
+        "terse": 51911
+      },
+      "terseMinusControlMs": 7622
+    },
+    {
+      "taskId": "stream-paid",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 55225,
+        "terse": 66894
+      },
+      "terseMinusControlMs": 11669
+    },
+    {
+      "taskId": "cleanup-indirect",
+      "repetition": 1,
+      "comparable": true,
+      "correctness": {
+        "control": true,
+        "terse": true
+      },
+      "duplicateGroups": {
+        "control": 0,
+        "terse": 0
+      },
+      "agentMs": {
+        "control": 55550,
+        "terse": 63190
+      },
+      "terseMinusControlMs": 7640
+    }
+  ],
+  "exportedAt": "2026-11-06T02:53:26.653Z",
+  "functionalSummary": {
+    "control": {
+      "runs": 4,
+      "behaviorCorrect": 4,
+      "functional": 4
+    },
+    "terse": {
+      "runs": 4,
+      "behaviorCorrect": 4,
+      "functional": 4
+    }
+  },
+  "fixtureCanonicalHashes": {
+    "examples/orders/src/orders.ts": "9f1c8bc453df2d09303051ad5b9593d79de36ad1f0af9326dab571d7f0b94430",
+    "examples/orders/terse.config.json": "e3c7a39893b7e0f3053bdfedd0f7cef3d66a3e6fefe7828e171cf80eb1bad01c",
+    "examples/orders/test/orders.test.mjs": "dac28b99a4568c45c43fc601552be59cf9c245074ab45fb977c12672c2b94dae",
+    "examples/evaluation/add.test.mjs": "21f3558c85498e2cda1664c6059d44f15c5f4e9ccaea315bcdec33b172d5622e",
+    "examples/evaluation/delete.test.mjs": "1f938c6760ea432e787264f9c7ad61e8e6ec4b4e70f591bc8350f2d95d395a93",
+    "examples/evaluation/dynamic.test.mjs": "16448a1c8224d31d36da5173518ec7fa7e77ba0966b0d421d54b36068c5f5a3e",
+    "examples/evaluation/independent.test.mjs": "6f0f47f29b71945f0f9484a9bc03f34649f86687aa4968886755c496a4d70e12",
+    "examples/evaluation/modify.test.mjs": "ee0d94f72c37ce9c6852247e059b3c20d99b6f12690ccdd662e193e99a7ba16b",
+    "examples/evaluation/refactor.test.mjs": "8c4cc878c8f2b87450bc5553259c926aed5c9342d877fb02c69e0f0ce7ba9bf6",
+    "examples/evaluation/routes.test.mjs": "46f0710035255a828574a5629984e16d44737b29e92372e29f360ad79d5735a4",
+    "examples/evaluation/routes.ts": "39e4c939c2fea4def1db055ea072923d2e3e93479755586d3ef40feff3e462c7",
+    "scripts/evaluation-cases.mjs": "99ee5ca53de9bd0e7ac909df901e4fb7897f065182d99c18367aeef02291dc7d",
+    "scripts/lib/evaluation-project.mjs": "7b48ac77e6ab09314596f0cece4095c100a15430085fd7e07afb3a22a0ea1292",
+    "examples/challenge/stream-paid.test.mjs": "e725decec7d8b876d48abeb738660c5c6f6fdce11ea9ccba29782f1df44c899c",
+    "scripts/challenge-cases.mjs": "07b3e646e29cc95ff7434c9d3a5b2f5584d90235ae4f55266e23b854341e332f",
+    "scripts/benchmark-reuse.mjs": "4a04d19f80982c18a413a785aa6c9c92398c37afa8c97ec003c9533de08fadf3",
+    "scripts/lib/agent-events.mjs": "66b9b09d62b53273a9df3fd15a40ffb77f81258b51f6d0f479c91d2237dcc7cc"
+  },
+  "reviewHash": "94034e921c574dd2084a54f7f435d27602c8a8ac9f421768ab89637a41a477ce",
+  "publication": "Raw event streams and process logs remain local; SHA-256 hashes identify those artifacts. Final agent prose and machine-local artifact paths are omitted. Patches and duplicate evidence are included."
+}

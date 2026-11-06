@@ -1,0 +1,18 @@
+{
+  "snapshotHash": "6a501cb73574f9870a591ba6b232cf35d6ecd3d59fa95b7dc513dc9c546113ff",
+  "newDuplications": 0,
+  "possibleDuplications": 0,
+  "similarities": [],
+  "cleanup": [
+    {
+      "rule": "REMOVAL_REMAINS",
+      "severity": "fail",
+      "message": "An implementation declared for removal is still present.",
+      "locations": [
+        {
+          "path": "src/legacy.ts"
+        }
+      ]
+    }
+  ]
+}

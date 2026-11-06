@@ -1,0 +1,31 @@
+diff --git a/src/paid.ts b/src/paid.ts
+new file mode 100644
+index 0000000..85d905c
+--- /dev/null
++++ b/src/paid.ts
+@@ -0,0 +1,12 @@
++import type {Order} from './orders.ts';
++export function exportPaidOrders(input: Order[], user: string): string {
++  if (user.length === 0) throw Error('ownerId is required');
++  let csv = 'id,customer,total,status';
++  for (const item of input) {
++    if (item.ownerId !== user || item.status !== 'paid') continue;
++    if (item.total < 0 || !Number.isFinite(item.total)) throw Error('Invalid total');
++    const escaped = '"' + item.customer.split('"').join('""') + '"';
++    csv += '\n' + item.id + ',' + escaped + ',' + Number(item.total).toFixed(2) + ',' + item.status;
++  }
++  return csv;
++}
+diff --git a/src/routes.ts b/src/routes.ts
+index e09f194..b382800 100644
+--- a/src/routes.ts
++++ b/src/routes.ts
+@@ -1,6 +1,7 @@
++import {exportPaidOrders} from './paid.ts';
+ import { exportOrders, type Order } from './orders.ts';
+ 
+ // Application entry point: preserve the public contract while changing its implementation.
+ export function downloadOrders(orders: Order[], ownerId: string, status?: 'paid'): string {
+-  return exportOrders(orders, ownerId);
++  return status === 'paid' ? exportPaidOrders(orders, ownerId) : exportOrders(orders, ownerId);
+ }

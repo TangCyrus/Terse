@@ -1,0 +1,50 @@
+[
+  {
+    "artifactId": "rewrite-resume-pair-1-control",
+    "patchHash": "bc82ee5cb68a58a0694f10f51804af9aecd8095ecfb702b128d1ae9a5f231dc1",
+    "functional": true,
+    "reason": "The inherited loop/encoder is removed. exportPaidOrders becomes a thin delegation to exportOrders with an optional paid selector; route defaults and the paid API remain compatible, with one owner/amount/CSV pipeline."
+  },
+  {
+    "artifactId": "rewrite-resume-pair-1-terse",
+    "patchHash": "bc82ee5cb68a58a0694f10f51804af9aecd8095ecfb702b128d1ae9a5f231dc1",
+    "functional": true,
+    "reason": "The inherited rewritten encoder is replaced by a thin paid facade over the existing exporter with a paid selector. One authorization/amount/CSV implementation remains; the observed initial POSSIBLE_DUPLICATION precedes a full clean final check and matches independent final analysis."
+  },
+  {
+    "artifactId": "cleanup-resume-pair-1-terse",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "functional": true,
+    "reason": "The inherited route migration is retained and legacy.ts is physically removed. No duplicate exporter or stale import remains; an actual REMOVAL_REMAINS checkpoint precedes a full clean final check and independent cleanup confirmation."
+  },
+  {
+    "artifactId": "cleanup-resume-pair-1-control",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "functional": true,
+    "reason": "The inherited download migration is retained and legacy.ts is removed. The existing exporter owns the single CSV implementation, with no remaining legacy consumer and unchanged behavior."
+  },
+  {
+    "artifactId": "stream-paid-pair-1-control",
+    "patchHash": "d6fa7d3fbaf0994b255692c7dde833f649d872f2d30e4100f841c12fd710036c",
+    "functional": true,
+    "reason": "A shared orderCsvRows generator owns owner/status selection, amount validation, header and escaping. exportOrders joins those rows and streamPaidOrders awaits each row emission, preserving quoted embedded newlines and backpressure without a second encoder."
+  },
+  {
+    "artifactId": "stream-paid-pair-1-terse",
+    "patchHash": "c6944ac08e75cfdb4ffb1189f13d659d5c9a17dc47d928d0b61040040748a198",
+    "functional": true,
+    "reason": "The existing orders module is refactored into one shared exportOrderRows generator. Both the original CSV API and the awaited streaming facade consume it, preserving owner/status selection, validation, escaping, embedded row newlines and sequential backpressure; no parallel implementation remains."
+  },
+  {
+    "artifactId": "cleanup-indirect-pair-1-terse",
+    "patchHash": "c47e40b6b73171adb040dee44d2ee15806234cad6148bd27763dea5fafab6726",
+    "functional": true,
+    "reason": "Legacy source is deleted; both the download import and providers barrel now delegate to orders.ts. The unchanged archive facade still imports the same archiveExporter alias from providers, preserving readArchiveCsv rather than deleting an uncovered consumer."
+  },
+  {
+    "artifactId": "cleanup-indirect-pair-1-control",
+    "patchHash": "c47e40b6b73171adb040dee44d2ee15806234cad6148bd27763dea5fafab6726",
+    "functional": true,
+    "reason": "Legacy source is removed and both download and providers point at orders.ts. The unchanged readArchiveCsv facade remains reachable through the same barrel alias, with no dangling import or duplicate body."
+  }
+]
