@@ -11,6 +11,19 @@
     "status": { "enum": ["pass", "fail", "needs-review", "incomplete"] },
     "exitCode": { "enum": [0, 1, 2, 3] },
     "errors": { "type": "array", "items": { "type": "string" } },
+    "verificationGuide": {
+      "type": "object", "required": ["argvTemplate", "verificationOwner", "notes"],
+      "properties": {
+        "argvTemplate": { "type": "array", "items": { "type": "string" } },
+        "verificationOwner": { "const": "check" },
+        "notes": { "type": "string" }
+      }
+    },
+    "verification": { "type": "array", "items": { "type": "object", "properties": {
+      "outputOmitted": { "const": true },
+      "failureOutput": { "type": "string", "maxLength": 2048 },
+      "failureOutputTruncated": { "type": "boolean" }
+    } } },
     "similarityAlgorithm": { "const": "implementation-anchors/1" },
     "possibleDuplications": { "type": "integer", "minimum": 0 },
     "findings": { "type": "array", "items": { "type": "object", "properties": {

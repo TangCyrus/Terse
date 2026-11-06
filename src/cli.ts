@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import path from 'node:path';
 import { begin, rootOf } from './project.js';
 import { context } from './analyze.js';
 import { check } from './check.js';
 import { decide, decisionGuide, inputOptionIssues } from './decision.js';
 import { VERSION } from './types.js';
-import { resultOutput, errorOutput, type CliOutput, type Command, type ErrorStage } from './output.js';
+import { resultOutput, errorOutput, summaryOutput, verificationGuide, type CliOutput, type Command, type ErrorStage } from './output.js';
 
 const help = `Terse ${VERSION} — find existing code before adding another implementation
 
@@ -23,7 +22,9 @@ Read candidates, then use decide to save a validated decision before implementin
 decide replaces the complete decision; --input supports per-candidate reasons and symbol removals.
 With --input, --candidate only asserts that the baseline candidate is already in input.considered; it never appends or overrides entries.
 Do not combine --input with --strategy, --rationale, --disposition, --reason or --remove; put those fields in the input file.
-check --summary omits verification logs from stdout; findings and saved report remain available.
+Use verificationGuide.argvTemplate as the final verification entry point; check runs every configured command.
+Do not run the same configured tests separately by default. Begin --query already includes context.
+check --summary omits full verification logs but includes bounded failureOutput excerpts; findings and saved report remain available.
 check exit codes: 0 pass, 1 fail, 2 needs-review, 3 incomplete/error.
 --json returns one versioned JSON object for results, help, version and errors.
 Verification executes the command/args configured in terse.config.json at begin.
@@ -109,9 +110,9 @@ try {
     else if (command === 'decide') result = decide(root, values.run!, decisionOptions);
     else {
       const report = await check(root, values.run!, values['skip-verification']);
-      result = values.summary ? { ...report, detail: 'summary', reportPath: path.join(root, '.terse/runs', values.run!, 'report.json'),
-        verification: report.verification.map(({ output, ...item }) => ({ ...item, outputOmitted: true })) } : report;
+      result = values.summary ? summaryOutput(root, report) : report;
     }
+    if (command !== 'check') result = {...result, verificationGuide: verificationGuide(root, values.run ?? result.run)};
     output = resultOutput(command, result);
   }
 } catch (error) {

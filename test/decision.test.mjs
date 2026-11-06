@@ -7,6 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import { createWorkspace, invoke } from '../scripts/lib/workspace.mjs';
 import {decide} from '../dist/decision.js';
+import {summaryOutput} from '../dist/output.js';
 
 function project(t) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'terse-m5-'));
@@ -25,6 +26,15 @@ const start = p => p.run(['begin', '--task', 'Modify order export without a para
 const selected = result => result.context.candidates.find(candidate => candidate.symbol === 'exportOrders');
 const save = (p, begun, extra = []) => p.run(['decide', '--run', begun.run, '--strategy', 'modify', '--rationale', 'Keep permissions and CSV encoding in the existing function.',
   '--candidate', selected(begun).candidateId, ...extra]);
+function executeGuide(args, expected = 0) {
+  const env = {...process.env};
+  delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL('../dist/cli.js', import.meta.url)), ...args], {encoding: 'utf8', env, timeout: 60_000});
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, expected, result.stdout + result.stderr);
+  assert.equal(result.stderr, '');
+  return JSON.parse(result.stdout);
+}
 
 test('M5 combined begin, decide and summary check complete the workflow in three CLI calls', t => {
   const p = project(t);
@@ -36,10 +46,12 @@ test('M5 combined begin, decide and summary check complete the workflow in three
   assert(begun.decisionGuide.argvTemplate.includes('--candidate'));
   assert.match(begun.next, /decide/);
   const recorded = save(p, begun, ['--candidate', selected(begun).candidateId]);
+  assert.deepEqual(recorded.verificationGuide, begun.verificationGuide);
   assert.deepEqual(recorded.decision.considered, [{ path: 'src/orders.ts', symbol: 'exportOrders', disposition: 'modify', reason: recorded.decision.rationale }]);
   assert.deepEqual(JSON.parse(fs.readFileSync(recorded.decisionPath, 'utf8')), recorded.decision);
   p.write('src/orders.ts', p.read('src/orders.ts').replace('const visible', '// Preserve the existing pipeline.\n  const visible'));
-  const report = p.run(['check', '--run', begun.run, '--summary']);
+  // Execute the returned array without guessing flags or reading help/report files.
+  const report = executeGuide(recorded.verificationGuide.argvTemplate);
   assert.equal(report.status, 'pass');
   assert.deepEqual(report.decisionIssues, []);
   assert.equal(report.verification[0].outputOmitted, true);
@@ -72,6 +84,7 @@ test('M5 candidate IDs are query-stable and reject changed-source IDs or missing
   const p = project(t);
   const begun = start(p);
   const otherQuery = p.run(['context', '--run', begun.run, '--query', 'CSV exportOrders']);
+  assert.deepEqual(otherQuery.verificationGuide, begun.verificationGuide);
   const id = selected(begun).candidateId;
   assert.equal(otherQuery.candidates.find(candidate => candidate.symbol === 'exportOrders').candidateId, id);
   const withoutContext = p.run(['begin', '--task', 'Do not backdate retrieval']);
@@ -108,8 +121,118 @@ test('M5 summary preserves failures and full persisted verification logs while r
   assert.equal(summary.verification[0].exitCode, 1);
   assert.equal(summary.verification[0].status, 'failed');
   assert(!Object.hasOwn(summary.verification[0], 'output'));
+  assert(summary.verification[0].failureOutput.includes('verification-log-'));
+  assert(summary.verification[0].failureOutput.length <= 2048);
+  assert.equal(summary.verification[0].failureOutputTruncated, true);
   assert(fs.readFileSync(summary.reportPath, 'utf8').includes(noise));
   assert(Buffer.byteLength(JSON.stringify(summary)) < Buffer.byteLength(JSON.stringify(full)) / 2);
+});
+
+test('M5 one final check replaces a duplicate manual suite and reruns all commands after non-source changes', t => {
+  const p = project(t);
+  p.write('acceptance-input.txt', 'valid');
+  const commands = Array.from({length: 4}, (_, index) => ({command: 'node', args: ['-e',
+    `const fs = require('node:fs'); fs.appendFileSync('executions.txt', '${index}'); if (fs.readFileSync('acceptance-input.txt', 'utf8') !== 'valid') { console.error('Invalid acceptance input ${index}'); process.exit(1); } console.log('passed ${index}');`]}));
+  p.write('terse.config.json', JSON.stringify({verification: commands}));
+  const begun = start(p);
+  const recorded = save(p, begun);
+  const args = recorded.verificationGuide.argvTemplate;
+  const finalCheck = expected => executeGuide(args, expected);
+  // Reproduce the avoidable pattern: four manual verifiers followed by full check.
+  for (const command of commands) assert.equal(spawnSync(process.execPath, command.args, {cwd: p.root}).status, 0);
+  const redundant = finalCheck(0);
+  assert.equal(p.read('executions.txt'), '01230123');
+  p.write('executions.txt', '');
+  const streamlined = finalCheck(0);
+  assert.equal(p.read('executions.txt'), '0123');
+  for (const key of ['status', 'findings', 'errors', 'changes', 'snapshotHash']) assert.deepEqual(streamlined[key], redundant[key]);
+  assert.deepEqual(streamlined.verification.map(item => item.status), Array(4).fill('passed'));
+  assert(streamlined.verification.every(item => !Object.hasOwn(item, 'failureOutput') && !Object.hasOwn(item, 'output')));
+  // Source hash alone cannot justify reusing a pass: external inputs may change.
+  p.write('acceptance-input.txt', 'invalid');
+  const failed = finalCheck(1);
+  assert.equal(failed.snapshotHash, streamlined.snapshotHash);
+  assert.equal(p.read('executions.txt'), '01230123');
+  assert.deepEqual(failed.verification.map(item => item.status), Array(4).fill('failed'));
+  assert(failed.verification.every((item, index) => item.failureOutput.includes(`Invalid acceptance input ${index}`) && !item.failureOutputTruncated));
+  assert(failed.findings.some(item => item.rule === 'VERIFICATION_FAILED'));
+  p.write('acceptance-input.txt', 'valid');
+  assert.equal(finalCheck(0).status, 'pass');
+  assert.equal(p.read('executions.txt'), '012301230123');
+});
+
+test('M5 summary bounds failing logs across commands and retains launch errors and persisted output', t => {
+  const p = project(t);
+  const commands = Array.from({length: 3}, (_, index) => ({command: 'node', args: ['-e',
+    `console.log('START-${index}' + 'x'.repeat(6000) + 'END-${index}'); process.exit(1);`]}));
+  commands.push({command: 'terse-nonexistent-verifier', args: []});
+  p.write('terse.config.json', JSON.stringify({verification: commands}));
+  const begun = start(p);
+  save(p, begun);
+  const report = p.run(['check', '--run', begun.run, '--summary'], 3);
+  assert.equal(report.status, 'incomplete');
+  assert.deepEqual(report.verification.map(item => item.status), ['failed', 'failed', 'failed', 'error']);
+  assert.equal(report.verification[3].failureOutput, '');
+  assert.match(report.verification[3].error, /ENOENT/);
+  assert(report.errors.length > 0);
+  assert(report.diagnostics.some(item => item.code === 'CHECK_INCOMPLETE'));
+  assert(report.verification.reduce((total, item) => total + item.failureOutput.length, 0) <= 4096);
+  for (const [index, item] of report.verification.entries()) {
+    assert(!Object.hasOwn(item, 'output'));
+    if (index < 2) {
+      assert(item.failureOutput.startsWith(`START-${index}`));
+      assert(item.failureOutput.trimEnd().endsWith(`END-${index}`));
+    }
+    if (index < 3) assert.equal(item.failureOutputTruncated, true);
+  }
+  const stored = JSON.parse(fs.readFileSync(report.reportPath, 'utf8'));
+  assert(stored.verification[2].output.includes('START-2' + 'x'.repeat(6000) + 'END-2'));
+  assert(stored.verification.every(item => !Object.hasOwn(item, 'failureOutput')));
+});
+
+test('M5 summary log budget remains bounded with tiny remainders', () => {
+  // Earlier short failures can leave too little space even for the omission marker.
+  for (let remaining = 0; remaining <= 40; remaining++) {
+    const report = {run: 'test', verification: [
+      {status: 'failed', output: 'a'.repeat(2048)},
+      {status: 'failed', output: 'b'.repeat(2048 - remaining)},
+      {status: 'failed', output: 'HEAD' + 'x'.repeat(3000) + 'TAIL'},
+    ]};
+    const summary = summaryOutput('.', report);
+    assert(summary.verification.reduce((total, item) => total + item.failureOutput.length, 0) <= 4096);
+    assert(summary.verification.every(item => item.failureOutput.length <= 2048));
+    assert.equal(summary.verification[2].failureOutputTruncated, true);
+    assert.equal(report.verification[2].output.length, 3008);
+  }
+});
+
+test('M5 verification guide retains cleanup failures and uncertain references while rerunning every command', t => {
+  const p = project(t);
+  p.write('src/legacy.ts', 'export function obsolete() { return 1; }');
+  p.write('src/loader.ts', 'export function load(name: string) { return import(name); }');
+  p.write('executions.txt', '');
+  p.write('terse.config.json', JSON.stringify({verification: [
+    {command: 'node', args: ['--test', 'test/orders.test.mjs']},
+    {command: 'node', args: ['-e', "require('node:fs').appendFileSync('executions.txt', 'run;')"]},
+  ]}));
+  const begun = start(p);
+  const recorded = save(p, begun, ['--remove', 'src/legacy.ts']);
+  const check = expected => {
+    const report = executeGuide(recorded.verificationGuide.argvTemplate, expected);
+    assert.deepEqual(report.verification.map(item => item.status), ['passed', 'passed']);
+    const stored = JSON.parse(fs.readFileSync(report.reportPath, 'utf8'));
+    for (const key of ['status', 'findings', 'errors', 'changes', 'possibleDuplications', 'similarityAlgorithm']) {
+      assert.deepEqual(report[key], stored[key]);
+    }
+    assert.match(stored.verification[0].output, /tests 1\b/);
+    return report;
+  };
+  assert(check(1).findings.some(item => item.rule === 'REMOVAL_REMAINS'));
+  fs.unlinkSync(path.join(p.root, 'src/legacy.ts'));
+  const review = check(2);
+  assert(review.findings.some(item => item.rule === 'REMOVAL_REFERENCE_UNRESOLVED'));
+  assert.deepEqual(check(2).findings, review.findings);
+  assert.equal(p.read('executions.txt'), 'run;run;run;');
 });
 
 test('M5 combined retrieval errors remain incomplete and cannot create a successful decision', t => {

@@ -143,3 +143,13 @@ node scripts/export-agent-benchmark.mjs --input .terse/agent-benchmark-<id> --ou
 `--preflight-only` 不调用模型，仅预检上游、准备配置及未完成任务的验收；仍读取 CLI 版本。正式运行顺序调用实际 agent，不在 CI 中执行。默认 p-map 入口保持兼容。p-queue 报告使用实验格式 `schemaVersion: 2`，增加 tasks、配置准备和任务 ID，不改变产品 CLI 的 v1 契约。
 
 发布器只创建新目录，保留逐次结果、补丁、重复证据和压缩依赖锁。原始提示、事件流、进程日志和完整 Terse run 留在本地 `.terse/agent-benchmark-*`，用哈希绑定；不上传 agent 的最终自由文本或机器路径。离线 CI 验证配对、配置不放宽、增删文件补丁采集和已发布数据的哈希，不需要模型或登录。
+
+## M5 验证入口优化
+
+优化后复测的六个 Terse 会话均出现两次 check 调用事件，也有直接执行已配置验证命令的工具事件；其中有必要的 Windows 启动重试，不能把全部重复调用都认定为无效工作。此前 summary 省去了所有验证日志，即使运行时启动失败，也需要额外读取报告或重跑命令才能诊断。
+
+当前接入明确以 check 为最终验证入口：配置的四条命令仍向两组展示，接入组说明它们由 check 统一执行，无需另跑整套。begin/context/decide 返回可执行的 verificationGuide，check summary 直接提供有上限的失败首尾摘要；保留单项调试、修复后的完整重验及正常审批重试。父评测器仍在会话结束后独立执行原有四项验证，未修改验收、任务、保护范围或历史观测数据。新提示属于新的实验条件，未来运行必须保存到新的观测目录。
+
+[M5 回归测试](../test/decision.test.mjs) 用四个真实验证子进程复现“手动整套 + check”的 8 次执行，并与单次 check 的 4 次执行比较，状态、发现和覆盖一致；同时验证源码哈希未变但非源码输入变化时仍全部重验。它证明可消除重复验证工作，不代表真实 agent 总耗时下降 50%。本轮适配 main ce49130，保留相似度与清理证据，并将订单评测的后续提示接入同一指南；所有历史观测和哈希不变。验收以完整检查和功能效果为主，不要求总耗时下降。
+
+本次另在固定 p-queue 源码上重放 optimized-observed 中三个任务的首个 Terse 补丁，用三次 CLI 调用（begin --query、decide、check）完成各自流程。每个任务四项验证均通过，上游仍为 45 项通过、2 项预期失败，新增 token 重复均为 0；修改、删除为 pass，重构保留 REMOVAL_REFERENCE_UNCERTAIN。受限令牌下的 tsx ENOMEM 可从新 summary 直接识别，正常权限下重跑完整检查后通过。此为既有补丁的确定性验证，没有新模型会话，不能替代后续真实 agent 耗时对照。

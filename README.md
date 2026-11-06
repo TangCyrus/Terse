@@ -124,7 +124,9 @@ Agent 的 JSON 接口使用输出契约 v1，公共字段包含 `schemaVersion`�
 
 复杂记录使用 `decide --run <id> --input <file> [--candidate <id>]`。input 是完整决策；candidate 在此仅校验基线 ID 已出现在 input.considered，不追加或覆盖记录。因此 p-queue 中冗余携带正确候选 ID 的调用可以直接成功。其他决策标志（strategy、rationale、disposition、reason、remove）仍与 input 互斥，返回逐字段 conflict 提示；未知、失效或未列入输入的候选仍拒绝写入。细节见 [CLI 输入契约](docs/CLI.md#决策与低往返接入)。
 
-`check --summary` 仍执行完整检查与配置的验证，不使用缓存或跳过验证；JSON 只省略 `verification[].output`，以 `outputOmitted: true` 标记，并给出完整持久化报告的 `reportPath`。状态、退出码、发现和执行错误保持可见；默认输出不变。决策形状错误另提供 `decisionIssues`，避免用笼统的待评估消息猜字段。
+`begin/context/decide` 返回可直接执行的 `verificationGuide.argvTemplate`，以 `check` 作为最终验证入口。默认不在 check 前后手动重复执行已配置的整套测试；单项调试和未配置的额外检查仍可按需执行，修复或相关输入、环境变化后重新执行完整 check。begin --query 已包含首轮检索，无需为同一批候选再调用 context。
+
+`check --summary` 仍执行完整检查与配置的验证，不使用缓存或跳过验证；JSON 省略 `verification[].output`，以 `outputOmitted: true` 标记。失败或启动错误项提供 `failureOutput` 和 `failureOutputTruncated`（每项最多 2,048 个 JS 字符单位、总计 4,096），供当前响应内诊断；不足时读取 `reportPath` 中原有完整报告。状态、退出码、发现和执行错误保持可见；默认输出不变。决策形状错误另提供 `decisionIssues`，避免用笼统的待评估消息猜字段。
 
 `check --run <id>` 比较当前代码与任务基线，使用 jscpd 的 token 检测核心寻找新增或扩大的重复片段，检查决策中的候选与删除目标，并执行基线配置中的验证命令。完整结果写入 `report.json`，包括扫描文件数、排除范围、错误、验证输出、发现位置与快照标识。`--json` 返回同样的机器可读结果。
 

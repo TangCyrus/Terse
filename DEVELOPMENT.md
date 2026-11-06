@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮已合入 `main` 的 `141a123`，包含 M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12、M5 复杂决策优化 #13、p-queue 复测 #14 及 M3 实现相似度复核 #17；该主线的 Windows/Linux Node 24 CI 各通过 143 项测试（含子用例）及打包预检。本 PR #16 保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮已合入 `main` 的 `ce49130`，包含 M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12、M5 复杂决策优化 #13、p-queue 复测 #14、M3 实现相似度复核 #17 及 M6 功能效果评测 #16；该主线的 Windows/Linux Node 24 CI 各通过 150 项测试（含子用例）及打包预检。本 PR #15 的 M5 验证入口优化保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -13,7 +13,7 @@
 | M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
 | M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
-已合并的 [项目评测](docs/EVALUATION.md) 原有 6 个场景、10 个实现变体；本轮增加改写式重复漏报反例，共 11 个变体。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 及复测已合并。本轮 M6 用订单项目六类任务运行实际 agent 对照，以行为、复用、清理和职责边界为主要标准，耗时作辅助；方法与局限见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。
+已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、11 个实现变体，包含改写式重复反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 及复测已合并。M6 用订单项目六类任务运行实际 agent 对照，以行为、复用、清理和职责边界为主要标准，耗时作辅助；方法与局限见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。本次 M5 交付针对重复执行整套验证及失败 summary 缺少日志的问题；完整检查和功能效果仍是主要标准，不以总耗时下降作为验收条件。
 
 历史 12 次真实会话两组各 6/6 行为及非盲补丁审查达标，五个预登记已有候选均在 Terse 基线检索中出现；尚未观察到接入相对对照组的功能改善。适配 #17 后，当前改写式反例应产生 POSSIBLE_DUPLICATION，而非历史 pass；当前评测输出 possibleDuplications、similarityAlgorithm 和 similarities。历史 observed 目录的 26 个文件及全部原哈希不变，CI 改用当时 13 份输入的冻结归档校验历史证据，避免把当前 oracle 误当成过去的输入。没有重新调用模型或改写旧结论。
 
@@ -109,6 +109,10 @@ Finding.similarity 与顶层 similarityAlgorithm: implementation-anchors/1、pos
 `context` 返回 `candidateId`；`begin --query` 合并起步调用；CLI 的 `decisionGuide` 保留简单 argvTemplate，增补 inputArgvTemplate、inputCandidateRole 和 inputExclusiveFlags，benchmark agent 接入也读取这份指南。复杂模式仍校验所有候选、完整记录及基线检索；原有 input 和手写记录不迁移格式。新 issue code 为 not-considered / conflict，不改变 CLI v1 或基线格式。`check --summary` 仅省略 stdout 的验证日志，持久化完整报告、发现、退出码及验证执行保持原有语义。实质策略仍由 agent 选择。
 
 `resultOutput(command, payload)` 包装业务结果；`errorOutput(command, stage, error)` 包装异常，供 CLI 共用。`outputKind: error` 不保证有业务字段；`result` 也可能 `incomplete`。执行诊断使用 `code`、`message`、`stage` 和可选 `causeCode`；规则发现继续位于 `findings`。M1 代码经 `causeCode` 传出，避免解析消息文本。持久化报告不添加 CLI 公共包装字段。
+
+`verificationGuide(root, run)` 只构造 CLI 接入提示与已填充的 check 参数数组，不重新读取基线或执行验证。begin/context/decide 返回同一指南；默认由 check 执行全部基线验证，省去重复手动整套测试和不必要的帮助查询。`summaryOutput(root, report)` 只呈现已有检查结果，为 failed/error 项保留每项 2,048、总计 4,096 个 JS 字符单位的首尾摘要；错误、发现和原有持久化报告不变。二者归属 M5，不引入验证缓存或改动 M4 编排。
+
+决策回归用四个真实子进程验证：手动全套再 check 执行 8 次，同一工作区仅 check 执行 4 次，结果和覆盖相同；非源码输入变化后相同源码哈希也须全部重跑并发现失败。另覆盖执行失败、启动错误、摘要预算耗尽与完整日志保留。通过指南执行的相似度回归保留完整 POSSIBLE_DUPLICATION 证据及行为失败摘要，清理回归保留 REMOVAL_REMAINS / REMOVAL_REFERENCE_UNRESOLVED，并在 fail/review 下每次执行全部验证。p-queue 与订单评测提示共用这份指南；父评测器仍独立执行完整验收，不能以减少验收换取耗时下降。
 
 MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现有核心能力。当前没有强制宿主执行约束。
 

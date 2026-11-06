@@ -65,10 +65,10 @@ test('paid copy preserves behavior', () => {
     {command: 'node', args: ['--test', 'test/orders.test.mjs', 'test/paid.test.mjs']},
   ]}));
   const begun = invoke(root, ['begin', '--task', 'Add a paid filter without another implementation', '--query', 'exportOrders']);
-  invoke(root, ['decide', '--run', begun.run, '--strategy', 'new', '--rationale', 'Record a proposed separate implementation for review.',
+  const recorded = invoke(root, ['decide', '--run', begun.run, '--strategy', 'new', '--rationale', 'Record a proposed separate implementation for review.',
     '--candidate', begun.context.candidates.find(item => item.symbol === 'exportOrders').candidateId]);
   write('src/paid.ts', rewritten);
-  const report = invoke(root, ['check', '--run', begun.run, '--summary'], 2);
+  const report = invoke(root, recorded.verificationGuide.argvTemplate, 2);
   assert.equal(report.newDuplications, 0);
   assert.equal(report.possibleDuplications, 1);
   assert.equal(report.similarityAlgorithm, 'implementation-anchors/1');
@@ -84,12 +84,17 @@ test('paid copy preserves behavior', () => {
   assert.equal(report.verification[0].status, 'passed');
   const persisted = JSON.parse(fs.readFileSync(report.reportPath, 'utf8'));
   assert.match(persisted.verification[0].output, /tests 2\b/);
-  assert.deepEqual(persisted.findings, report.findings);
+  for (const key of ['findings', 'errors', 'changes', 'snapshotHash', 'possibleDuplications', 'similarityAlgorithm']) {
+    assert.deepEqual(report[key], persisted[key]);
+  }
+  assert.equal(report.verification[0].outputOmitted, true);
+  assert(!Object.hasOwn(report.verification[0], 'output'));
   write('src/paid.ts', rewritten.replace('.toFixed(2)', '.toFixed(3)'));
-  const broken = invoke(root, ['check', '--run', begun.run], 1);
+  const broken = invoke(root, recorded.verificationGuide.argvTemplate, 1);
   assert.equal(broken.possibleDuplications, 1);
   assert.equal(broken.verification[0].status, 'failed');
   assert(broken.findings.some(item => item.rule === 'VERIFICATION_FAILED'));
+  assert.match(broken.verification[0].failureOutput, /paid copy preserves behavior/);
   // Replace the competing body with an actual delegation, retaining the same acceptance.
   write('src/paid.ts', "import {exportOrders} from './orders.ts';\nexport function exportPaidOrders(input,user) { return exportOrders(input.filter(item => item.status === 'paid'),user); }");
   const repaired = invoke(root, ['check', '--run', begun.run], 0);
