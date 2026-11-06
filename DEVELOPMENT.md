@@ -126,6 +126,8 @@ Skill 运行器增加 --suite p-queue / --source。适配器 [pqueue-skill.mjs](
 
 p-queue 六次真实会话已完成：行为、人工复用与清理审查各 6/6，完整工作流 4/6。两次重构漏填旧私有方法的删除声明，保留失败计分；父分析的成员引用不确定提示也原样保存，不视为实际残留。四组验证由父进程独立复验，决策格式重试为 0，但保留环境重试及重构中的类型修正。[pqueue-skill-publication.test.mjs](test/pqueue-skill-publication.test.mjs) 校验新发布的 21 个文件、冻结输入及上游锁，重算工作流并静态回放六份补丁；不调用模型或冒充再次运行上游行为测试。旧各轮发布与产品 src/、Skill 模板均未修改。
 
+审查后，带范围快照的最终 check 还要求同一命令开始、完成和区间内观察的 scopeHash 稳定，拒绝同命令 check 后改 README 的误计。缺失开始证据不能算完整检查；新一条独立完整复验可以恢复。本轮六份原始观测重算结论不变，冻结的预登记代码与发布字节均保留。
+
 Skill 冷启动评测入口为 [benchmark-skill.mjs](scripts/benchmark-skill.mjs)，复用现有订单任务、prepareEvaluation、runAgent、保护文件校验和结构分析。任务 [skill-cases.mjs](scripts/skill-cases.mjs) 只提供普通业务需求；宿主仅 init，不提供基线、候选或流程提醒。runAgent 的可选 onEvent 回调在父进程观察事件，不修改模型输入输出，既有套件默认执行方式不变。新的 [skill-evidence.mjs](scripts/lib/skill-evidence.mjs) 将阶段证据与实际磁盘快照绑定，观察不足、过期检查、补写决策及重复基线不能算完整成功。[独立发布器](scripts/export-skill-benchmark.mjs) 校验实际输入、补丁和观察哈希并另存冻结归档，保留全部会话；离线回归见 [skill-agent.test.mjs](test/skill-agent.test.mjs)，规则与结果见 [Skill 评测](docs/SKILL-AGENT-BENCHMARK.md)。
 
 本轮在预登记提交 85d8679 完成六个独立真实会话，各自只有普通业务提示；六次均在修改前读取/检索/决策，并在同一基线上完整 check 通过，父运行时验收和人工复用/清理审查亦达标。原始记录留本地，新发布及冻结输入位于 benchmarks/skill，旧四轮数据不变。[skill-publication.test.mjs](test/skill-publication.test.mjs) 校验所有发布字节和冻结输入、重算工作流并离线重放六份实际补丁。prepareEvaluation / createWorkspace 的可选 fixtureRoot 允许读取冻结夹具，默认路径及旧套件不变。小样本无 control，不外推一般触发率或相对收益。

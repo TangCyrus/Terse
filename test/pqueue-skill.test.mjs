@@ -95,6 +95,7 @@ test('a README edit after a passing check needs a new final scope checkpoint', t
   const candidate = begun.context.candidates.find(item => item.symbol === 'waiting');
   observer.observe(event('decision', invoke(p.project, ['decide', '--run', begun.run, '--strategy', 'modify', '--candidate', candidate.candidateId, '--rationale', 'Extend the existing function.'])));
   fs.writeFileSync(path.join(p.project, 'source/index.ts'), 'export function waiting(value = 1) {return value;}\n');observer.observe(event('implementation', {}));
+  observer.observe({type: 'item.started', item: {id: 'check', type: 'command_execution', command: 'node cli.js'}});
   observer.observe(event('check', invoke(p.project, begun.verificationGuide.argvTemplate)));
   const options = {initialHash, initialScopeHash, finalHash: snapshot(p.project).hash, finalScopeHash: scopeHash(p.project, p.editable),
     editable: p.editable, verification: p.config.verification, traceComplete: true};
@@ -102,6 +103,7 @@ test('a README edit after a passing check needs a new final scope checkpoint', t
   fs.appendFileSync(path.join(p.project, 'readme.md'), 'New parameter\n');observer.observe(event('docs', {}));
   options.finalScopeHash = scopeHash(p.project, p.editable);
   assert.equal(skillWorkflow(observer.observations, options).fullFinalCheck, false);
+  observer.observe({type: 'item.started', item: {id: 'recheck', type: 'command_execution', command: 'node cli.js'}});
   observer.observe(event('recheck', invoke(p.project, begun.verificationGuide.argvTemplate)));
   assert.equal(skillWorkflow(observer.observations, options).completed, true);
 });

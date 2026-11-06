@@ -78,9 +78,18 @@ export function skillWorkflow(observations, {initialHash, finalHash, verificatio
     const attempts = Math.max(item.checkAttempts ?? 0, responses.length);
     // Missing responses make a multi-call command ambiguous. A later separately
     // observed full check can recover; an old pass cannot hide this attempt.
-    return attempts ? [{sequence: item.sequence, scopeHash: item.scopeHash, response: attempts > responses.length ? null : responses.at(-1)}] : [];
+    if (!attempts) return [];
+    const start = observations.findLast(candidate => candidate.sequence < item.sequence && candidate.itemId === item.itemId
+      && candidate.event === 'item.started' && candidate.itemType === 'command_execution');
+    // A completed command may contain edits after check. Bind new scoped traces
+    // to the entire observed command interval, withholding credit if ambiguous.
+    // Legacy cohorts have no scope checkpoints and keep their original grading.
+    const scopeStable = finalScopeHash === undefined || !!start && typeof item.scopeHash === 'string'
+      && observations.filter(candidate => candidate.sequence >= start.sequence && candidate.sequence <= item.sequence)
+        .every(candidate => candidate.scopeHash === item.scopeHash);
+    return [{sequence: item.sequence, scopeHash: item.scopeHash, scopeStable, response: attempts > responses.length ? null : responses.at(-1)}];
   }).at(-1);
-  const fullFinalCheck = !!lastCheck?.response && lastCheck.response.outputKind === 'result' && lastCheck.response.run === run
+  const fullFinalCheck = !!lastCheck?.response && lastCheck.scopeStable && lastCheck.response.outputKind === 'result' && lastCheck.response.run === run
     && lastCheck.response.baselineHash === initialHash && lastCheck.response.snapshotHash === finalHash
     && (finalScopeHash === undefined || lastCheck.scopeHash === finalScopeHash)
     && verification.length > 0 && JSON.stringify(lastCheck.response.verification.map(item => item.command)) === JSON.stringify(verification)
