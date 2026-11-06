@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本文以 `main` 的 `1320bcb` 为开发起点，M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12 和 M5 复杂决策优化 #13 均已合并；起点的 Windows/Linux Node 24 CI 各通过 124 项测试（含子用例）及打包预检。后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮已合入 `main` 的 `141a123`，包含 M1–M6 首轮、项目评测 #8、p-map 实际 agent 评测 #9、M5 决策接入优化 #10、p-queue 评测 #11、M4 外部依赖清理优化 #12、M5 复杂决策优化 #13、p-queue 复测 #14 及 M3 实现相似度复核 #17；该主线的 Windows/Linux Node 24 CI 各通过 143 项测试（含子用例）及打包预检。本 PR #16 保持独立待审，后续数量以各提交 CI 为准。产品仍是本地 CLI，模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -13,7 +13,9 @@
 | M5 | CLI 输出契约 v1 与结构化错误 | [#7](https://github.com/jinyangtang33-sys/Terse/pull/7) |
 | M6 | Windows/Linux 构建、测试与打包预检 | [#2](https://github.com/jinyangtang33-sys/Terse/pull/2) |
 
-已合并的 [项目评测](docs/EVALUATION.md) 有 6 个场景、10 个实现变体，包含四类任务及独立职责、动态引用反例。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 的首轮包含三个任务、12 次会话。M4/M5 优化切片已合并；本次 M6 使用同一固定输入重新运行实际 agent 对照，比较正确性、重复、耗时和决策重试，合并状态以对应 PR 为准。
+已合并的 [项目评测](docs/EVALUATION.md) 原有 6 个场景、10 个实现变体；本轮增加改写式重复漏报反例，共 11 个变体。[p-queue 实际 agent 评测](docs/COMPLEX-AGENT-BENCHMARK.md) 及复测已合并。本轮 M6 用订单项目六类任务运行实际 agent 对照，以行为、复用、清理和职责边界为主要标准，耗时作辅助；方法与局限见 [功能效果评测](docs/FUNCTIONAL-AGENT-BENCHMARK.md)。
+
+历史 12 次真实会话两组各 6/6 行为及非盲补丁审查达标，五个预登记已有候选均在 Terse 基线检索中出现；尚未观察到接入相对对照组的功能改善。适配 #17 后，当前改写式反例应产生 POSSIBLE_DUPLICATION，而非历史 pass；当前评测输出 possibleDuplications、similarityAlgorithm 和 similarities。历史 observed 目录的 26 个文件及全部原哈希不变，CI 改用当时 13 份输入的冻结归档校验历史证据，避免把当前 oracle 误当成过去的输入。没有重新调用模型或改写旧结论。
 
 ## 开发原则与任务范围
 
@@ -116,6 +118,12 @@ MCP 和宿主适配尚未实现，后续按接入需求单独交付并调用现�
 
 项目评测由 [scripts/evaluate.mjs](scripts/evaluate.mjs) 执行，[scripts/evaluation-cases.mjs](scripts/evaluation-cases.mjs) 定义任务、变体和预期处置，[examples/evaluation](examples/evaluation) 提供调用入口与独立验收测试。[test/evaluation.test.mjs](test/evaluation.test.mjs) 将评测接入现有 `npm test`；示例和评测共用 [workspace.mjs](scripts/lib/workspace.mjs) 的隔离 Git 工作区与真实 CLI 调用，没有第二套检测器。
 
+功能效果对照入口为 [benchmark-reuse.mjs](scripts/benchmark-reuse.mjs)，与人工变体共用 prepareEvaluation；与外部开源项目对照共用 runAgent。每次行为验收都由父进程独立重跑。validateFunctionalReviews 要求每份功能判断绑定实际补丁和具体理由，不允许将行为失败或协议不完整算作成功；发布器进一步核对补丁字节，省略原始事件及最终自由文本。该夹具不使用第三方依赖锁。产品分析器、基线格式、CLI 契约及 token 算法均未改变；真实会话启动仍需具备对应的数据外发授权。
+
+protectedFileEvidence(root, expectedHashes, acceptanceFiles) 用运行前记录构造验收身份，实际文件只用于篡改核对；验收文件缺失、改名或被目录替换时返回 tampered，保留协议无效的样本及原验收哈希，避免中止后续会话。历史输入归档与 observed 发布文件逐字节校验，当前 oracle 的演进不改变旧观测。
+
+analyzeEvaluation(project, before, removals) 复用 M1 快照及 M3/M4 分析，捕获包括配置读取在内的源码评分异常。失败记录 duplicationError，重复计数保持 null；有效快照才参与 workflow 核验，避免配置损坏使整轮对照在保存无效结果前中断。
+
 实际 agent 对照复用 [scripts/benchmark-agent.mjs](scripts/benchmark-agent.mjs)，`--suite` 选择固定的 [p-map](benchmarks/p-map) 或 [p-queue](benchmarks/p-queue) 输入，默认 p-map 保持兼容。[agent-events.mjs](scripts/lib/agent-events.mjs) 负责真实 JSONL/usage 解析与按任务 ID、重复编号成对统计；[benchmark-project.mjs](scripts/lib/benchmark-project.mjs) 处理等价配置准备、上游计数和包含新增文件的 Git 补丁。准备后的项目必须编译、可分析且无范围外变更，再启动模型。离线协议与发布测试不需要模型凭据；实际实验使用 `npm run benchmark:agent` 单独启动。方法、真实结果和限制见 [p-map](docs/AGENT-BENCHMARK.md) 与 [p-queue](docs/COMPLEX-AGENT-BENCHMARK.md) 文档。
 
 `summarizeEvents(text, terseCli?)` 在提供 CLI 路径时增补 decisions 统计，不改变原有调用结果。它读取工具事件中的 CLI JSON，区分保存、拒绝、帮助和未知结果；只把失败后的后续记录调用计为重试，未知/截断时不报告零重试。[measure-agent-decisions.mjs](scripts/measure-agent-decisions.mjs) 用同一逻辑回算历史日志，先核对每个已发布 eventHash，再写新文件；新旧观测互不覆盖。真实模型仍只在独立评测中调用。
@@ -197,7 +205,7 @@ node --test --test-name-pattern="context finds" test/terse.test.mjs
 
 首轮完成记录见开头表格。以下是后续方向，不代表全部已经实现或确定排期：
 
-1. **M6 评测扩展。** 受控项目、p-map 和 p-queue 对照已合并。后续扩展项目、模型和样本，检查检索和工作流成本；不能把少量会话外推为跨模型收益比例或一般误报率。
+1. **M6 功能效果评测。** 主要验收为行为正确、实际复用或修改、旧路径清理，以及合理新增和不确定引用的处置；token 克隆计数与耗时均为辅助。改写式重复可在 token 零发现时仍冗余，须结合补丁审查；小样本不外推一般误报率、漏报率或跨模型收益。
 2. **由评测驱动 M2/M3/M4 改进。** 每次选择一个可复现的检索、归因或清理问题，补失败案例后修正，并记录覆盖与性能边界。不要同时重写扫描器或扩大到完整语义分析。
 3. **M5 外部适配。** 在具体接入需求明确后做 MCP 或宿主适配，复用 CLI 契约和核心能力，验收成功、待评估、失败与异常路径。
 4. **受信任 CI 与例外策略。** 仓库必需检查、策略来源、可审查例外和宿主写入约束需独立设计与授权；现有构建 CI 不构成产品的防篡改验收凭据。

@@ -1,0 +1,86 @@
+[
+  {
+    "artifactId": "modify-pair-1-control",
+    "patchHash": "ae39b5ce604c3bfdcdf1ac8798ba5d8a49d3e4ce9ce83b1dd39151193078ce76",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "src/routes.ts 只增加 paid 筛选后委托原 exportOrders；权限过滤、金额校验及 CSV 编码仍由 src/orders.ts 中同一实现负责。"
+  },
+  {
+    "artifactId": "modify-pair-1-terse",
+    "patchHash": "31008b68cdb732a7158d2084898a919dee1b256033539164a868ddee2bf401c8",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "src/routes.ts 只增加 paid 筛选后委托原 exportOrders；权限过滤、金额校验及 CSV 编码仍由 src/orders.ts 中同一实现负责。"
+  },
+  {
+    "artifactId": "delete-pair-1-terse",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "实际删除 src/legacy.ts，src/routes.ts 将命名导入迁至原 src/orders.ts；未保留第二个函数体或残留旧模块引用。"
+  },
+  {
+    "artifactId": "delete-pair-1-control",
+    "patchHash": "8e410c294f3c763450a9f9f20d82f325ad23fb26ea3213c8e5f7193445bec7fa",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "实际删除 src/legacy.ts，src/routes.ts 将命名导入迁至原 src/orders.ts；未保留第二个函数体或残留旧模块引用。"
+  },
+  {
+    "artifactId": "refactor-pair-1-control",
+    "patchHash": "df4f00ce34279a36fec6bda9f32aec231e87d68cac65016dbfd50b5698c8386d",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "函数体从 src/orders.ts 移至 src/reporting.ts；orders.ts 仅保留 Order 类型和 export 转发，两组补丁字节相同。"
+  },
+  {
+    "artifactId": "refactor-pair-1-terse",
+    "patchHash": "df4f00ce34279a36fec6bda9f32aec231e87d68cac65016dbfd50b5698c8386d",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "函数体从 src/orders.ts 移至 src/reporting.ts；orders.ts 仅保留 Order 类型和 export 转发，两组补丁字节相同。"
+  },
+  {
+    "artifactId": "add-pair-1-terse",
+    "patchHash": "57412d9463c50ec1dbab2c61832270b510b1a0d211b87c3cf25ceffbba347431",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "仅新增 src/notifications.ts，校验字段、按 ID 保留首条通知并保持输入不变；没有修改或挤入 CSV 导出职责。"
+  },
+  {
+    "artifactId": "add-pair-1-control",
+    "patchHash": "2b260bb64db7224b863a4a7049659c254f03a20e768d669dfa8262fc8b97fa91",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "仅新增 src/notifications.ts，校验字段、按 ID 保留首条通知并保持输入不变；没有修改或挤入 CSV 导出职责。"
+  },
+  {
+    "artifactId": "independent-pair-1-control",
+    "patchHash": "947b09c0640081c12b97e877273f362f02dc4ab25e35c1c879c1965757b3a48c",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "审计接口独立检查 isAuditor === true，客户接口保留 ownerId 校验与过滤；两者调用同一新提取的 serializeOrders，未保留第二份编码实现。"
+  },
+  {
+    "artifactId": "independent-pair-1-terse",
+    "patchHash": "60c22371f6b324667270c5a7df9f2c8dfba0618b4ce0e704f712ece676b4c00f",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "审计接口独立检查 isAuditor === true，客户接口保留 ownerId 校验与过滤；两者调用同一新提取的 serializeOrders，未保留第二份编码实现。"
+  },
+  {
+    "artifactId": "dynamic-pair-1-terse",
+    "patchHash": "bebe45fbab7d72f7591bdfba7710e6632d261371d0ebca97009c03f28bf363c7",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "旧模块实际删除，route 迁至当前 exporter；loadExporter 按 name 的 orders 分支选择明确导入，未知名称拒绝，并非忽略入参或任意动态路径。两组补丁字节相同。"
+  },
+  {
+    "artifactId": "dynamic-pair-1-control",
+    "patchHash": "bebe45fbab7d72f7591bdfba7710e6632d261371d0ebca97009c03f28bf363c7",
+    "reviewer": "development-agent; unblinded source-and-patch inspection",
+    "functional": true,
+    "reason": "旧模块实际删除，route 迁至当前 exporter；loadExporter 按 name 的 orders 分支选择明确导入，未知名称拒绝，并非忽略入参或任意动态路径。两组补丁字节相同。"
+  }
+]

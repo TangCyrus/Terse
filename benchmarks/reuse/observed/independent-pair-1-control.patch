@@ -1,0 +1,62 @@
+diff --git a/src/audit.ts b/src/audit.ts
+new file mode 100644
+index 0000000..b5bb6ff
+--- /dev/null
++++ b/src/audit.ts
+@@ -0,0 +1,8 @@
++import type { Order } from './orders.ts';
++import { serializeOrders } from './orderCsv.ts';
++
++// Auditors may export orders across all owners.
++export function exportAuditOrders(orders: Order[], isAuditor: boolean): string {
++  if (isAuditor !== true) throw new Error('auditor access is required');
++  return serializeOrders(orders);
++}
+diff --git a/src/orderCsv.ts b/src/orderCsv.ts
+new file mode 100644
+index 0000000..9441340
+--- /dev/null
++++ b/src/orderCsv.ts
+@@ -0,0 +1,13 @@
++import type { Order } from './orders.ts';
++
++// Callers are responsible for authorization and visibility selection.
++export function serializeOrders(orders: Order[]): string {
++  const rows = orders.map(order => {
++    if (!Number.isFinite(order.total) || order.total < 0) {
++      throw new Error(`Invalid total for ${order.id}`);
++    }
++    const customer = `"${order.customer.replaceAll('"', '""')}"`;
++    return [order.id, customer, order.total.toFixed(2), order.status].join(',');
++  });
++  return ['id,customer,total,status', ...rows].join('\n');
++}
+diff --git a/src/orders.ts b/src/orders.ts
+index 87dffc7..cd863e3 100644
+--- a/src/orders.ts
++++ b/src/orders.ts
+@@ -1,3 +1,5 @@
++import { serializeOrders } from './orderCsv.ts';
++
+ export interface Order {
+   id: string;
+   ownerId: string;
+@@ -6,16 +8,9 @@ export interface Order {
+   status: 'paid' | 'pending';
+ }
+ 
+-// 订单导出：权限过滤、金额校验、CSV 转义共用同一条处理路径。
++// Owner exports authorize and select orders before shared CSV serialization.
+ export function exportOrders(orders: Order[], ownerId: string): string {
+   if (!ownerId) throw new Error('ownerId is required');
+   const visible = orders.filter(order => order.ownerId === ownerId);
+-  const rows = visible.map(order => {
+-    if (!Number.isFinite(order.total) || order.total < 0) {
+-      throw new Error(`Invalid total for ${order.id}`);
+-    }
+-    const customer = `"${order.customer.replaceAll('"', '""')}"`;
+-    return [order.id, customer, order.total.toFixed(2), order.status].join(',');
+-  });
+-  return ['id,customer,total,status', ...rows].join('\n');
++  return serializeOrders(visible);
+ }

@@ -13,7 +13,8 @@
     "test": "npm run build && node --test test/*.test.mjs",
     "demo": "npm run build && node scripts/demo.mjs",
     "evaluate": "npm run build && node scripts/evaluate.mjs",
-    "benchmark:agent": "npm run build && node scripts/benchmark-agent.mjs"
+    "benchmark:agent": "npm run build && node scripts/benchmark-agent.mjs",
+    "benchmark:reuse": "npm run build && node scripts/benchmark-reuse.mjs"
   },
   "dependencies": { "@jscpd/core": "4.2.5", "@jscpd/tokenizer": "4.2.6", "typescript": "5.9.3" },
   "devDependencies": { "@types/node": "24.0.0" }

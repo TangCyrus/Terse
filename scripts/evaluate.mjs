@@ -4,13 +4,13 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { execFileSync } from 'node:child_process';
-import { createWorkspace, invoke, repository } from './lib/workspace.mjs';
+import { invoke, repository } from './lib/workspace.mjs';
+import { prepareEvaluation } from './lib/evaluation-project.mjs';
 import { cases } from './evaluation-cases.mjs';
 
 const digest = text => createHash('sha256').update(text).digest('hex');
 fs.mkdirSync(path.join(repository, '.terse'), { recursive: true });
 const destination = fs.mkdtempSync(path.join(repository, '.terse', 'evaluation-'));
-const fixtures = path.join(repository, 'examples/evaluation');
 const results = [];
 const sourceState = project => {
   const files = Object.fromEntries(fs.readdirSync(path.join(project, 'src')).sort().map(name => [name, fs.readFileSync(path.join(project, 'src', name), 'utf8')]));
@@ -22,19 +22,7 @@ for (const scenario of cases) {
   let baselineHash, sourceHash, acceptanceHash;
   for (const variant of scenario.variants) {
     const started = performance.now();
-    const project = createWorkspace(destination, `${scenario.id}-${variant.id}`);
-    const sources = {
-      read: name => fs.readFileSync(path.join(project, 'src', name), 'utf8'),
-      write: (name, content) => fs.writeFileSync(path.join(project, 'src', name), content),
-      remove: name => fs.unlinkSync(path.join(project, 'src', name)),
-    };
-    sources.write('routes.ts', fs.readFileSync(path.join(fixtures, 'routes.ts'), 'utf8'));
-    fs.copyFileSync(path.join(fixtures, 'routes.test.mjs'), path.join(project, 'test/routes.test.mjs'));
-    scenario.setup?.(sources);
-    const config = { minTokens: 50, minLines: 5, duplicatePolicy: 'review', exclude: ['test'], verification: [
-      { command: 'node', args: ['--test', 'test/orders.test.mjs', 'test/routes.test.mjs', 'test/acceptance.test.mjs'], timeoutMs: 30_000 },
-    ] };
-    fs.writeFileSync(path.join(project, 'terse.config.json'), JSON.stringify(config));
+    const {project, sources, config} = prepareEvaluation(destination, `${scenario.id}-${variant.id}`, scenario);
     const before = sourceState(project);
     sourceHash ??= before.hash;
     assert.equal(before.hash, sourceHash, 'Paired variants must have identical starting source');
@@ -56,8 +44,7 @@ for (const scenario of cases) {
       considered: scenario.candidate ? [{ ...scenario.candidate, disposition: variant.strategy === 'new' ? 'reject' : 'modify', reason: scenario.rationale }] : [],
       remove: scenario.remove ?? [],
     }, null, 2));
-    // The harness installs the same task tests; variant editors can only change src files.
-    fs.copyFileSync(path.join(fixtures, `${scenario.id}.test.mjs`), path.join(project, 'test/acceptance.test.mjs'));
+    // Variant editors can only change src files; acceptance was installed by shared preparation.
     const tests = () => Object.fromEntries(fs.readdirSync(path.join(project, 'test')).sort().map(name => [name, digest(fs.readFileSync(path.join(project, 'test', name)))]));
     const frozenTests = tests();
     const testHash = digest(JSON.stringify(frozenTests));
@@ -81,10 +68,12 @@ for (const scenario of cases) {
     assert.deepEqual(JSON.parse(fs.readFileSync(reportFile, 'utf8')).findings, report.findings);
     timingsMs.total = Math.round(performance.now() - started);
     results.push({ scenario: scenario.id, variant: variant.id, task: scenario.task, rationale: scenario.rationale,
-      oracle: variant.expected, project, run: begin.run, baselineHash, acceptanceHash: testHash,
+      oracle: variant.expected, authoredReview: variant.review ?? null, project, run: begin.run, baselineHash, acceptanceHash: testHash,
       candidates: context.candidates.map(({ path, symbol }) => ({ path, symbol })),
       status: report.status, behavior: report.verification[0].status, rules: report.findings.map(f => f.rule),
       newDuplications: report.newDuplications, duplicates: duplicates.map(({ locations, attribution }) => ({ locations, attribution })),
+      possibleDuplications: report.possibleDuplications, similarityAlgorithm: report.similarityAlgorithm,
+      similarities: report.findings.filter(f => f.rule === 'POSSIBLE_DUPLICATION').map(({locations, similarity}) => ({locations, similarity})),
       sourceBefore: before, sourceAfter: sourceState(project), timingsMs, report: reportFile });
   }
 }

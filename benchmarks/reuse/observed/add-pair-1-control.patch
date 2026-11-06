@@ -1,0 +1,29 @@
+diff --git a/src/notifications.ts b/src/notifications.ts
+new file mode 100644
+index 0000000..89a831e
+--- /dev/null
++++ b/src/notifications.ts
+@@ -0,0 +1,23 @@
++export interface Notification {
++  id: string;
++  to: string;
++  message: string;
++}
++
++// Keep queue updates independent of the caller's array and notification records.
++export function enqueueNotification(
++  pending: readonly Notification[],
++  item: Notification,
++): Notification[] {
++  if (!item || [item.id, item.to, item.message].some(
++    value => typeof value !== 'string' || value.trim().length === 0,
++  )) {
++    throw new Error('Invalid notification: id, to and message are required');
++  }
++
++  const result = pending.map(notification => ({ ...notification }));
++  if (!pending.some(notification => notification.id === item.id)) {
++    result.push({ ...item });
++  }
++  return result;
++}
