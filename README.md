@@ -199,10 +199,12 @@ JSON 结果新增顶层 `unresolvedImports`，即使没有匹配候选也会返�
 
 以下发现要求 `needs-review`，不会把未知情况当作已完成清理：
 
-- `REMOVAL_REFERENCE_UNCERTAIN`：namespace、星号转发、require、动态 import 的符号使用、成员/嵌套声明删除，或可能的转发替代。require 可能是局部自定义函数，因此仅凭语法不判定其调用已失效。
+- `REMOVAL_REFERENCE_UNCERTAIN`：namespace、星号转发、require、动态 import 的符号使用、不能确认的成员/嵌套声明删除，或可能的转发替代。require 可能是局部自定义函数，因此仅凭语法不判定其调用已失效。
 - `REMOVAL_REFERENCE_UNRESOLVED`：存在无法确认归属的本地路径、别名、未声明包、非内置 require 或动态表达式。已知 Node 内置模块，以及带上述外部依赖证据的普通导入，不会单独触发此提示；非内置 require 仍保留复核，因为它可能被局部替换。
 - `REMOVAL_NOT_VERIFIED`：目标仍列在跳过文件中；离开扫描范围不能证明文件已删除。
 - `REMOVAL_TARGET_UNKNOWN`：声明的对象不在基线；`REMOVAL_REMAINS` 则表示声明删除的实现仍存在，属于失败。
+
+同一文件中唯一命名顶层类的 ECMAScript `#` 私有方法，现可按词法范围确认清理：旧私有名与引用均消失时不再一律复核；残留调用、读取和品牌检查仍失败。嵌套类遮蔽按私有环境处理，直接 eval、装饰器与无法匹配的类仍需复核。公共成员和 TypeScript `private` 不使用此结论，全部配置验证继续执行。边界与历史回放见 [私有方法清理](docs/PRIVATE-CLEANUP.md)。
 
 M4 已适配 M2：`indexSources(state, root?, fallbackFiles?)` 保留第二个参数作为项目根目录，第三个可选参数提供基线源码定位候选。导入记录复用 `ImportReference`，补充导入名称、require 标记及 `targetSnapshot: current | baseline`。`context` 不传基线候选，只报告当前目标；`check` 使用当前配置查找当前消费者，历史基线符号分析不读取实时配置。基线回退不读取旧配置或旧 package.json，配置继承和覆盖边界与 M2 一致；不能解析的别名仍要求评估。配置读取或解析失败时，`check` 返回 `incomplete`，不执行验证命令。
 

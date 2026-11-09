@@ -5,7 +5,7 @@
   "description": "Task-scoped reuse discovery and incremental duplication checks for coding agents",
   "type": "module",
   "bin": { "terse": "dist/cli.js" },
-  "files": ["dist", "skills", "README.md", "DESIGN.md", "docs/CLI.md", "docs/AGENT-INTEGRATION.md", "docs/REMOVAL-DECLARATIONS.md", "docs/SIMILARITY.md", "docs/cli-output.schema.json", "docs/decision.schema.json"],
+  "files": ["dist", "skills", "README.md", "DESIGN.md", "docs/CLI.md", "docs/AGENT-INTEGRATION.md", "docs/REMOVAL-DECLARATIONS.md", "docs/PRIVATE-CLEANUP.md", "docs/SIMILARITY.md", "docs/cli-output.schema.json", "docs/decision.schema.json"],
   "engines": { "node": ">=24" },
   "scripts": {
     "build": "tsc -p tsconfig.json",

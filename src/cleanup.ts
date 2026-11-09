@@ -44,6 +44,62 @@ function bindings(state: Snapshot) {
   return { source: (file: string) => sources.get(prefix + file), checker, exportsOf };
 }
 
+// ECMAScript #names are lexical, unlike public/TypeScript-private properties.
+// Work only with an unambiguous named, top-level owner in the same source file.
+function privateMemberFindings(before: ts.SourceFile, after: ts.SourceFile, target: Decision['remove'][number]): Finding[] | undefined {
+  if (!target.symbol?.includes('.#')) return undefined;
+  const methods: ts.MethodDeclaration[] = [];
+  const locate = (node: ts.Node) => {
+    if (ts.isMethodDeclaration(node) && node.body && ts.isPrivateIdentifier(node.name) && ts.isClassDeclaration(node.parent)
+      && node.parent.name && `${node.parent.name.text}.${node.name.getText(before)}` === target.symbol) methods.push(node);
+    ts.forEachChild(node, locate);
+  };
+  locate(before);
+  if (!methods.length) return undefined;
+  const findings: Finding[] = [];
+  const add = (rule: string, severity: Finding['severity'], message: string, node?: ts.Node) => findings.push({rule, severity, message,
+    locations: [{...target, ...(node ? {line: after.getLineAndCharacterOfPosition(node.getStart(after)).line + 1} : {})}]});
+  const oldOwner = methods[0].parent as ts.ClassDeclaration;
+  const owners = after.statements.filter(ts.isClassDeclaration).filter(node => node.name?.text === oldOwner.name!.text);
+  if (methods.length !== 1 || oldOwner.parent !== before || owners.length !== 1) {
+    // Unsupported ownership keeps the ordinary retained-symbol failure and
+    // conservative reference checks; it must not downgrade a known removal failure.
+    return undefined;
+  }
+  const owner = owners[0], name = (methods[0].name as ts.PrivateIdentifier).text;
+  const declares = (node: ts.ClassLikeDeclaration) => node.members.some(member => member.name && ts.isPrivateIdentifier(member.name) && member.name.text === name);
+  if (declares(owner)) {
+    add('REMOVAL_REMAINS', 'fail', 'The declared private name still exists as a method, field or accessor.', owner);
+    return findings;
+  }
+  if (ts.getModifiers(owner)?.some(modifier => modifier.kind === ts.SyntaxKind.DeclareKeyword) || ts.getDecorators(owner)?.length) {
+    add('REMOVAL_REFERENCE_UNCERTAIN', 'review', 'Ambient or decorated class ownership requires private cleanup review.');
+    return findings;
+  }
+  const visit = (node: ts.Node) => {
+    if (ts.isDecorator(node)) {
+      add('REMOVAL_REFERENCE_UNCERTAIN', 'review', 'Decorated class elements require private-environment review.', node);
+      return;
+    }
+    if (ts.isClassLike(node) && declares(node)) {
+      // Heritage is evaluated in the outer private environment. Only members
+      // are shadowed by this nested class's own #name (including fields/accessors).
+      ts.forEachChild(node, child => { if (!node.members.includes(child as ts.ClassElement)) visit(child); });
+      return;
+    }
+    if (ts.isPrivateIdentifier(node) && node.text === name) add('REMOVAL_REFERENCE_REMAINS', 'fail', 'A reference to the removed lexical private name remains.', node);
+    if (ts.isCallExpression(node) && !node.questionDotToken) {
+      let callee: ts.Expression = node.expression;
+      while (ts.isParenthesizedExpression(callee) || ts.isAsExpression(callee) || ts.isTypeAssertionExpression(callee)
+        || ts.isNonNullExpression(callee) || ts.isSatisfiesExpression(callee)) callee = callee.expression;
+      if (ts.isIdentifier(callee) && callee.text === 'eval') add('REMOVAL_REFERENCE_UNCERTAIN', 'review', 'Direct eval may reference the removed private name through runtime source.', node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  owner.members.forEach(visit);
+  return findings;
+}
+
 export function cleanupFindings(before: Snapshot, after: Snapshot, oldIndex: Index, current: Index, removals: Decision['remove']): Finding[] {
   const findings: Finding[] = [];
   const add = (rule: string, severity: Finding['severity'], message: string, locations: Finding['locations']) => findings.push({ rule, severity, message, locations });
@@ -54,11 +110,14 @@ export function cleanupFindings(before: Snapshot, after: Snapshot, oldIndex: Ind
     const symbol = oldIndex.symbols.find(s => s.path === target.path && s.symbol === target.symbol);
     const existed = target.symbol ? !!symbol : Object.hasOwn(before.files, target.path);
     if (!existed) { add('REMOVAL_TARGET_UNKNOWN', 'review', 'Removal target was not present in the scanned baseline.', [target]); continue; }
-    const remains = target.symbol ? current.symbols.some(s => s.path === target.path && s.symbol === target.symbol) : Object.hasOwn(after.files, target.path);
-    if (remains) { add('REMOVAL_REMAINS', 'fail', 'An implementation declared for removal is still present.', [target]); continue; }
     if (after.skipped.some(s => s.path === target.path)) {
       add('REMOVAL_NOT_VERIFIED', 'review', 'The removal target is outside current source coverage; absence from the index does not prove deletion.', [target]); continue;
     }
+    const source = newBindings.source(target.path);
+    const privateFindings = target.symbol && source ? privateMemberFindings(oldBindings.source(target.path)!, source, target) : undefined;
+    if (privateFindings) { findings.push(...privateFindings); continue; }
+    const remains = target.symbol ? current.symbols.some(s => s.path === target.path && s.symbol === target.symbol) : Object.hasOwn(after.files, target.path);
+    if (remains) { add('REMOVAL_REMAINS', 'fail', 'An implementation declared for removal is still present.', [target]); continue; }
     checkUnresolved = true;
     const exportedNames = target.symbol ? oldBindings.exportsOf(target.path).filter(e => e.declarations.some(d =>
       d.getSourceFile() === oldBindings.source(target.path) && (d as ts.NamedDeclaration).name?.getText() === target.symbol

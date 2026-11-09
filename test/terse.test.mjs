@@ -529,7 +529,7 @@ test('M4 local dependency specs, conflicting declarations and package self-impor
   assert.equal(indexSources(snapshot(p.root), p.root).imports[0].externalDependency, undefined);
 });
 
-test('M4 external ownership never clears private member reference uncertainty', async t => {
+test('M4 confirms removed lexical private methods independently of external dependency ownership', async t => {
   const p = project(t, {
     'package.json': '{"dependencies":{"eventemitter3":"^5"}}', 'src/calculate.js': body,
     'src/queue.ts': "import 'eventemitter3';\nexport class Queue { #onEvent() {} }",
@@ -537,8 +537,8 @@ test('M4 external ownership never clears private member reference uncertainty', 
   const run = ready(p.root, {remove: [{path: 'src/queue.ts', symbol: 'Queue.#onEvent'}]});
   p.write('src/queue.ts', "import 'eventemitter3';\nexport class Queue {} ");
   const report = await check(p.root, run);
-  assert.equal(report.status, 'needs-review');
-  assert.deepEqual(report.findings.map(f => f.rule), ['REMOVAL_REFERENCE_UNCERTAIN']);
+  assert.equal(report.status, 'pass');
+  assert.deepEqual(report.findings, []);
 });
 
 test('removal outside source coverage and member removal cannot silently pass', async t => {

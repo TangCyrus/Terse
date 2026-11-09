@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮 M6 p-queue 删除声明复测以 `main` 的 `daca32d` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22、M6 Skill 会话 #23、p-queue Skill 评测 #24 和 M5 删除声明约束 #25；#25 在 Windows/Linux Node 24 CI 各通过 237 项测试（含子用例）及打包预检。本轮不包含 #21 分支，后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮 M4 私有方法清理优化以 `main` 的 `b2d59a3` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22、M6 Skill 会话 #23、p-queue Skill 评测 #24、M5 删除声明约束 #25 及 M6 删除声明复测 #26；#26 在 Windows/Linux Node 24 CI 各通过 250 项测试（含子用例）及打包预检。本轮不包含 #21 分支，后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -91,6 +91,8 @@ Finding.similarity 与顶层 similarityAlgorithm: implementation-anchors/1、pos
 状态优先级为 `incomplete` → `fail` → `needs-review` → `pass`。解析失败、验证启动失败、超时、任务期间策略变化和检查期间内容变化不能报告通过。缺少验证或显式跳过验证需要评估；已配置且正常执行的验证返回非零退出码则失败。
 
 `cleanupFindings(before, after, oldIndex, current, removals): Finding[]` 复用 M2 索引，检查 `Decision.remove` 声明。目标仍存在、删除文件的残留导入、可确认的命名/默认导出引用及同文件未绑定直接调用产生失败发现；同名局部绑定或当前替代导出不会简单判为残留。
+
+本轮在同一清理入口复用已有 bindings AST，匹配唯一同文件命名顶层类的 `#` 私有方法。当前仍声明该私有名则 fail；按词法环境遍历成员，残留调用、读取或品牌检查 fail；嵌套类的成员遮蔽与 extends 外层环境分别处理。无残留时可确认该目标清理，不再受无关文件导入影响；直接 eval、装饰器、ambient/歧义/移动类保留 review。其他删除目标的 M2 检查、M5 漏填约束及全部验证继续运行。公共接口、schema 与算法标识均不变，无新依赖。边界与当前回放见 [私有方法清理](docs/PRIVATE-CLEANUP.md)，历史数据和哈希不改写。
 
 命名空间、非内置 require、动态表达式、转发链、嵌套声明及成员访问等不能确定的引用保留 review；未覆盖目标和归属不明的导入不能静默通过。M4 仅从全局未解析导入提示中排除带 externalDependency 证据的普通导入；不降级可定位的残留引用失败。M2 先尝试当前/基线源码定位，只有均未找到目标时才提供声明证据，复用现有 metadata 读取、哈希检查和缓存，不扫描 node_modules。匹配 paths、baseUrl、同名本地包、工作区、协议依赖或清单覆盖/完整性不足时保持保守；非内置 require 即使有声明也需复核。公共字段为兼容性增补，不修改 Baseline.schema、CLI v1 或归因标识。
 
