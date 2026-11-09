@@ -4,7 +4,7 @@ import type { DecisionIssue } from './decision.js';
 import type { check } from './check.js';
 
 export const EXIT_CODES: Record<Status, number> = { pass: 0, fail: 1, 'needs-review': 2, incomplete: 3 };
-export type Command = 'init' | 'begin' | 'context' | 'decide' | 'check' | 'help' | 'version';
+export type Command = 'init' | 'begin' | 'context' | 'decide' | 'simplify' | 'check' | 'help' | 'version';
 export type ErrorStage = 'arguments' | 'project' | 'command';
 export interface Diagnostic {
   code: 'INVALID_ARGUMENT' | 'PROJECT_ERROR' | 'COMMAND_ERROR' | 'CONTEXT_INCOMPLETE' | 'CHECK_INCOMPLETE';

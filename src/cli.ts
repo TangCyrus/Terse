@@ -4,6 +4,7 @@ import { begin, rootOf } from './project.js';
 import { context } from './analyze.js';
 import { check } from './check.js';
 import { init } from './init.js';
+import { simplify } from './simplify.js';
 import { decide, decisionGuide, inputOptionIssues } from './decision.js';
 import { VERSION } from './types.js';
 import { resultOutput, errorOutput, summaryOutput, verificationGuide, type CliOutput, type Command, type ErrorStage } from './output.js';
@@ -16,9 +17,12 @@ terse context --run <id> --query "<behavior or symbol>" [--limit 5] [--cwd <proj
 terse decide --run <id> --strategy <reuse|modify|refactor|new> --rationale "<reason>" [--candidate <candidateId>] [--json]
 terse decide --run <id> --input <decision.json> [--candidate <candidateId>] [--cwd <project>] [--json]
 terse check --run <id> [--summary] [--skip-verification] [--cwd <project>] [--json]
+terse simplify --run <id> --candidate <id> --into <id> [--apply] [--summary] [--cwd <project>] [--json]
 
 Use begin --query to create a baseline and retrieve candidates in one call.
 init installs the project Agent Skill and instructions, preserving existing configuration.
+simplify previews exact duplicate body delegation; --apply writes the edit and runs every configured check.
+Choose two same-file ordinary functions. Both public entries remain; existing duplicate bodies can be reduced.
 --verify may repeat for a new config; each value is {"command":"node","args":["--test","test/*.test.mjs"]}.
 Without configured verification, init returns needs-review; configure real checks before begin.
 Read candidates, then use decide to save a validated decision before implementing.
@@ -39,6 +43,11 @@ function render(result: any): string {
   if (result.outputKind === 'error') return `${result.status}: ${result.diagnostics.map((d: any) => `[${d.code}] ${d.message}`).join('\n')}`;
   if (result.command === 'help') return result.help;
   if (result.command === 'version') return result.toolVersion;
+  if (result.command === 'simplify') return [`Status: ${result.status}`, `Applied: ${result.applied}; verified: ${result.simplificationVerified}`,
+    `${result.plan.path}: ${result.plan.target} -> ${result.plan.into}`,
+    `Removed: ${result.plan.metrics.removedTokens} non-trivia tokens / ${result.plan.metrics.removedBytes} bytes`,
+    `Before: ${result.plan.edit.before}`, `After: ${result.plan.edit.after}`,
+    ...(result.report ? [render(result.report)] : [result.next]), ...result.limitations].join('\n');
   if (result.command === 'init') return [`Status: ${result.status}`, `Skill: ${result.skillPath}`, `Instructions: ${result.instructionsPath}`,
     ...result.files.map((file: any) => `${file.status}: ${file.path}`), ...result.setupIssues.map((issue: any) => `${issue.code}: ${issue.message}`), result.next].join('\n');
   if (result.command === 'begin') return `Run: ${result.run}\nTask: ${result.task}\nScanned: ${result.scannedFiles} files\nDecision: ${result.decisionPath}\nNext: ${result.next}${result.context ? `\n\n${render(result.context)}` : ''}`;
@@ -70,6 +79,7 @@ try {
   const { values, positionals } = parseArgs({ allowPositionals: true, strict: true, options: {
     task: { type: 'string' }, run: { type: 'string' }, query: { type: 'string' }, cwd: { type: 'string' }, limit: { type: 'string' },
     json: { type: 'boolean' }, help: { type: 'boolean' }, version: { type: 'boolean' }, 'skip-verification': { type: 'boolean' },
+    into: { type: 'string' }, apply: { type: 'boolean' },
     strategy: { type: 'string' }, rationale: { type: 'string' }, candidate: { type: 'string', multiple: true },
     disposition: { type: 'string' }, reason: { type: 'string' }, input: { type: 'string' }, remove: { type: 'string', multiple: true }, summary: { type: 'boolean' }, verify: { type: 'string', multiple: true },
   } });
@@ -78,9 +88,10 @@ try {
   else if (values.help || !positionals.length) { command = 'help'; output = resultOutput(command, { help }); }
   else {
     const permitted: Record<string, string[]> = { init: ['verify'], begin: ['task', 'query', 'limit'], context: ['run', 'query', 'limit'],
-      decide: ['run', 'strategy', 'rationale', 'candidate', 'disposition', 'reason', 'input', 'remove'], check: ['run', 'skip-verification', 'summary'] };
-    if (positionals.length !== 1 || !Object.hasOwn(permitted, positionals[0])) throw new Error('Expected init, begin, context, decide or check. Use --help.');
-    command = positionals[0] as 'init' | 'begin' | 'context' | 'decide' | 'check';
+      decide: ['run', 'strategy', 'rationale', 'candidate', 'disposition', 'reason', 'input', 'remove'], check: ['run', 'skip-verification', 'summary'],
+      simplify: ['run', 'candidate', 'into', 'apply', 'summary'] };
+    if (positionals.length !== 1 || !Object.hasOwn(permitted, positionals[0])) throw new Error('Expected init, begin, context, decide, simplify or check. Use --help.');
+    command = positionals[0] as 'init' | 'begin' | 'context' | 'decide' | 'simplify' | 'check';
     for (const key of Object.keys(values)) if (!['cwd', 'json', ...permitted[command]].includes(key)) throw new Error(`--${key} is not valid for ${command}`);
     const required = (value: string | undefined, name: string) => { if (!value?.trim()) throw new Error(`--${name} is required`); return value; };
     if (command === 'begin') required(values.task, 'task');
@@ -95,6 +106,10 @@ try {
       if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('--limit must be 1..20');
     }
     if (command === 'begin' && values.limit !== undefined && values.query === undefined) throw new Error('--limit requires --query');
+    if (command === 'simplify') {
+      if (values.candidate?.length !== 1) throw new Error('simplify requires exactly one --candidate');
+      required(values.into, 'into');
+    }
     const decisionOptions = { input: values.input, strategy: values.strategy, rationale: values.rationale,
       candidates: values.candidate, disposition: values.disposition, reason: values.reason, remove: values.remove };
     if (command === 'decide') {
@@ -120,11 +135,15 @@ try {
     } else if (command === 'context') result = { ...context(root, values.run!, values.query!, limit), decisionGuide: decisionGuide(root, values.run!),
       next: 'Read candidates and use their candidateId with decide. Implement after recording the decision.' };
     else if (command === 'decide') result = decide(root, values.run!, decisionOptions);
+    else if (command === 'simplify') {
+      const simplified = await simplify(root, values.run!, values.candidate![0], values.into!, values.apply);
+      result = values.summary && 'report' in simplified ? {...simplified, report: summaryOutput(root, simplified.report)} : simplified;
+    }
     else {
       const report = await check(root, values.run!, values['skip-verification']);
       result = values.summary ? summaryOutput(root, report) : report;
     }
-    if (command !== 'check' && 'run' in result) result = {...result, verificationGuide: verificationGuide(root, values.run ?? result.run)};
+    if (command !== 'check' && command !== 'simplify' && 'run' in result) result = {...result, verificationGuide: verificationGuide(root, values.run ?? result.run)};
     output = resultOutput(command, result);
   }
 } catch (error) {

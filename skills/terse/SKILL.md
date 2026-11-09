@@ -1,6 +1,6 @@
 ---
 name: terse
-description: Use Terse for JavaScript/TypeScript feature requests, bug fixes, deletions and refactors in an initialized project. Retrieve existing implementations before editing, record reuse decisions, and check duplication, cleanup and behavior after changes. Documentation-only questions do not need this workflow.
+description: Use Terse for JavaScript/TypeScript features, fixes, deletions, refactors and code simplification in an initialized project. Retrieve existing code, consolidate duplicate implementations, record decisions and verify behavior. Documentation-only questions do not need this workflow.
 ---
 
 # Terse
@@ -53,10 +53,32 @@ report the setup gap. Initialization alone does not verify the project.
 ## Implement and check
 
 Implement the requested behavior with your normal editing tools. Preserve existing
-contracts and remove superseded paths and callers within scope. Terse does not edit
-source, authorize unrelated actions, or require fewer lines at the cost of behavior.
+contracts and remove superseded paths and callers within scope. New behavior should
+extend its existing owner when appropriate, rather than adding a parallel implementation.
+Deliver the actual source change; zero findings alone is not evidence of simplification.
 
-Run the returned verificationGuide.argvTemplate through the same launcher. It is
+## Reduce existing duplicate implementations
+
+For a simplification request, inspect existing duplication too: ordinary check
+suppresses baseline clones. Identify the implementation to retain and the body or
+path to remove, preserving necessary public contracts and independent responsibilities.
+For two same-file ordinary functions with identical parameters and body source,
+preview `simplify --run <id> --candidate <duplicate-id> --into <retained-id> --json`
+through the project launcher. Review the exact edit, record both candidates using
+decide with modify/refactor, then repeat simplify with `--apply --summary`. This writes the
+delegation and executes the full check; do not repeat the unchanged suite immediately.
+Only applied:true plus simplificationVerified:true confirms this scoped reduction.
+Unsupported cases require an agent-authored refactor with the normal full check;
+do not weaken the guards or force similar responsibilities together.
+
+Report what implementation disappeared, what now owns the behavior, actual source
+changes and validation. For new requirements, distinguish necessary additions from
+duplicate bodies or obsolete branches removed. Do not call unchanged code or a
+successful check alone a simplification, or claim a general agent benefit from a demo.
+
+## Verify changes
+
+After agent-authored edits, run the returned verificationGuide.argvTemplate through the same launcher. It is
 equivalent to `check --run <id> --summary --json` and executes all baseline-configured
 verification. Avoid manually repeating that whole suite before/after check by
 default; targeted debugging remains useful.
