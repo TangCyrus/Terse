@@ -1,5 +1,7 @@
 # CLI 输出契约 v1
 
+新增 `simplify --run <id> --candidate <重复体ID> --into <保留实现ID> [--apply] [--summary]`，处理同模块内精确重复的普通函数体。默认仅返回计划，needs-review / 2；apply 实际改写并执行完整 check。结果包含 run、applied、simplificationVerified、plan、limitations；apply 另含 errors、report、receiptPath、reportPath。完整通过且改写保留才确认本次精简，失败/未完成保留原退出码含义。该命令不支持 skip-verification；summary 仅缩短嵌套 report 的日志，完整记录仍落盘。详见 [执行代码精简](SIMPLIFICATION.md)。
+
 Agent 应通过参数数组运行 `node <terse>/dist/cli.js <command> ... --json`，不要拼接 shell 命令。完整 JSON Schema 见 [cli-output.schema.json](cli-output.schema.json)。本版定义 CLI 的公共字段和必需业务字段，不是 MCP 或稳定的库调用 API。
 
 ## 读取规则

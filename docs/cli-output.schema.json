@@ -6,7 +6,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "toolVersion": { "type": "string" },
-    "command": { "enum": ["init", "begin", "context", "decide", "check", "help", "version", null] },
+    "command": { "enum": ["init", "begin", "context", "decide", "simplify", "check", "help", "version", null] },
     "outputKind": { "enum": ["result", "error"] },
     "status": { "enum": ["pass", "fail", "needs-review", "incomplete"] },
     "exitCode": { "enum": [0, 1, 2, 3] },
@@ -81,6 +81,7 @@
           { "properties": { "command": { "const": "context" } }, "required": ["run", "query", "snapshotHash", "scannedFiles", "candidates", "fileMatches", "unresolvedImports"] },
           { "properties": { "command": { "const": "decide" } }, "required": ["run", "decisionPath", "decision"] },
           { "properties": { "command": { "const": "check" } }, "required": ["run", "baselineHash", "snapshotHash", "findings", "verification", "changes"] },
+          { "properties": { "command": { "const": "simplify" }, "applied": { "type": "boolean" }, "simplificationVerified": { "type": "boolean" }, "plan": { "type": "object" } }, "required": ["run", "applied", "simplificationVerified", "plan", "limitations"] },
           { "properties": { "command": { "const": "help" }, "help": { "type": "string" } }, "required": ["help"] },
           { "properties": { "command": { "const": "version" } } }
         ]

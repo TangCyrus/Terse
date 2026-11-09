@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮 M4 私有方法清理优化以 `main` 的 `b2d59a3` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22、M6 Skill 会话 #23、p-queue Skill 评测 #24、M5 删除声明约束 #25 及 M6 删除声明复测 #26；#26 在 Windows/Linux Node 24 CI 各通过 250 项测试（含子用例）及打包预检。本轮不包含 #21 分支，后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮 M5/M6 可执行精简以 `main` 的 `bab9516` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22、M6 Skill 会话 #23、p-queue Skill 评测 #24、M5 删除声明约束 #25、M6 删除声明复测 #26 和 M4 私有清理 #27；#27 在 Windows/Linux Node 24 CI 各通过 291 项测试（含子用例）及打包预检。本轮不包含 #21 分支，后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -100,13 +100,15 @@ Finding.similarity 与顶层 similarityAlgorithm: implementation-anchors/1、pos
 
 ### M5 CLI 与 agent 接入
 
+本轮增加 [可执行精简](docs/SIMPLIFICATION.md)：`simplify(root, run, candidate, into, apply=false)` 在 src/simplify.ts 定位两个基线候选并重新核对当前源码。只对限定的同文件精确重复普通函数执行 body 委托，保留原公开契约；默认返回只读计划，apply 实际替换源文件并复用 M4 完整 check。只有编辑保留且完整验证通过才标记 simplificationVerified。plan.metrics 记录实际源码字节、非空行、非 trivia token 与相同 body 数量变化，不将 pass 或零新增重复当作精简。未支持语法与语义条件拒绝执行；预览、失败和未完成均不声称成功。CLI 增加 simplify 命令与 into/apply 参数，schemaVersion、基线与归因标识保持兼容；原 check 含义不变，历史数据不改写。Skill 引导 agent 交付真实精简补丁及必要新增的证据；demo:simplify 在真实 CLI 下先收敛两个导出体，再对比新需求的原位修改和复制变体，明确为无模型调用的受控验收。
+
 本轮 [删除声明约束](docs/REMOVAL-DECLARATIONS.md) 在 check 核对观察到的消失目标，漏填返回 REMOVAL_DECLARATION_MISSING / fail 及 undeclaredRemovals。indexSources 在原 AST 遍历中保留声明字符范围，cleanup.undeclaredRemovals 以基线路径/名称对比并折叠退役父声明；check 将推导目标交给原 M4 检查，配置验证照常执行。decisionGuide.removalGuide 和 Skill 说明完整输入与同一 run 修正；原地重构允许空声明，不强制按 strategy 猜删除。声明结构、基线、CLI v1 及归因算法兼容。旧评测发布和归档未修改；活跃手工评测的迁移变体补上应有声明，M3/M4 回归也按实际迁移声明目标。
 
 代码归属：[src/cli.ts](src/cli.ts)、[src/output.ts](src/output.ts) 与 [src/decision.ts](src/decision.ts)。外部契约见 [docs/CLI.md](docs/CLI.md)、[CLI JSON Schema](docs/cli-output.schema.json) 和 [决策形状](docs/decision.schema.json)。
 
 输入是命令行参数，输出是文本或 JSON，以及进程退出码。负责参数校验、调用核心能力和结果呈现；业务规则留在对应核心模块。所有路径都从目标项目的 Git 根目录处理。
 
-命令为 `begin`、`context`、`decide`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
+命令为 `init`、`begin`、`context`、`decide`、`simplify`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
 
 `validateDecision` 为 decide/check 共用的形状校验器，`decide(root, run, options)` 按候选 ID 或 input 文件验证并保存；失败返回 `DECISION_INVALID` 和字段 issues，不覆盖原记录或运行项目验证。本次允许 input 携带 candidate，但仅校验基线 ID 对应的 path/symbol 已在 considered 中，不改变文件内容。`inputOptionIssues` 供 CLI 与核心入口共用，拒绝 input 与 strategy/rationale/disposition/reason/remove 的冲突，避免核心 API 静默忽略参数。
 
