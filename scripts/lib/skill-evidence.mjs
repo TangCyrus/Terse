@@ -112,7 +112,7 @@ function observedChecks(observations, finalScopeHash) {
     const scopeStable = finalScopeHash === undefined || !!start && typeof item.scopeHash === 'string'
       && observations.filter(candidate => candidate.sequence >= start.sequence && candidate.sequence <= item.sequence)
         .every(candidate => candidate.scopeHash === item.scopeHash);
-    return [{sequence: item.sequence, startSequence: start?.sequence ?? null, scopeHash: item.scopeHash, scopeStable,
+    return [{sequence: item.sequence, startSequence: start?.sequence ?? null, scopeHash: item.scopeHash, scopeStable, responses,
       response: attempts > responses.length ? null : responses.at(-1)}];
   });
 }
@@ -130,7 +130,7 @@ export function removalWorkflow(observations, options) {
   const sameRun = workflow.singleRun && finalRunStates.length === 1 && valid(finalRunStates[0]);
   const finalDeclared = sameRun && declared(finalRunStates[0]);
   const checks = observedChecks(observations, options.finalScopeHash);
-  const omissions = checks.filter(item => item.response?.run === run && item.response.baselineHash === initialHash
+  const omissions = checks.flatMap(item => item.responses.map(response => ({...item, response}))).filter(item => item.response.run === run && item.response.baselineHash === initialHash
     && item.response.findings?.some(finding => finding.rule === 'REMOVAL_DECLARATION_MISSING' && finding.severity === 'fail')
     && item.response.undeclaredRemovals?.length);
   const corrections = omissions.map(omission => ({omission, observed: observations.find(item => omission.sequence < item.sequence
@@ -138,7 +138,7 @@ export function removalWorkflow(observations, options) {
     && stateAt(item).decisionHash !== stateAt(observations.find(observed => observed.sequence === omission.sequence))?.decisionHash)})).filter(item => item.observed);
   const last = checks.at(-1), response = last?.response;
   const metadataAvailable = Array.isArray(response?.findings) && Array.isArray(response?.undeclaredRemovals);
-  const checkTraceComplete = checks.length > 0 && checks.every(item => Array.isArray(item.response?.findings) && Array.isArray(item.response?.undeclaredRemovals));
+  const checkTraceComplete = checks.length > 0 && checks.every(item => item.response && item.responses.every(response => Array.isArray(response.findings) && Array.isArray(response.undeclaredRemovals)));
   const interval = last?.startSequence === null || !last ? [] : observations.filter(item => item.sequence >= last.startSequence && item.sequence <= last.sequence);
   const finalDecisionBound = !!finalDeclared && interval.length > 1 && interval.every(item => declared(stateAt(item))
     && stateAt(item).decisionHash === finalRunStates[0].decisionHash);

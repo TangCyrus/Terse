@@ -79,6 +79,20 @@ test('unknown intermediate checks remain visible, absent metadata is not omissio
   assert.equal(summary.sessions, 3);assert.equal(summary.applicable, 2);assert.equal(summary.declarationChecksCompleted, 2);assert.equal(summary.checkTracesComplete, 1);
 });
 
+test('all check responses retain omission feedback even when a later check in the same command succeeds', () => {
+  const {observations, options} = trace({proactive: true, review: false});
+  const combined = structuredClone(observations), last = combined.at(-1);
+  const failed = {...structuredClone(last.responses[0]), status: 'fail', undeclaredRemovals: [target],
+    findings: [{rule: 'REMOVAL_DECLARATION_MISSING', severity: 'fail'}]};
+  last.responses.unshift(failed);last.checkAttempts = 2;
+  const result = removalWorkflow(combined, options);
+  assert.equal(result.omissionDetected, true);assert.deepEqual(result.evidence.omissionCheckSequences, [8]);
+  assert.equal(result.correctionVerified, false); // No separately observed declaration change after that feedback.
+  assert.equal(result.checkTraceComplete, true);
+  delete failed.findings;
+  assert.equal(removalWorkflow(combined, options).checkTraceComplete, false);
+});
+
 test('the parent observer captures actual missing-removal findings and the final saved decision', t => {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'terse-removal-observer-'));
   t.after(() => {

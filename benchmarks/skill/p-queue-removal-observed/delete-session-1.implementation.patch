@@ -1,0 +1,61 @@
+diff --git a/source/lower-bound.ts b/source/lower-bound.ts
+deleted file mode 100644
+index 5f0c927..0000000
+--- a/source/lower-bound.ts
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Port of lower_bound from https://en.cppreference.com/w/cpp/algorithm/lower_bound
+-// Used to compute insertion index to keep queue sorted after insertion
+-export default function lowerBound<T>(array: readonly T[], value: T, comparator: (a: T, b: T) => number): number {
+-	let first = 0;
+-	let count = array.length;
+-
+-	while (count > 0) {
+-		const step = Math.trunc(count / 2);
+-		let it = first + step;
+-
+-		if (comparator(array[it]!, value) <= 0) {
+-			first = ++it;
+-			count -= step + 1;
+-		} else {
+-			count = step;
+-		}
+-	}
+-
+-	return first;
+-}
+diff --git a/source/priority-queue.ts b/source/priority-queue.ts
+index e161610..c796ff7 100644
+--- a/source/priority-queue.ts
++++ b/source/priority-queue.ts
+@@ -1,5 +1,4 @@
+ import {type Queue, type RunFunction} from './queue.js';
+-import lowerBound from './lower-bound.js';
+ import {type QueueAddOptions} from './options.js';
+ 
+ export type PriorityQueueOptions = {
+@@ -25,10 +24,20 @@ export default class PriorityQueue implements Queue<RunFunction, PriorityQueueOp
+ 			return;
+ 		}
+ 
+-		const index = lowerBound(
+-			this.#queue, element,
+-			(a: Readonly<PriorityQueueOptions>, b: Readonly<PriorityQueueOptions>) => b.priority! - a.priority!,
+-		);
++		let index = 0;
++		let end = this.size;
++
++		while (index < end) {
++			const middle = index + Math.trunc((end - index) / 2);
++
++			// Insert after equal priorities to preserve FIFO ordering.
++			if (element.priority! - this.#queue[middle]!.priority! <= 0) {
++				index = middle + 1;
++			} else {
++				end = middle;
++			}
++		}
++
+ 		this.#queue.splice(index, 0, element);
+ 	}
+ 
