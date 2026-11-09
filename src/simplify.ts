@@ -71,7 +71,7 @@ export async function simplify(root: string, run: string, candidate: string, int
   if (from.parameters.some(parameter => ts.isIdentifier(parameter.name) && names.has(parameter.name.text))) reject('SIMPLIFY_UNSUPPORTED', 'A parameter shadows the selected implementation.');
   const includesName = (node: ts.Node): boolean => (ts.isIdentifier(node) && names.has(node.text)) || !!ts.forEachChild(node, includesName);
   const inspectBody = (node: ts.Node) => {
-    if (node.kind === ts.SyntaxKind.ThisKeyword || node.kind === ts.SyntaxKind.SuperKeyword || ts.isMetaProperty(node)
+    if (node.kind === ts.SyntaxKind.ThisKeyword || node.kind === ts.SyntaxKind.SuperKeyword || ts.isMetaProperty(node) || ts.isTaggedTemplateExpression(node)
       || (ts.isIdentifier(node) && (names.has(node.text) || node.text === 'arguments'))
       || (ts.isExpressionStatement(node) && ts.isStringLiteral(node.expression))) {
       reject('SIMPLIFY_UNSUPPORTED', 'Context-sensitive, self-referential or directive-bearing bodies require an agent-authored refactor.');

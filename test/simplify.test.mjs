@@ -95,6 +95,24 @@ test('body and signature differences, regex whitespace and non-reductions cannot
   });
 });
 
+test('tagged templates retain separate cached site identities and cannot be automatically delegated', async t => {
+  const observe = second => new Function('const sites = new WeakMap(); let next = 0; '
+    + 'function tag(strings) {if (!sites.has(strings)) sites.set(strings, ++next); return sites.get(strings);} '
+    + 'function shared() {return tag`item`;} function redundant() {' + second + '} '
+    + 'return [shared(), redundant(), shared(), redundant()];')();
+  assert.deepEqual(observe('return tag`item`;'), [1, 2, 1, 2]);
+  assert.deepEqual(observe('return shared();'), [1, 1, 1, 1]);
+  for (const expression of ['tag`item`', 'tag`item:${value}`']) {
+    const content = pair(`{const selected = ${expression}; const total = selected + value; return total;}`);
+    const p = project(t, content);
+    await assert.rejects(p.execute(), error => error.code === 'SIMPLIFY_UNSUPPORTED');
+    p.save();
+    await assert.rejects(p.execute(true), error => error.code === 'SIMPLIFY_UNSUPPORTED');
+    assert.equal(fs.readFileSync(p.file, 'utf8'), content);
+    assert(!fs.existsSync(path.join(p.root, '.terse/runs', p.run, 'simplification.json')));
+  }
+});
+
 test('stale candidates and invalid choices fail before source edits', async t => {
   const p = project(t), original = fs.readFileSync(p.file, 'utf8');
   fs.writeFileSync(p.file, original.replace('const doubled = value * 2;', 'const doubled = value * 3;'));
