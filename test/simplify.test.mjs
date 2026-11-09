@@ -167,6 +167,24 @@ test('a verifier changing source withholds reduction credit and retains current 
   assert(fs.readFileSync(p.file, 'utf8').includes('// changed during verification'));
 });
 
+test('BOM-prefixed sources apply successfully with the encoding marker and source mode preserved', async t => {
+  const acceptance = 'import assert from "node:assert/strict"; import {shared,redundant} from "./src/pair.ts"; for(const fn of [shared,redundant]) {assert.equal(fn(3),13);assert.equal(fn(0),7);assert.throws(()=>fn(-1),/negative/);}';
+  const p = project(t, '\ufeff' + pair(), [{command:'node', args:['--input-type=module', '-e', acceptance]}]);
+  if (process.platform !== 'win32') {
+    fs.chmodSync(p.file, 0o640);
+    const previous = process.umask(0o077);t.after(() => process.umask(previous));
+  }
+  const mode = fs.statSync(p.file).mode & 0o777;
+  const preview = await p.execute();assert.equal(preview.plan.metrics.before.bytes, Buffer.byteLength(pair()));
+  p.save();
+  const result = await p.execute(true);assert.equal(result.simplificationVerified, true);
+  assert.deepEqual(result.report.verification.map(item => item.status), ['passed']);
+  const bytes = fs.readFileSync(p.file);
+  assert(bytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])));
+  assert.equal(bytes.length, result.plan.metrics.after.bytes + 3);
+  assert.equal(fs.statSync(p.file).mode & 0o777, mode);
+});
+
 test('cross-file candidates are refused rather than injecting imports or a new abstraction', async t => {
   const p = project(t);fs.writeFileSync(path.join(p.root, 'src/other.ts'), `export function external(value: number) ${body}`);
   const started = begin(p.root, 'Compare cross-file candidates'), found = context(p.root, started.run, 'external redundant', 10);

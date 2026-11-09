@@ -21,7 +21,7 @@
 
 拒绝条件通过现有 error/diagnostics 结构返回，causeCode 为 SIMPLIFY_*，不写源码。执行后的业务验收失败返回 fail / 1；验证启动失败、超时或工作区变化返回 incomplete / 3；其他待评估发现仍为 needs-review / 2。失败不会被代码减少量覆盖，也不会静默回滚用户或验证器的改动。agent 应保留同一基线，修正补丁后完整复验，交付时披露未完成事项。
 
-apply 先保存可核对的计划，再用临时文件替换源码。记录位于 `.terse/runs/<id>/simplification.json`，包含 plan、applied、simplificationVerified 和完整 report；原 check 的 report.json 与格式保持不变。`--summary` 仅缩短 CLI 中嵌套 report 的验证日志，落盘记录保留日志。该记录是本地工作证据，不是受信任的 CI 证明。
+apply 先保存可核对的计划，再用临时文件替换源码，保留 UTF-8 BOM 和源文件模式。哈希与规模统计沿用快照的解码源码，BOM 不计入规模；替换前另核对原始字节，避免编码标记变化被覆盖。记录位于 `.terse/runs/<id>/simplification.json`，包含 plan、applied、simplificationVerified 和完整 report；原 check 的 report.json 与格式保持不变。`--summary` 仅缩短 CLI 中嵌套 report 的验证日志，落盘记录保留日志。该记录是本地工作证据，不是受信任的 CI 证明。
 
 ## 验收示例：先精简，再增加需求
 

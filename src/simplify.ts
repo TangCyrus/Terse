@@ -115,14 +115,21 @@ export async function simplify(root: string, run: string, candidate: string, int
     file = path.join(file, part);
     if (fs.lstatSync(file).isSymbolicLink()) reject('SIMPLIFY_PATH', 'Refusing a symbolic source path.');
   }
-  if (snapshot(root).hash !== current.hash || digest(fs.readFileSync(file, 'utf8')) !== source.hash) reject('SIMPLIFY_STALE', 'Workspace changed during planning; no source was written.');
+  const original = fs.readFileSync(file);
+  if (snapshot(root).hash !== current.hash || digest(new TextDecoder('utf-8', {fatal: true}).decode(original)) !== source.hash) reject('SIMPLIFY_STALE', 'Workspace changed during planning; no source was written.');
+  // Snapshot hashes use decoded source (without a UTF-8 BOM). Preserve the raw
+  // encoding marker, and compare raw bytes again before replacing the file.
+  const bom = Buffer.from([0xef, 0xbb, 0xbf]);
+  const encoded = original.subarray(0, 3).equals(bom) ? Buffer.concat([bom, Buffer.from(content)]) : Buffer.from(content);
   // Save the reviewable receipt before the write. Never silently undo user or
   // verifier edits after a failing check; retain the actual patch for correction.
   writeJson(dir, 'simplification.json', {run, applied: false, simplificationVerified: false, plan, limitations});
   const temporary = path.join(dir, `simplification-${randomUUID()}.tmp`);
   try {
-    fs.writeFileSync(temporary, content, {flag: 'wx', mode: fs.statSync(file).mode});
-    if (snapshot(root).hash !== current.hash || digest(fs.readFileSync(file, 'utf8')) !== source.hash) reject('SIMPLIFY_STALE', 'Workspace changed before applying; no source was written.');
+    const mode = fs.statSync(file).mode;
+    fs.writeFileSync(temporary, encoded, {flag: 'wx', mode});
+    fs.chmodSync(temporary, mode);
+    if (snapshot(root).hash !== current.hash || !fs.readFileSync(file).equals(original)) reject('SIMPLIFY_STALE', 'Workspace changed before applying; no source was written.');
     fs.renameSync(temporary, file);
   } finally {
     if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
