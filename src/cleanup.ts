@@ -62,8 +62,9 @@ function privateMemberFindings(before: ts.SourceFile, after: ts.SourceFile, targ
   const oldOwner = methods[0].parent as ts.ClassDeclaration;
   const owners = after.statements.filter(ts.isClassDeclaration).filter(node => node.name?.text === oldOwner.name!.text);
   if (methods.length !== 1 || oldOwner.parent !== before || owners.length !== 1) {
-    add('REMOVAL_REFERENCE_UNCERTAIN', 'review', 'The private method owner cannot be uniquely matched in the same top-level source scope.');
-    return findings;
+    // Unsupported ownership keeps the ordinary retained-symbol failure and
+    // conservative reference checks; it must not downgrade a known removal failure.
+    return undefined;
   }
   const owner = owners[0], name = (methods[0].name as ts.PrivateIdentifier).text;
   const declares = (node: ts.ClassLikeDeclaration) => node.members.some(member => member.name && ts.isPrivateIdentifier(member.name) && member.name.text === name);

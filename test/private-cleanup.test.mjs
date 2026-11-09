@@ -94,6 +94,15 @@ test('private proof does not clear public/TS-private uncertainty, coverage gaps 
   assert(removedFile.some(item => item.rule === 'REMOVAL_REFERENCE_REMAINS'));
 });
 
+test('unsupported private owners preserve definite retained-symbol failures before reference review', () => {
+  const nested = 'function create() {class Queue {#onEvent() {}} return Queue;}';
+  const duplicate = baseline + ' function create() {class Queue {#onEvent() {}} return Queue;}';
+  for (const before of [nested, duplicate]) {
+    assert.deepEqual(findings(before, {before}).map(item => [item.rule, item.severity]), [['REMOVAL_REMAINS', 'fail']]);
+  }
+  assert.deepEqual(findings(nested).map(item => [item.rule, item.severity]), [['REMOVAL_REMAINS', 'fail']]);
+});
+
 test('private names use decoded identifier identity rather than their source spelling', () => {
   const before = String.raw`export class Queue {#\u006fnEvent() {}}`;
   const oldIndex = indexSources(state({'queue.ts': before}));const escaped = oldIndex.symbols.find(item => item.symbol.includes('.#')).symbol;
