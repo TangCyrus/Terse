@@ -76,7 +76,7 @@ test('M5 missing private removals fail for every strategy, preserve full checks 
     assert(report.verification.every(item => item.status === 'passed' && item.outputOmitted), JSON.stringify(report.verification));
     assert.deepEqual(report.undeclaredRemovals, [{path: 'src/queue.ts', symbol: 'Queue.#onEvent'}]);
     assert(report.findings.some(item => item.rule === 'REMOVAL_DECLARATION_MISSING' && item.severity === 'fail'));
-    assert(report.findings.some(item => item.rule === 'REMOVAL_REFERENCE_UNCERTAIN'));
+    assert(!report.findings.some(item => item.rule === 'REMOVAL_REFERENCE_UNCERTAIN'));
     const stored = JSON.parse(fs.readFileSync(report.reportPath, 'utf8'));
     assert.deepEqual(stored.undeclaredRemovals, report.undeclaredRemovals);assert.deepEqual(stored.findings, report.findings);
     assert.deepEqual(JSON.parse(fs.readFileSync(saved.decisionPath, 'utf8')).remove, []);
@@ -85,12 +85,12 @@ test('M5 missing private removals fail for every strategy, preserve full checks 
   input.remove = [{path: 'src/queue.ts', symbol: 'Queue.#onEvent'}];p.write('input.json', JSON.stringify(input));
   const updated = p.run(['decide', '--run', begun.run, '--input', 'input.json']);
   assert.deepEqual(updated.decision, input);
-  const corrected = p.run(['check', '--run', begun.run, '--summary'], 2);
+  const corrected = p.run(['check', '--run', begun.run, '--summary']);
   assert.deepEqual(corrected.undeclaredRemovals, []);
-  assert.deepEqual(corrected.findings.map(item => item.rule), ['REMOVAL_REFERENCE_UNCERTAIN']);
+  assert.deepEqual(corrected.findings, []);
   assert(corrected.verification.every(item => item.status === 'passed'));
   assert.equal(fs.readFileSync(path.join(p.root, 'executions.txt'), 'utf8'), '0123'.repeat(5));
-  const full = p.run(['check', '--run', begun.run], 2);
+  const full = p.run(['check', '--run', begun.run]);
   assert.deepEqual(full.findings, corrected.findings);assert.deepEqual(full.undeclaredRemovals, corrected.undeclaredRemovals);
 });
 

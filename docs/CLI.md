@@ -86,6 +86,8 @@ input 不能与 `--strategy`、`--rationale`、`--disposition`、`--reason`、`-
 
 `decisionGuide.removalGuide` 说明文件与符号删除的形状。原地修改允许空 remove；退役的文件、已索引路径/名称则须声明。check 对观察到的遗漏返回 `REMOVAL_DECLARATION_MISSING` / fail / 退出码 1，并在完整、summary 及落盘报告提供 `undeclaredRemovals`。该约束不依赖 strategy，推导目标仍进入 M4 引用检查，全部配置验证照常运行。读取原 decision，在同一 run 用完整 input 保留并补全声明，再完整复验；不以重新 begin 隐藏遗漏。补全后残留引用仍失败，不确定引用仍 review。范围、兼容边界及示例见 [删除声明约束](REMOVAL-DECLARATIONS.md)。Baseline.schema、Decision 形状、CLI schemaVersion 和既有归因算法不变。
 
+M4 可确认唯一同文件命名顶层类的 `#` 私有方法清理。旧私有名仍声明时为 `REMOVAL_REMAINS` / 1；词法引用残留为 `REMOVAL_REFERENCE_REMAINS` / 1；直接 eval、装饰器或类归属不明保留 `REMOVAL_REFERENCE_UNCERTAIN` / 2。确认清理仅消除此目标的复核，其他规则与全部验证不跳过。公共成员及 TypeScript `private` 继续保守处理，细节见 [私有方法清理](PRIVATE-CLEANUP.md)。以上数字表示该发现对应的状态，最终退出码仍按完整检查优先级计算。
+
 合法旧 run 无需迁移基线：工作区仍匹配基线时可再次 context 获得 ID；已经修改时，可保留原成功检索证据并用 input 引用基线中的 path/symbol。旧检索历史没有 ID 字段不因此失效；不带 candidate 的原有 input 用法继续支持，编辑后的新 ID 不能冒充旧基线候选。
 
 保存成功返回 `run`、`decisionPath`、`decision` 和 `next`，不自动选择第一个候选，不生成理由，也不消除重复发现。候选 ID 和本地证据是定位辅助，不是防篡改凭据。

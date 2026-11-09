@@ -94,7 +94,8 @@ export async function check(root: string, run: string, skipVerification = false)
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
       'Implementation anchor similarity is a conservative review heuristic, not semantic equivalence. Short functions, rewrites without shared literals or operations, and indirect delegation may not be covered.',
       'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
-      'Removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports without declared external ownership need review. Unresolved non-builtin require calls remain uncertain. No complete call graph or external consumer analysis.',
+      'File and ordinary symbol removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports without declared external ownership need review. Unresolved non-builtin require calls remain uncertain. No complete call graph or external consumer analysis.',
+      'ECMAScript #method cleanup is checked within a uniquely matched named top-level class in the same source. Nested private names shadow only their own class body; direct eval, decorators and ambiguous ownership retain review. This does not prove arbitrary public or TypeScript-private member cleanup.',
       'Removal declarations cover disappeared scanned files and indexed path/name identities, collapsing removed nested declarations into their parent. Same-path same-name replacements, individual overload signatures and unindexed syntax are not proven removals; coverage loss is not deletion.',
       'This report applies only to the recorded snapshot. Local evidence is not a tamper-proof CI attestation.'],
   };

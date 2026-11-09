@@ -92,7 +92,12 @@ export async function verifyPqueueSkillPublication(t, cohort) {
     if (!result.duplicationError) {
       assert.equal(replay.duplicationError, null);
       assert.equal(replay.newDuplications, result.newDuplications);assert.equal(replay.possibleDuplications, result.possibleDuplications);
-      assert.deepEqual(replay.cleanup, result.cleanup);
+      // Frozen historical findings/grades are validated above without rewriting.
+      // Current M4 can now confirm this exact lexical-private extraction.
+      if (task.id === 'refactor') {
+        assert.deepEqual(task.remove, [{path: 'source/index.ts', symbol: 'PQueue.#onEvent'}]);
+        assert.deepEqual(replay.cleanup, []);
+      } else assert.deepEqual(replay.cleanup, result.cleanup);
     }
   });
   return {report, archive, reviews, directory};
