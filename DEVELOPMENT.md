@@ -108,7 +108,7 @@ Finding.similarity 与顶层 similarityAlgorithm: implementation-anchors/1、pos
 
 输入是命令行参数，输出是文本或 JSON，以及进程退出码。负责参数校验、调用核心能力和结果呈现；业务规则留在对应核心模块。所有路径都从目标项目的 Git 根目录处理。
 
-命令为 `begin`、`context`、`decide`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
+命令为 `init`、`begin`、`context`、`decide`、`simplify`、`check`，帮助与版本同样支持 `--json`。所有 JSON 输出包含 `schemaVersion: 1`、`toolVersion`、`command`、`outputKind`、`status`、`exitCode`、`errors`、`diagnostics`。退出码为 `0` 通过、`1` 失败、`2` 需要评估、`3` 未完成或错误。
 
 `validateDecision` 为 decide/check 共用的形状校验器，`decide(root, run, options)` 按候选 ID 或 input 文件验证并保存；失败返回 `DECISION_INVALID` 和字段 issues，不覆盖原记录或运行项目验证。本次允许 input 携带 candidate，但仅校验基线 ID 对应的 path/symbol 已在 considered 中，不改变文件内容。`inputOptionIssues` 供 CLI 与核心入口共用，拒绝 input 与 strategy/rationale/disposition/reason/remove 的冲突，避免核心 API 静默忽略参数。
 

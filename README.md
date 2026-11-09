@@ -1,6 +1,6 @@
 # Terse
 
-Terse 为 coding agent 提供任务相关的代码检索、修改前基线和修改后重复检查，帮助 agent 优先复用和修改已有实现。
+Terse 为 coding agent 提供 JavaScript/TypeScript 代码精简工作流：收敛重复实现，在现有职责中完成需求，并验证实际源代码补丁。
 
 代码精简任务现在有可执行入口：`simplify` 可将同文件、签名和函数体一致的普通函数收敛到一个实现，保留原公开入口；`--apply` 实际写入并执行全部项目验证，成功后给出真实代码减少量。`npm run demo:simplify` 验证“先移除已有重复体，再在原实现增加需求”的过程。范围、结果与限制见 [执行代码精简](docs/SIMPLIFICATION.md)。
 
