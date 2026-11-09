@@ -2,7 +2,7 @@
 
 本文用于开发 Terse 本身：说明当前代码归属、模块接口、验证方式，以及按模块交付的顺序。产品使用方式见 [README.md](README.md)，长期目标与设计取舍见 [DESIGN.md](DESIGN.md)。
 
-当前版本为 v0.1.0。本轮 M5 删除声明约束以 `main` 的 `615ed0f` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22、M6 Skill 会话 #23 及 p-queue Skill 评测 #24；#24 在 Windows/Linux Node 24 CI 各通过 228 项测试（含子用例）及打包预检。本轮不包含 #21 分支，后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
+当前版本为 v0.1.0。本轮 M6 p-queue 删除声明复测以 `main` 的 `daca32d` 为起点，包含 M1–M6 首轮、评测与接入优化 #8–#20、M5 Skill 初始化 #22、M6 Skill 会话 #23、p-queue Skill 评测 #24 和 M5 删除声明约束 #25；#25 在 Windows/Linux Node 24 CI 各通过 237 项测试（含子用例）及打包预检。本轮不包含 #21 分支，后续数量以各提交 CI 为准。模块首轮完成不表示长期设计中的全部能力已实现。
 
 | 模块 | 已合并的首轮交付 | PR |
 | --- | --- | --- |
@@ -123,6 +123,10 @@ M5 新增项目接入入口 `init(root, verification?)` / `terse init [--verify 
 `npm run demo:agent` 通过安装后的启动器，完成正常订单需求的检索/决策、复制草稿的完整 check、同一基线上的复用修正及复验。复用既有工作区、CLI 调用和订单任务构造；初次与最终报告分别保留，明确是无模型调用的确定性接入示例。[init.test.mjs](test/init.test.mjs) 覆盖初始化、指令优先级、配置保留、命令及路径失败、状态传递和完整集成；Skill 模板随包发布。历史评测输入及发布文件不回填。
 
 ### M6 测试、示例与工程自动化
+
+本轮 [p-queue 删除声明复测](docs/PQUEUE-REMOVAL-SKILL-BENCHMARK.md) 在已合并 #25 的 main 上保持普通任务与四组验收，另测主动声明、真实遗漏与同一 run 修正。skill-evidence 复用既有阶段和检查区间判定，增加规则/缺失目标观察、会话结束时 finalRunStates 与 removalWorkflow；严格 workflow 不放宽。新发布单独保存，旧数据与产品/Skill 不修改。没有自然遗漏时不填造修正样本，元数据缺失单独记录。
+
+六次新真实会话现已完成：行为/非盲复用及实际清理审查 6/6，主动声明 4/4，遗漏与自主补填机会均为 0。声明检查完成 6/6，其中两次保留成员引用复核，因此严格工作流仍为 4/6。新发布与冻结归档位于 benchmarks/skill/p-queue-removal-observed 和 fixtures/6585f42…，旧数据和哈希不变。发布回归共用 pqueue-skill-publication 测试函数；补强同命令多响应反馈的保留，六份观察重算结论未改变，不将保留复核标作 pass。
 
 Skill 运行器增加 --suite p-queue / --source。适配器 [pqueue-skill.mjs](scripts/lib/pqueue-skill.mjs) 复用原三类业务任务与四组验收，普通提示不携带工具指令。原 benchmark-agent 与新套件共用 [open-source-project.mjs](scripts/lib/open-source-project.mjs) 的隔离复制/等价配置准备及 verifyCommand 的执行、计数和日志哈希；每个会话有独立依赖副本。新的 editable、initialScopeHash / finalScopeHash 将阶段判定扩展到 source/ 和 README，旧观察缺省仍兼容，不回填历史。上游源文本、锁和许可随新归档保存；规则见 [p-queue Skill 评测](docs/PQUEUE-SKILL-BENCHMARK.md)，离线边界回归见 [pqueue-skill.test.mjs](test/pqueue-skill.test.mjs)。
 

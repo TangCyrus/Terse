@@ -9,7 +9,7 @@ import {repository, invoke} from './lib/workspace.mjs';
 import {prepareEvaluation, analyzeEvaluation} from './lib/evaluation-project.mjs';
 import {collectChanges, protectedFileEvidence, inScope} from './lib/benchmark-project.mjs';
 import {runAgent} from './lib/agent-runner.mjs';
-import {hash, hashFiles, list, write, scopeHash, skillObserver, skillWorkflow} from './lib/skill-evidence.mjs';
+import {hash, hashFiles, list, write, scopeHash, skillObserver, skillWorkflow, captureRunStates, removalWorkflow} from './lib/skill-evidence.mjs';
 import {snapshot} from '../dist/project.js';
 
 const {values} = parseArgs({options: {codex: {type: 'string', default: 'codex'}, repetitions: {type: 'string', default: '2'}, suite: {type: 'string', default: 'orders'}, source: {type: 'string'}, 'preflight-only': {type: 'boolean'}}});
@@ -35,7 +35,7 @@ const fixtureFiles = [...new Set([
   'scripts/export-skill-benchmark.mjs', 'scripts/lib/skill-evidence.mjs', 'scripts/lib/agent-runner.mjs', 'scripts/lib/agent-events.mjs',
   'scripts/lib/workspace.mjs', 'scripts/lib/benchmark-project.mjs', 'scripts/lib/evaluation-project.mjs', 'test/skill-agent.test.mjs',
   'scripts/lib/open-source-project.mjs', 'scripts/lib/pqueue-skill.mjs',
-  ...(external ? [...pqueue.pqueueFixtureFiles, 'test/pqueue-skill.test.mjs'] : []),
+  ...(external ? [...pqueue.pqueueFixtureFiles, 'test/pqueue-skill.test.mjs', 'test/removal-workflow.test.mjs'] : []),
 ])].sort();
 const fixtureHashes = hashFiles(repository, fixtureFiles);
 const tasks = cases.map(({id, prompt, remove, acceptance, editable}) => ({id, prompt, promptHash: hash(prompt), remove, editable: editable ?? ['src/'],
@@ -80,7 +80,7 @@ const preflight = cases.map(scenario => {
   return {taskId: scenario.id, supportedBaseline: true, initial, referencePass: true};
 });
 const plan = {schemaVersion: 1, kind: 'agent-skill-integration', terseRevision: revision, specification, repetitions, cliVersion,
-  suite: values.suite, ...(upstream ? {upstream} : {}),
+  suite: values.suite, ...(upstream ? {upstream, removalTracking: 'removal-declarations/1'} : {}),
   tasks, fixtureHashes, preflight, criteria: 'Cold fresh sessions receive only ordinary development requirements. The host installs the released skill but does not begin, retrieve, decide, edit source, remind or repair. Workflow ordering and full final verification need observed evidence; behavior and source review are separate.'};
 write(path.join(output, 'plan.json'), plan);
 if (values['preflight-only']) {console.log(JSON.stringify({output, preflight}, null, 2));process.exit(0);}
@@ -107,10 +107,12 @@ for (let repetition = 1; repetition <= repetitions; repetition++) for (const sce
   const {after, ...structural} = analysis;
   const finalScopeHash = scopeHash(project, editable);
   write(path.join(directory, 'analysis.json'), structural);
-  const workflow = skillWorkflow(observer.observations, {initialHash: before.hash, finalHash: after?.hash ?? null,
+  const workflowOptions = {initialHash: before.hash, finalHash: after?.hash ?? null,
     editable, initialScopeHash, finalScopeHash,
     verification: config.verification, removals: scenario.remove,
-    traceComplete: agent.events.completed && !agent.observationErrors.length});
+    traceComplete: agent.events.completed && !agent.observationErrors.length};
+  const workflow = skillWorkflow(observer.observations, workflowOptions);
+  const finalRunStates = external ? captureRunStates(project) : undefined;
   const editViolations = observer.observations.flatMap(item => item.sourceEdits).filter(item => !inScope(item.path, editable) && !item.path.startsWith('.terse/'));
   const result = {artifactId, taskId: scenario.id, repetition, baselineHash: before.hash, snapshotHash: after?.hash ?? null,
     editable, initialScopeHash, finalScopeHash,
@@ -122,6 +124,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) for (const sce
     newDuplications: analysis.newDuplications, possibleDuplications: analysis.possibleDuplications, cleanup: analysis.cleanup, duplicationError: analysis.duplicationError,
     events: agent.events, agentExitCode: agent.exitCode, timedOut: agent.timedOut, blockedByPolicy: agent.blockedByPolicy,
     observationErrors: agent.observationErrors, agentMs: agent.agentMs,
+    ...(external ? {finalRunStates, removalWorkflow: removalWorkflow(observer.observations, {...workflowOptions, finalRunStates})} : {}),
     evidence: {patchHash: hash(changes.patch), eventHash: hash(fs.readFileSync(path.join(directory, 'agent.jsonl'))),
       promptHash: hash(fs.readFileSync(path.join(directory, 'prompt.txt'))), observationsHash: hash(fs.readFileSync(path.join(directory, 'observations.json'))),
       analysisHash: hash(fs.readFileSync(path.join(directory, 'analysis.json'))), initializationHash: hash(fs.readFileSync(path.join(directory, 'initialization.json')))}};

@@ -1,0 +1,56 @@
+[
+  {
+    "artifactId": "modify-session-1",
+    "patchHash": "637b7d5efb02a611a0e030d6668f49559e443451a152848d6d7036ec54783e24",
+    "eventHash": "10f5a2a34df3b421c43a5f755174323ff3f23d2f2a1272c18d510aa0a7458125",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "remainingReviewDisclosed": false,
+    "reason": "Extends the original shared #onEvent helper with cancellation and one cleanup path, forwards both wait options after pre-abort guards, and exports WaitOptions. README describes the API. Existing filtering, fast paths, jobs and independent listeners remain one implementation; no retired source path is introduced."
+  },
+  {
+    "artifactId": "delete-session-1",
+    "patchHash": "aa8456314bcd30116979d54eff27fca2d3b4e47576de7206f0911409729776ae",
+    "eventHash": "7de0c532956c6a6bdfa576900ec9cb8e31b8f2a6f6c581d91428c82f3a954e24",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "remainingReviewDisclosed": false,
+    "reason": "Completely removes lower-bound.ts and its import. The existing enqueue method now owns the binary index/end search, preserves append fast-path and insertion after equal priorities for FIFO. No old module or duplicate replacement helper remains."
+  },
+  {
+    "artifactId": "refactor-session-1",
+    "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+    "eventHash": "c3e5d8a899611592c9847005da6fbaa645a7ba3c9381eb4589ca722350faafb8",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "remainingReviewDisclosed": true,
+    "reason": "Removes the entire #onEvent method and its three calls, with all public waiters delegating to one waitForEvent helper. Fast paths and the queue-size filter are retained. The private removal was declared before editing; the final message discloses the removal warning and manual reference review, while the actual CLI status remains needs-review. The source has no stale private body or call."
+  },
+  {
+    "artifactId": "modify-session-2",
+    "patchHash": "869803963f7445ae987e7c333f8fa2841ea5b0fef89a6585855b288ea0520106",
+    "eventHash": "f2bdf1977db76a195d91588a0cfb30b50277e0182e94d7a58c0d9c1506011510",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "remainingReviewDisclosed": false,
+    "reason": "Independently reviewed the same-owner implementation: onEmpty/onIdle forward optional signals into the existing #onEvent helper; shared cleanup removes only that wait's queue and signal listeners. It preserves pre-abort and default behavior, exports the option type, and documents both methods without adding a parallel waiting pipeline."
+  },
+  {
+    "artifactId": "delete-session-2",
+    "patchHash": "22e1e9812bb2d54c29acae46f31eb92021657dfa8de87b8770b65af58d57828b",
+    "eventHash": "3ab439a4bca1ded359a3da60ba8a8e6266a16ab8721b1a499456739d895c76c7",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "remainingReviewDisclosed": false,
+    "reason": "Deletes the old module and import and integrates its first/count binary search directly into enqueue. The comparison advances after equal priorities, preserving stable FIFO and logarithmic comparisons. No retired entry point, second module or source reference remains."
+  },
+  {
+    "artifactId": "refactor-session-2",
+    "patchHash": "2cc71486ea1bfe1bc8177166e476afce924a68ff37e71424e6c7952164c75c48",
+    "eventHash": "0bf0f5f12495bc15114e01b8614c6ba00342e455e8d47341ac1ebc5b395dc9b9",
+    "duplicateFree": true,
+    "cleanupComplete": true,
+    "remainingReviewDisclosed": true,
+    "reason": "The inspected patch removes #onEvent and all three old calls and keeps a single reusable EventEmitter3 waitForEvent implementation. Runtime and type acceptance pass, fast paths/filter/other listeners remain intact. It declared the private target before editing and disclosed the remaining removal-review warning in its final delivery; the conservative needs-review status is retained."
+  }
+]

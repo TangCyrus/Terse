@@ -5,7 +5,7 @@ import {gzipSync, gunzipSync} from 'node:zlib';
 import {parseArgs} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import {repository} from './lib/workspace.mjs';
-import {hash, hashFiles, write, skillSummary, skillWorkflow} from './lib/skill-evidence.mjs';
+import {hash, hashFiles, write, skillSummary, skillWorkflow, removalSummary, removalWorkflow} from './lib/skill-evidence.mjs';
 
 export function exportSkillBenchmark(source, target, archiveDirectory) {
   const report = JSON.parse(fs.readFileSync(path.join(source, 'report.json'), 'utf8'));
@@ -44,10 +44,15 @@ export function exportSkillBenchmark(source, target, archiveDirectory) {
       copies.push([path.join(directory, file), `${result.artifactId}.${file}`]);
     }
     const observations = JSON.parse(fs.readFileSync(path.join(directory, 'observations.json'), 'utf8'));
-    assert.deepEqual(result.workflow, skillWorkflow(observations, {initialHash: result.baselineHash, finalHash: result.snapshotHash,
+    const workflowOptions = {initialHash: result.baselineHash, finalHash: result.snapshotHash,
       editable: result.editable, initialScopeHash: result.initialScopeHash, finalScopeHash: result.finalScopeHash,
       verification: result.verification, removals: report.tasks.find(item => item.id === result.taskId).remove,
-      traceComplete: result.events.completed && !result.observationErrors.length}));
+      traceComplete: result.events.completed && !result.observationErrors.length};
+    assert.deepEqual(result.workflow, skillWorkflow(observations, workflowOptions));
+    if (report.removalTracking) {
+      assert.equal(report.removalTracking, 'removal-declarations/1');
+      assert.deepEqual(result.removalWorkflow, removalWorkflow(observations, {...workflowOptions, finalRunStates: result.finalRunStates}));
+    }
     for (const [file, key] of [['agent.jsonl', 'eventHash'], ['prompt.txt', 'promptHash'], ['initialization.json', 'initializationHash']]) {
       assert.equal(hash(fs.readFileSync(path.join(directory, file))), result.evidence[key]);
     }
@@ -57,6 +62,7 @@ export function exportSkillBenchmark(source, target, archiveDirectory) {
       observationErrors: result.observationErrors.map(() => 'Observation error; raw detail retained locally'),
       patch: `${result.artifactId}.implementation.patch`, observations: `${result.artifactId}.observations.json`, analysis: `${result.artifactId}.analysis.json`};
   });
+  const trackedSummary = report.removalTracking ? {removalSummary: removalSummary(results)} : {};
   // Preflight both destinations before writing. Existing cohorts are immutable.
   const archive = path.join(archiveDirectory, `${report.terseRevision}.json.gz`);
   assert(!fs.existsSync(target));assert(!fs.existsSync(archive));
@@ -66,12 +72,12 @@ export function exportSkillBenchmark(source, target, archiveDirectory) {
     fs.writeFileSync(path.join(target, 'LICENSE'), upstreamLicense, {flag: 'wx'});
   }
   write(path.join(target, 'reviews.json'), reviews);
-  write(path.join(target, 'report.json'), {...report, results, summary,
+  write(path.join(target, 'report.json'), {...report, results, summary, ...trackedSummary,
     fixtureCanonicalHashes: Object.fromEntries(Object.entries(files).map(([file, input]) => [file, hash(input.replaceAll('\r\n', '\n'))])),
     publication: 'Raw event streams, command outputs, prompts and local initialization paths remain local, identified by SHA-256. Published patches, observations and source review are separate from automatic workflow counts. No control arm or causal improvement claim.'});
   fs.writeFileSync(archive, gzipSync(Buffer.from(JSON.stringify({schemaVersion: 1, revision: report.terseRevision, files, ...(upstreamInputs ? {upstreamInputs} : {}),
     publicationHashes: hashFiles(target, fs.readdirSync(target).sort())}))), {flag: 'wx'});
-  return {output: target, summary, archive};
+  return {output: target, summary, ...trackedSummary, archive};
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

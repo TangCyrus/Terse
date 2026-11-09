@@ -14,6 +14,8 @@ Terse 为 coding agent 提供任务相关的代码检索、修改前基线和修
 
 真实开源项目入口为 `npm run benchmark:skill -- --suite p-queue --source <固定工作区>`，沿用 p-queue 的修改、删除和重构验收，保留编译、任务行为、上游 AVA 和严格类型四组检查。六次真实会话的行为、复用与清理审查均达标，但两次重构漏填删除声明，严格工作流仅 4/6 通过。结果与限制见 [p-queue Skill 接入评测](docs/PQUEUE-SKILL-BENCHMARK.md)，数据与历史分开保存。
 
+合并删除声明约束后的新一轮 p-queue 复测中，行为与复用/实际清理审查 6/6 达标，四次有删除目标的会话均主动声明。没有自然遗漏，尚无真实补填修正证据；两次重构保留 M4 复核，严格工作流仍为 4/6。方法及指标区别见 [p-queue 删除声明复测](docs/PQUEUE-REMOVAL-SKILL-BENCHMARK.md)，历史数据不回填。
+
 ## 安装与验证
 
 需要 Node.js 24 或更新版本，以及 PATH 中可用的 Git。在仓库目录运行：
