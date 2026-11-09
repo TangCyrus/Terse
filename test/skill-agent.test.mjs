@@ -7,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {skillCases} from '../scripts/skill-cases.mjs';
 import {cases} from '../scripts/evaluation-cases.mjs';
-import {hash, hashFiles, list, write, skillObserver, skillWorkflow, skillSummary} from '../scripts/lib/skill-evidence.mjs';
+import {hash, hashFiles, list, write, skillObserver, skillWorkflow, skillSummary, captureRunStates, removalWorkflow} from '../scripts/lib/skill-evidence.mjs';
 import {runAgent} from '../scripts/lib/agent-runner.mjs';
 import {exportSkillBenchmark} from '../scripts/export-skill-benchmark.mjs';
 import {gzipSync, gunzipSync} from 'node:zlib';
@@ -184,4 +184,19 @@ test('skill exporter preserves incomplete sessions, verifies hashes and refuses 
   assert(!JSON.parse(reportBytes).results[0].events.finalMessage);
   assert.throws(() => exportSkillBenchmark(source, target, archive));
   assert.deepEqual(fs.readFileSync(path.join(target, 'report.json')), reportBytes);
+  const trackedSource = path.join(parent, 'tracked-raw');fs.cpSync(source, trackedSource, {recursive: true});
+  const trackedPlan = JSON.parse(fs.readFileSync(path.join(trackedSource, 'report.json'), 'utf8'));
+  const finalRunStates = captureRunStates(project);
+  trackedPlan.removalTracking = 'removal-declarations/1';
+  trackedPlan.results = [{...result, finalRunStates, removalWorkflow: removalWorkflow(observer.observations,
+    {...options, traceComplete: false, finalRunStates})}];
+  fs.writeFileSync(path.join(trackedSource, 'report.json'), JSON.stringify(trackedPlan));
+  const tracked = exportSkillBenchmark(trackedSource, path.join(parent, 'tracked-publication'), path.join(parent, 'tracked-archive'));
+  assert.equal(tracked.removalSummary.sessions, 1);assert.equal(tracked.removalSummary.declarationChecksCompleted, 0);
+  assert.equal(tracked.removalSummary.applicable, 0);
+  trackedPlan.results[0].removalWorkflow.declarationCheckCompleted = true;
+  fs.writeFileSync(path.join(trackedSource, 'report.json'), JSON.stringify(trackedPlan));
+  const invalidTarget = path.join(parent, 'invalid-tracked');
+  assert.throws(() => exportSkillBenchmark(trackedSource, invalidTarget, path.join(parent, 'invalid-archive')));
+  assert.equal(fs.existsSync(invalidTarget), false);
 });

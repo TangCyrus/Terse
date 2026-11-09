@@ -124,6 +124,8 @@ M5 新增项目接入入口 `init(root, verification?)` / `terse init [--verify 
 
 ### M6 测试、示例与工程自动化
 
+本轮 [p-queue 删除声明复测](docs/PQUEUE-REMOVAL-SKILL-BENCHMARK.md) 在已合并 #25 的 main 上保持普通任务与四组验收，另测主动声明、真实遗漏与同一 run 修正。skill-evidence 复用既有阶段和检查区间判定，增加规则/缺失目标观察、会话结束时 finalRunStates 与 removalWorkflow；严格 workflow 不放宽。新发布单独保存，旧数据与产品/Skill 不修改。没有自然遗漏时不填造修正样本，元数据缺失单独记录。
+
 Skill 运行器增加 --suite p-queue / --source。适配器 [pqueue-skill.mjs](scripts/lib/pqueue-skill.mjs) 复用原三类业务任务与四组验收，普通提示不携带工具指令。原 benchmark-agent 与新套件共用 [open-source-project.mjs](scripts/lib/open-source-project.mjs) 的隔离复制/等价配置准备及 verifyCommand 的执行、计数和日志哈希；每个会话有独立依赖副本。新的 editable、initialScopeHash / finalScopeHash 将阶段判定扩展到 source/ 和 README，旧观察缺省仍兼容，不回填历史。上游源文本、锁和许可随新归档保存；规则见 [p-queue Skill 评测](docs/PQUEUE-SKILL-BENCHMARK.md)，离线边界回归见 [pqueue-skill.test.mjs](test/pqueue-skill.test.mjs)。
 
 p-queue 六次真实会话已完成：行为、人工复用与清理审查各 6/6，完整工作流 4/6。两次重构漏填旧私有方法的删除声明，保留失败计分；父分析的成员引用不确定提示也原样保存，不视为实际残留。四组验证由父进程独立复验，决策格式重试为 0，但保留环境重试及重构中的类型修正。[pqueue-skill-publication.test.mjs](test/pqueue-skill-publication.test.mjs) 校验新发布的 21 个文件、冻结输入及上游锁，重算工作流并静态回放六份补丁；不调用模型或冒充再次运行上游行为测试。旧各轮发布与产品 src/、Skill 模板均未修改。

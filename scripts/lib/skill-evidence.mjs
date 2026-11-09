@@ -21,15 +21,9 @@ export function scopeHash(project, editable) {
     fs.lstatSync(path.join(project, file)).isFile() ? hash(fs.readFileSync(path.join(project, file))) : 'non-regular'])));
 }
 
-export function skillObserver(project, protectedHashes, {editable = ['src/']} = {}) {
-  const observations = [];
-  const skill = normal(fs.readFileSync(path.join(project, '.agents/skills/terse/SKILL.md'), 'utf8'));
-  return {observations, observe(event) {
-    const item = event.item;
-    if (!['item.started', 'item.completed'].includes(event.type) || !['command_execution', 'file_change'].includes(item?.type)) return;
-    const state = snapshot(project);
-    const runs = path.join(project, '.terse/runs');
-    const runStates = fs.existsSync(runs) ? fs.readdirSync(runs).map(run => {
+export function captureRunStates(project) {
+  const runs = path.join(project, '.terse/runs');
+  return fs.existsSync(runs) ? fs.readdirSync(runs).map(run => {
       try {
         const {baseline, dir} = loadRun(project, run);
         const {decision} = validateDecision(readJson(path.join(dir, 'decision.json')));
@@ -39,13 +33,27 @@ export function skillObserver(project, protectedHashes, {editable = ['src/']} = 
           decided: !!decision, decisionHash: decision ? hash(JSON.stringify(decision)) : null,
           strategy: decision?.strategy ?? null, remove: decision?.remove ?? []};
       } catch { return {run, invalid: true}; }
-    }) : [];
+  }) : [];
+}
+
+export function skillObserver(project, protectedHashes, {editable = ['src/']} = {}) {
+  const observations = [];
+  const skill = normal(fs.readFileSync(path.join(project, '.agents/skills/terse/SKILL.md'), 'utf8'));
+  return {observations, observe(event) {
+    const item = event.item;
+    if (!['item.started', 'item.completed'].includes(event.type) || !['command_execution', 'file_change'].includes(item?.type)) return;
+    const state = snapshot(project);
+    const runStates = captureRunStates(project);
     const commandOutput = event.type === 'item.completed' && item.type === 'command_execution' ? item.aggregated_output ?? '' : '';
     const responses = jsonObjects(commandOutput).filter(value => value.schemaVersion === 1 && ['begin', 'context', 'decide', 'check'].includes(value.command))
       .map(value => ({command: value.command, run: value.run ?? null, status: value.status, outputKind: value.outputKind, exitCode: value.exitCode,
         baselineHash: value.baselineHash ?? null, snapshotHash: value.snapshotHash ?? null,
         verification: (value.verification ?? []).map(item => ({status: item.status, command: item.command})),
-        errors: value.errors?.length ?? 0}));
+        errors: value.errors?.length ?? 0,
+        ...(value.command === 'check' && Array.isArray(value.undeclaredRemovals) && Array.isArray(value.findings) ? {
+          undeclaredRemovals: value.undeclaredRemovals.map(({path, symbol}) => ({path, ...(symbol === undefined ? {} : {symbol})})),
+          findings: value.findings.map(({rule, severity}) => ({rule, severity})),
+        } : {})}));
     const tampered = Object.entries(protectedHashes).filter(([file, expected]) => {
       try { return !fs.lstatSync(path.join(project, file)).isFile() || hash(fs.readFileSync(path.join(project, file))) !== expected; }
       catch { return true; }
@@ -73,22 +81,7 @@ export function skillWorkflow(observations, {initialHash, finalHash, verificatio
   const retrieval = beforeEdit.find(item => item.sourceHash === initialHash && item.runStates.some(state => validRun(state) && state.retrieved));
   const decision = beforeEdit.find(item => item.sourceHash === initialHash && item.runStates.some(state => validRun(state) && state.retrieved && state.decided
     && removals.every(removal => state.remove.some(actual => actual.path === removal.path && actual.symbol === removal.symbol))));
-  const lastCheck = observations.flatMap(item => {
-    const responses = item.responses.filter(response => response.command === 'check');
-    const attempts = Math.max(item.checkAttempts ?? 0, responses.length);
-    // Missing responses make a multi-call command ambiguous. A later separately
-    // observed full check can recover; an old pass cannot hide this attempt.
-    if (!attempts) return [];
-    const start = observations.findLast(candidate => candidate.sequence < item.sequence && candidate.itemId === item.itemId
-      && candidate.event === 'item.started' && candidate.itemType === 'command_execution');
-    // A completed command may contain edits after check. Bind new scoped traces
-    // to the entire observed command interval, withholding credit if ambiguous.
-    // Legacy cohorts have no scope checkpoints and keep their original grading.
-    const scopeStable = finalScopeHash === undefined || !!start && typeof item.scopeHash === 'string'
-      && observations.filter(candidate => candidate.sequence >= start.sequence && candidate.sequence <= item.sequence)
-        .every(candidate => candidate.scopeHash === item.scopeHash);
-    return [{sequence: item.sequence, scopeHash: item.scopeHash, scopeStable, response: attempts > responses.length ? null : responses.at(-1)}];
-  }).at(-1);
+  const lastCheck = observedChecks(observations, finalScopeHash).at(-1);
   const fullFinalCheck = !!lastCheck?.response && lastCheck.scopeStable && lastCheck.response.outputKind === 'result' && lastCheck.response.run === run
     && lastCheck.response.baselineHash === initialHash && lastCheck.response.snapshotHash === finalHash
     && (finalScopeHash === undefined || lastCheck.scopeHash === finalScopeHash)
@@ -102,6 +95,77 @@ export function skillWorkflow(observations, {initialHash, finalHash, verificatio
   return {...stages, completed: traceComplete && Object.values(stages).every(Boolean) && observations.every(item => !item.tampered.length),
     evidence: {run, firstEditSequence: firstEdit?.sequence ?? null, beginSequence: beginning?.sequence ?? null,
       retrievalSequence: retrieval?.sequence ?? null, decisionSequence: decision?.sequence ?? null, finalCheckSequence: lastCheck?.sequence ?? null}};
+}
+
+function observedChecks(observations, finalScopeHash) {
+  return observations.flatMap(item => {
+    const responses = item.responses.filter(response => response.command === 'check');
+    const attempts = Math.max(item.checkAttempts ?? 0, responses.length);
+    // Missing responses make a multi-call command ambiguous. A later separately
+    // observed full check can recover; an old pass cannot hide this attempt.
+    if (!attempts) return [];
+    const start = observations.findLast(candidate => candidate.sequence < item.sequence && candidate.itemId === item.itemId
+      && candidate.event === 'item.started' && candidate.itemType === 'command_execution');
+    // A completed command may contain edits after check. Bind new scoped traces
+    // to the entire observed command interval, withholding credit if ambiguous.
+    // Legacy cohorts have no scope checkpoints and keep their original grading.
+    const scopeStable = finalScopeHash === undefined || !!start && typeof item.scopeHash === 'string'
+      && observations.filter(candidate => candidate.sequence >= start.sequence && candidate.sequence <= item.sequence)
+        .every(candidate => candidate.scopeHash === item.scopeHash);
+    return [{sequence: item.sequence, startSequence: start?.sequence ?? null, scopeHash: item.scopeHash, scopeStable,
+      response: attempts > responses.length ? null : responses.at(-1)}];
+  });
+}
+
+// Separate from strict workflow: an explicit needs-review is never relabeled pass.
+// This measures declaration repair with stable decision and full-check evidence.
+export function removalWorkflow(observations, options) {
+  const workflow = skillWorkflow(observations, options);
+  const {initialHash, removals = [], finalRunStates = []} = options;
+  const run = workflow.evidence.run;
+  const valid = state => !!state && !state.invalid && state.run === run && state.baselineHash === initialHash && state.retrieved && state.decided;
+  const covers = (state, targets) => valid(state) && targets.every(target => state.remove.some(item => item.path === target.path && item.symbol === target.symbol));
+  const declared = state => covers(state, removals);
+  const stateAt = item => item?.runStates.find(state => state.run === run);
+  const sameRun = workflow.singleRun && finalRunStates.length === 1 && valid(finalRunStates[0]);
+  const finalDeclared = sameRun && declared(finalRunStates[0]);
+  const checks = observedChecks(observations, options.finalScopeHash);
+  const omissions = checks.filter(item => item.response?.run === run && item.response.baselineHash === initialHash
+    && item.response.findings?.some(finding => finding.rule === 'REMOVAL_DECLARATION_MISSING' && finding.severity === 'fail')
+    && item.response.undeclaredRemovals?.length);
+  const corrections = omissions.map(omission => ({omission, observed: observations.find(item => omission.sequence < item.sequence
+    && declared(stateAt(item)) && covers(stateAt(item), omission.response.undeclaredRemovals)
+    && stateAt(item).decisionHash !== stateAt(observations.find(observed => observed.sequence === omission.sequence))?.decisionHash)})).filter(item => item.observed);
+  const last = checks.at(-1), response = last?.response;
+  const metadataAvailable = Array.isArray(response?.findings) && Array.isArray(response?.undeclaredRemovals);
+  const checkTraceComplete = checks.length > 0 && checks.every(item => Array.isArray(item.response?.findings) && Array.isArray(item.response?.undeclaredRemovals));
+  const interval = last?.startSequence === null || !last ? [] : observations.filter(item => item.sequence >= last.startSequence && item.sequence <= last.sequence);
+  const finalDecisionBound = !!finalDeclared && interval.length > 1 && interval.every(item => declared(stateAt(item))
+    && stateAt(item).decisionHash === finalRunStates[0].decisionHash);
+  const decisionSavedBeforeEdit = observations.some(item => item.sequence < workflow.evidence.firstEditSequence
+    && item.sourceHash === initialHash && valid(stateAt(item)));
+  const declarationCheckCompleted = !!options.traceComplete && sameRun && finalDecisionBound && decisionSavedBeforeEdit
+    && ['skillReadObserved', 'beginBeforeEdit', 'retrievalBeforeEdit', 'sourceChanged', 'fullFinalCheck'].every(key => workflow[key])
+    && observations.every(item => !item.tampered.length) && metadataAvailable && !response.undeclaredRemovals.length
+    && response.errors === 0 && response.verification.every(item => item.status === 'passed')
+    && (response.status === 'pass' && !response.findings.length || response.status === 'needs-review'
+      && response.findings.length > 0 && response.findings.every(item => item.severity === 'review'));
+  return {applicable: removals.length > 0, proactiveDeclaration: removals.length > 0 && workflow.decisionBeforeEdit,
+    omissionDetected: omissions.length > 0, declarationCorrected: corrections.length > 0,
+    correctionVerified: declarationCheckCompleted && corrections.some(item => last.sequence > item.observed.sequence
+      && covers(finalRunStates[0], item.omission.response.undeclaredRemovals)),
+    finalDeclared, metadataAvailable, checkTraceComplete, finalDecisionBound, declarationCheckCompleted,
+    finalCheckStatus: response?.status ?? null, finalReviewRules: [...new Set((response?.findings ?? []).filter(item => item.severity === 'review').map(item => item.rule))].sort(),
+    evidence: {run, omissionCheckSequences: omissions.map(item => item.sequence), correctionSequence: corrections[0]?.observed.sequence ?? null, finalCheckSequence: last?.sequence ?? null}};
+}
+
+export function removalSummary(results) {
+  const count = predicate => results.filter(item => predicate(item.removalWorkflow)).length;
+  assert(results.every(item => item.removalWorkflow), 'Every session must retain declaration evidence, including failures');
+  return {sessions: results.length, applicable: count(item => item.applicable), proactiveDeclarations: count(item => item.proactiveDeclaration),
+    omissionsDetected: count(item => item.omissionDetected), declarationsCorrected: count(item => item.declarationCorrected), correctionsVerified: count(item => item.correctionVerified),
+    finalDeclarationsComplete: count(item => item.applicable && item.finalDeclared), declarationChecksCompleted: count(item => item.declarationCheckCompleted), checkTracesComplete: count(item => item.checkTraceComplete),
+    remainingReview: count(item => item.declarationCheckCompleted && item.finalCheckStatus === 'needs-review')};
 }
 
 export function skillSummary(results, reviews) {
