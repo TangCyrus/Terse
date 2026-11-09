@@ -65,12 +65,12 @@ export function exportPaidOrders(input: Order[], user: string): string {
         p.write('reporting.ts', p.read('orders.ts'));
         p.write('routes.ts', p.read('routes.ts').replace("'./orders.ts'", "'./reporting.ts'"));
       }),
-      variant('reuse', 'refactor', 'pass', false, [], 'passed', p => {
+      {...variant('reuse', 'refactor', 'pass', false, [], 'passed', p => {
         const original = p.read('orders.ts');
         p.write('reporting.ts', original);
         p.write('orders.ts', original.slice(0, original.indexOf('// 订单导出')) + "export { exportOrders } from './reporting.ts';\n");
         p.write('routes.ts', p.read('routes.ts').replace("'./orders.ts'", "'./reporting.ts'"));
-      }),
+      }), remove: [{path: 'src/orders.ts', symbol: 'exportOrders'}]},
     ],
   },
   {

@@ -42,7 +42,7 @@ for (const scenario of cases) {
     else assert.equal(context.candidates.length, 0, 'The new responsibility must have no matching baseline candidate');
     fs.writeFileSync(begin.decisionPath, JSON.stringify({ strategy: variant.strategy, rationale: scenario.rationale,
       considered: scenario.candidate ? [{ ...scenario.candidate, disposition: variant.strategy === 'new' ? 'reject' : 'modify', reason: scenario.rationale }] : [],
-      remove: scenario.remove ?? [],
+      remove: variant.remove ?? scenario.remove ?? [],
     }, null, 2));
     // Variant editors can only change src files; acceptance was installed by shared preparation.
     const tests = () => Object.fromEntries(fs.readdirSync(path.join(project, 'test')).sort().map(name => [name, digest(fs.readFileSync(path.join(project, 'test', name)))]));

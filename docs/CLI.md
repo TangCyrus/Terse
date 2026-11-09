@@ -84,6 +84,8 @@ M1 基线读取失败沿用 `COMMAND_ERROR` 和 `stage: "command"`，通过 `cau
 
 input 不能与 `--strategy`、`--rationale`、`--disposition`、`--reason`、`--remove` 混用；这些值应写在文件中。命令不会把两种来源隐式合并。形状见 [decision.schema.json](decision.schema.json)，决策文件格式本身不变；命令仍验证每个候选存在、非 new 策略有未拒绝候选、基线检索成功。候选断言不代替完整格式或前置条件校验。
 
+`decisionGuide.removalGuide` 说明文件与符号删除的形状。原地修改允许空 remove；退役的文件、已索引路径/名称则须声明。check 对观察到的遗漏返回 `REMOVAL_DECLARATION_MISSING` / fail / 退出码 1，并在完整、summary 及落盘报告提供 `undeclaredRemovals`。该约束不依赖 strategy，推导目标仍进入 M4 引用检查，全部配置验证照常运行。读取原 decision，在同一 run 用完整 input 保留并补全声明，再完整复验；不以重新 begin 隐藏遗漏。补全后残留引用仍失败，不确定引用仍 review。范围、兼容边界及示例见 [删除声明约束](REMOVAL-DECLARATIONS.md)。Baseline.schema、Decision 形状、CLI schemaVersion 和既有归因算法不变。
+
 合法旧 run 无需迁移基线：工作区仍匹配基线时可再次 context 获得 ID；已经修改时，可保留原成功检索证据并用 input 引用基线中的 path/symbol。旧检索历史没有 ID 字段不因此失效；不带 candidate 的原有 input 用法继续支持，编辑后的新 ID 不能冒充旧基线候选。
 
 保存成功返回 `run`、`decisionPath`、`decision` 和 `next`，不自动选择第一个候选，不生成理由，也不消除重复发现。候选 ID 和本地证据是定位辅助，不是防篡改凭据。

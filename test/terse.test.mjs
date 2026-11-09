@@ -49,6 +49,13 @@ function ready(root, { symbol = 'calculate', file = 'src/calculate.js', remove =
   return run.run;
 }
 
+function declareRemovals(root, run, targets) {
+  const file = path.join(root, '.terse/runs', run, 'decision.json');
+  const decision = JSON.parse(fs.readFileSync(file, 'utf8'));
+  decision.remove.push(...targets);
+  fs.writeFileSync(file, JSON.stringify(decision));
+}
+
 test('baseline captures dirty/staged/untracked content, excludes generated files, and ignores its own cache', t => {
   const p = project(t);
   execFileSync('git', ['add', 'src/calculate.js'], { cwd: p.root });
@@ -186,6 +193,7 @@ test('new copy is reported, existing clone remains baseline, and identical movem
   assert(unchanged.baselineClones > 0);
   assert.equal(unchanged.newDuplications, 0);
   assert.equal(unchanged.status, 'pass');
+  declareRemovals(p.root, run, [{path: 'src/old.js'}]);
   fs.renameSync(path.join(p.root, 'src/old.js'), path.join(p.root, 'src/moved.js'));
   p.write('src/moved.js', '\n// new comment\n' + body.replace('calculate', 'previous'));
   assert.equal((await check(p.root, run)).newDuplications, 0);
@@ -230,7 +238,7 @@ test('expanded duplicates and extra copies have reproducible occurrence evidence
 
 test('moving multiple copies with whitespace changes preserves historical duplication', async t => {
   const p = project(t, { 'src/calculate.js': body, 'src/old.js': body.replace('calculate', 'previous'), 'src/third.js': body.replace('calculate', 'third') });
-  const run = ready(p.root);
+  const run = ready(p.root, {remove: [{path: 'src/third.js'}]});
   fs.renameSync(path.join(p.root, 'src/third.js'), path.join(p.root, 'src/aaa.js'));
   p.write('src/old.js', '// shifted\n\n' + body.replace('calculate', 'previous').replaceAll('  ', '    '));
   const report = await check(p.root, run);
@@ -555,6 +563,7 @@ test('forwarding replacements and custom require calls are reviewed rather than 
   assert.equal(result.status, 'needs-review');
   assert.equal(result.findings.filter(f => f.rule === 'REMOVAL_REFERENCE_UNCERTAIN').length, 2);
   assert(!result.findings.some(f => f.severity === 'fail'));
+  declareRemovals(p.root, run, [{path: 'src/new.js', symbol: 'replacement'}]);
   p.write('src/new.js', 'export function obsolete() { return 2; }');
   p.write('src/legacy.js', "export { obsolete } from './new.js';");
   assert.equal((await check(p.root, run)).status, 'needs-review');

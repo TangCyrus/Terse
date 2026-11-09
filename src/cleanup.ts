@@ -5,6 +5,24 @@ import type { Decision, Finding, Snapshot } from './types.js';
 
 type Index = ReturnType<typeof indexSources>;
 
+// Compare indexed identities, not task wording or the chosen strategy. Moving or
+// renaming a declaration retires its old path/name even if a new owner exists.
+// Exact AST spans collapse nested helpers into their removed parent, including
+// declarations that share a line. Coverage loss is not proof of removal.
+export function undeclaredRemovals(before: Snapshot, after: Snapshot, oldIndex: Index, current: Index, declared: Decision['remove']): Decision['remove'] {
+  const uncovered = new Set(after.skipped.map(item => item.path));
+  const targets: Decision['remove'] = Object.keys(before.files).filter(file => !Object.hasOwn(after.files, file) && !uncovered.has(file)).map(path => ({ path }));
+  const currentNames = new Set(current.symbols.map(item => JSON.stringify([item.path, item.symbol])));
+  const missing = oldIndex.declarations.filter(({ location }) => Object.hasOwn(after.files, location.path)
+    && !currentNames.has(JSON.stringify([location.path, location.symbol])));
+  for (const declaration of missing) {
+    if (missing.some(parent => parent.location.path === declaration.location.path && parent.start < declaration.start && parent.end >= declaration.end)) continue;
+    const { path, symbol } = declaration.location;
+    if (!targets.some(target => target.path === path && target.symbol === symbol)) targets.push({ path, symbol });
+  }
+  return targets.filter(target => !declared.some(item => item.path === target.path && (item.symbol === undefined || item.symbol === target.symbol)));
+}
+
 // Bind local declarations and export aliases without reading libraries or live files.
 function bindings(state: Snapshot) {
   const prefix = '/__terse__/';

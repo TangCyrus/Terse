@@ -15,7 +15,7 @@
         "reason": { "type": "string", "pattern": "\\S" }
       }
     } },
-    "remove": { "type": "array", "items": {
+    "remove": { "description": "Files and indexed declarations to retire at their baseline path/name. Empty is valid for in-place changes. Check rejects observed undeclared removals; a file target cannot substitute for a symbol target while that file remains.", "type": "array", "items": {
       "type": "object", "required": ["path"],
       "properties": { "path": { "type": "string", "pattern": "\\S" }, "symbol": { "type": "string", "pattern": "\\S" } }
     } }

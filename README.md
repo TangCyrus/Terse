@@ -6,6 +6,8 @@ Terse 为 coding agent 提供任务相关的代码检索、修改前基线和修
 
 参与开发请阅读 [开发文档](DEVELOPMENT.md)，其中包含 M1–M6 的合并进度、当前接口、验证方式和后续分模块交付计划。
 
+删除或迁移基线文件、已索引声明时，check 会核对 `decision.remove`，漏填返回 fail 和可补全的 `undeclaredRemovals`；原地修改仍允许空列表。文件保留时的私有方法提取须填写精确符号，补全后继续处理残留引用与复核项。详见 [删除声明约束](docs/REMOVAL-DECLARATIONS.md)。
+
 已有项目可运行 `node <Terse>/dist/cli.js init --cwd <项目>`，安装项目级 Agent Skill 与指令。随后在该项目开启 agent 会话，普通 JS/TS 开发需求即可按项目约定触发检索、决策和完整检查。已有配置保留，缺少真实验证命令时会提示补齐。安装与能力边界见 [Agent 接入](docs/AGENT-INTEGRATION.md)，`npm run demo:agent` 可验证完整接入及重复提示后的修正流程。
 
 `npm run benchmark:skill` 用独立新会话验证安装后的实际接入：任务只给普通开发需求，分别测量修改前读取/检索/决策、最终完整检查和独立行为验收。本轮修改、删除、重构各两次，六个真实会话均自主完成流程，行为、复用与清理审查达标。方法与局限见 [Skill 真实会话评测](docs/SKILL-AGENT-BENCHMARK.md)；这是当前宿主的小样本接入证据，不与确定性 demo 或旧对照数据混算，也不推断相对收益。

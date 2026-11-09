@@ -102,5 +102,7 @@ export function decisionGuide(root: string, run: string) {
     argvTemplate: ['decide', '--cwd', root, '--run', run, '--strategy', '<strategy>', '--rationale', '<your reason>', '--candidate', '<candidateId>', '--json'],
     inputArgvTemplate: ['decide', '--cwd', root, '--run', run, '--input', '<decision.json>', '--json'],
     inputCandidateRole: 'assertion', inputExclusiveFlags: inputExclusiveFlags.map(flag => `--${flag}`),
+    removalGuide: { file: { path: '<baseline source path>' }, symbol: { path: '<baseline source path>', symbol: '<exact baseline symbol, e.g. PQueue.#onEvent>' },
+      notes: 'Declare files and indexed declarations you will remove or move in decision.remove before editing. In-place refactors may keep remove empty. --remove declares whole files; symbol removals use the complete --input decision. Check fails with REMOVAL_DECLARATION_MISSING and undeclaredRemovals for observed omissions, regardless of strategy. Amend the same run, preserve existing considered/remove entries, and rerun full check; declaring a target does not resolve M4 reference uncertainty.' },
     notes: 'Choose candidates explicitly. Reuse defaults to reuse, modify/refactor to modify, new to reject. Complex records use inputArgvTemplate: the file is the complete decision. Optional --candidate IDs assert existing input.considered entries; they never append candidates or override dispositions, reasons or removals.' };
 }
