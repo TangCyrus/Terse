@@ -7,6 +7,7 @@ import {pqueueCases, pqueueCommands, installPqueueAcceptance, pqueueFixture} fro
 import {prepareOpenSourceProject} from '../scripts/lib/open-source-project.mjs';
 import {hashFiles, scopeHash, skillObserver, skillWorkflow} from '../scripts/lib/skill-evidence.mjs';
 import {verifyCommand} from '../scripts/lib/benchmark-project.mjs';
+import {freezeTestCases} from '../scripts/lib/test-evidence.mjs';
 import {invoke} from '../scripts/lib/workspace.mjs';
 import {snapshot} from '../dist/project.js';
 
@@ -43,6 +44,7 @@ test('p-queue Skill prompts contain business requirements without workflow hints
     assert.deepEqual(fs.readFileSync(path.join(project, 'acceptance', task.acceptance)), fs.readFileSync(path.join(pqueueFixture, task.acceptance)));
     assert.equal(fs.readFileSync(path.join(project, 'acceptance', task.typeAcceptance), 'utf8'), fs.readFileSync(path.join(pqueueFixture, task.typeAcceptance), 'utf8').replaceAll('./project/', '../'));
     const commands = pqueueCommands(task);
+    assert.equal(freezeTestCases(project, commands.acceptance).length, task.id === 'modify' ? 5 : 4);
     assert.deepEqual(Object.keys(commands), ['build', 'acceptance', 'upstream', 'types']);
     assert(commands.build.includes('--noEmit'));assert(commands.acceptance.includes('--import=tsx/esm'));
     assert(commands.types.includes('--strict'));assert(commands.upstream.includes('node_modules/ava/entrypoints/cli.mjs'));
@@ -78,11 +80,13 @@ test('scope snapshots detect documentation edits before deciding even when sourc
 
 test('verification rejects a zero-test success and wrong test counts while retaining full output hashes', t => {
   const p = prepared(t), env = {...process.env};delete env.NODE_TEST_CONTEXT;
-  const good = verifyCommand(p.project, 'good', p.config.verification[0].args, p.parent, {env, expectedTests: 1});
-  assert.equal(good.passed, true);assert.equal(good.testCounts.tests, 1);
-  const wrong = verifyCommand(p.project, 'wrong', p.config.verification[0].args, p.parent, {env, expectedTests: 2});
+  const args = p.config.verification[0].args, expectedCases = freezeTestCases(p.project, args);
+  const good = verifyCommand(p.project, 'good', args, p.parent, {env, expectedCases});
+  assert.equal(good.passed, true);assert.equal(good.testEvidence.counts.tests, 1);
+  const wrong = verifyCommand(p.project, 'wrong', args, p.parent, {env, expectedCases: [...expectedCases, {...expectedCases[0], name: 'missing'}]});
   assert.equal(wrong.exitCode, 0);assert.equal(wrong.passed, false);
-  const empty = verifyCommand(p.project, 'empty', ['-e', 'console.log("No tests ran")'], p.parent, {env, expectedTests: 1});
+  fs.writeFileSync(path.join(p.project, 'source/index.ts'), 'export function waiting() {return 1;} process.exit(0);');
+  const empty = verifyCommand(p.project, 'empty', args, p.parent, {env, expectedCases});
   assert.equal(empty.exitCode, 0);assert.equal(empty.passed, false);assert.match(empty.logHash, /^[a-f0-9]{64}$/);
 });
 

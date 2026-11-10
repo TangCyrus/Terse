@@ -45,11 +45,14 @@ export function createPqueueSkillSuite(source) {
   const originalConfiguration = showConfiguration(source), flattened = flattenConfiguration(originalConfiguration, source);
   const inputs = {files: Object.fromEntries(files.map(file => [file, fs.readFileSync(path.join(source, file), 'utf8')])), dependencyLock: dependencyLock.toString('utf8')};
   const labels = Object.keys(pqueueCommands(pqueueCases[0]));
+  const acceptanceByProject = new Map();
   return {cases: pqueueCases, labels,
     prepare(directory, task) {
-      return prepareOpenSourceProject({source, directory, files, dependencyLock, originalConfiguration, flattened, task,
+      const prepared = prepareOpenSourceProject({source, directory, files, dependencyLock, originalConfiguration, flattened, task,
         specification: {...pqueueSpecification, exclude: [...pqueueSpecification.exclude, 'acceptance']}, commands: pqueueCommands(task),
         setup: project => installPqueueAcceptance(project, task)});
+      acceptanceByProject.set(prepared.project, prepared.acceptanceCases);
+      return prepared;
     },
     saveInputs(output) {
       const packed = gzipSync(Buffer.from(JSON.stringify(inputs)));
@@ -64,7 +67,7 @@ export function createPqueueSkillSuite(source) {
       assert(task, 'Verification must retain the fixed task acceptance');
       const checks = Object.fromEntries(config.verification.map((command, index) => [labels[index], verifyCommand(project, `${prefix}-${labels[index]}`, command.args, directory,
         {env: Object.fromEntries(Object.entries({...process.env, FORCE_COLOR: '0'}).filter(([key]) => key !== 'NODE_TEST_CONTEXT')),
-          expectedTests: labels[index] === 'acceptance' ? task.id === 'modify' ? 5 : 4 : undefined,
+          expectedCases: labels[index] === 'acceptance' ? acceptanceByProject.get(project) : undefined,
           expectedCounts: labels[index] === 'upstream' ? pqueueSpecification.upstreamCounts : undefined})]));
       return {passed: Object.values(checks).every(item => item.passed), checks};
     },

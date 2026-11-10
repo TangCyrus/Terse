@@ -150,6 +150,12 @@ Skill 冷启动评测入口为 [benchmark-skill.mjs](scripts/benchmark-skill.mjs
 
 protectedFileEvidence(root, expectedHashes, acceptanceFiles) 用运行前记录构造验收身份，实际文件只用于篡改核对；验收文件缺失、改名或被目录替换时返回 tampered，保留协议无效的样本及原验收哈希，避免中止后续会话。历史输入归档与 observed 发布文件逐字节校验，当前 oracle 的演进不改变旧观测。
 
+M6 评测完整性修复（以 main `84e827b` 为起点）：`captureChangeBaseline(root)` 在 agent 启动及接手 WIP 安装之前捕获实际文件的 Git tree，包含起点原有的暂存、未暂存和未跟踪内容，不依赖 HEAD。`collectChanges(root, editable, changeBaseline)` 强制传入这个固定 tree，以私有临时 index 构造终态，再比较两个 tree；不读当前 index 作为基准，也不对真实 index 执行 intent-to-add。暂存、删除、改名、二进制和新增越界文件都进入 changed/patch，outsideScope 单独判定；Git 路径采用 NUL 协议和 literal pathspec，保留 Unicode 与特殊字符。受 Git 属性控制的文本规范化仍遵循该项目的 Git 语义。`evidence.changeBaseline` 保存初始 tree 标识。
+
+独立 Node 行为验收统一复用 `verifyCommand`。宿主在准备阶段用 [test-evidence.mjs](scripts/lib/test-evidence.mjs) 的 `freezeTestCases(project, args)` 从受保护夹具登记文件、名称及调用位置，不导入候选源码；支持显式文件列表和顶层字面量 node:test 调用。动态生成或嵌套套件需要另行定义清单契约，不退回数量判定。宿主 [test-reporter.mjs](scripts/lib/test-reporter.mjs) 输出结构化事件；候选 stdout 仅作为事件数据，不能凭打印通过文本取得信用。只有预登记用例全部恰好执行并通过、每个文件及总汇正常完成、无失败/跳过/TODO/取消且进程成功，验收才 passed；缺失或截断输出也不通过。结果保留 testEvidence 与原始日志哈希，构建/类型命令及 AVA 上游检查保留原规则。这是 Node 行为验收的执行证据，不是对恶意代码的安全沙箱，也不代替补丁职责审查或产品自定义验证的契约。
+
+修复应用于后续 benchmark-agent、benchmark-reuse、benchmark-skill（含 p-queue）运行；新计划用 evaluationIntegrity 标记 frozen-git-tree/1 与 named-node-tests/1。历史评测、冻结夹具、发布哈希和旧计分一律不回填，不因本轮离线反例而声称历史会话使用了这些手法。本轮回归 [benchmark-integrity.test.mjs](test/benchmark-integrity.test.mjs) 用真实 Git/Node 验证收集补丁可重放、原暂存区不变，以及提前退出的三文件假通过、部分执行、跳过、TODO、取消、超时和伪造日志；不启动新的模型会话。
+
 analyzeEvaluation(project, before, removals) 复用 M1 快照及 M3/M4 分析，对两组同样开启实现证据采集，返回 duplications/newDuplications、similarities/possibleDuplications、similarityAlgorithm 和 cleanup；精确发现抑制同对相似提示，与产品 check 一致。捕获包括配置读取在内的源码评分异常，失败记录 duplicationError，两类重复计数和证据保持 null；有效快照才参与 workflow 核验，避免配置损坏使整轮对照在保存无效结果前中断。发布器验证新测量的计数与证据匹配；老报告可不含相似度字段，不回填历史测量。
 
 发现与修正套件复用 benchmark-reuse 的 --suite challenge，任务归属 [challenge-cases.mjs](scripts/challenge-cases.mjs)，新流式验收位于 examples/challenge；prepareEvaluation 的可选 acceptance 路径沿用相同三份验证编排。接手 WIP 在 begin 和真实基线检索之后安装，不回填检索，不把已知新问题作为历史基线。initial.patch / initial-analysis.json 分别绑定哈希，两组 startingHash 必须相同。agent-events 的 checks 保留工具返回快照与发现，correctionEvidence 仅在先警告、后完整 pass、父分析干净且源码改变时计为观察到修正；无机会、输出缺失和未修正不计为成功。新 [发现与修正文档](docs/CORRECTION-AGENT-BENCHMARK.md) 分开报告自然开发与接手修复，八次实际会话和冻结证据另存 challenge-observed，前两轮数据不变。
