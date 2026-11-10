@@ -12,6 +12,7 @@ import { begin, snapshot } from '../dist/project.js';
 import { clones, newClones, indexSources } from '../dist/analyze.js';
 import { showConfiguration, flattenConfiguration, collectChanges, verifyCommand } from './lib/benchmark-project.mjs';
 import { prepareOpenSourceProject } from './lib/open-source-project.mjs';
+import { freezeTestCases } from './lib/test-evidence.mjs';
 
 const { values } = parseArgs({ options: { source: { type: 'string' }, codex: { type: 'string', default: 'codex' }, repetitions: { type: 'string' }, workflow: { type: 'string' },
   suite: {type: 'string', default: 'p-map'}, 'preflight-only': {type: 'boolean'} } });
@@ -58,9 +59,12 @@ const upstreamArguments = specification.upstreamArguments ?? ['node_modules/ava/
 const originalConfiguration = specification.flattenTsconfig ? showConfiguration(source) : null;
 const flattened = originalConfiguration ? flattenConfiguration(originalConfiguration, source) : null;
 const preparation = flattened ? { kind: 'equivalent-flat-tsconfig', originalHash: digest(fs.readFileSync(path.join(source, 'tsconfig.json'))), configuration: flattened } : null;
+const acceptanceCases = new Map(taskDefinitions.map(task => [task.id, freezeTestCases(source, checksFor(task).acceptance)]));
 
 function verify(project, label, args, directory) {
-  return verifyCommand(project, label, args, directory, {env, expectedCounts: label.startsWith('upstream') ? specification.upstreamCounts : undefined});
+  const task = taskDefinitions.find(task => args.includes(path.join(fixture, task.acceptance)));
+  return verifyCommand(project, label, args, directory, {env, expectedCases: task ? acceptanceCases.get(task.id) : undefined,
+    expectedCounts: label.startsWith('upstream') ? specification.upstreamCounts : undefined});
 }
 
 function checksFor(task) {
@@ -92,6 +96,7 @@ for (const task of taskDefinitions) {
 }
 const taskReceipts = taskDefinitions.map(({text, ...task}) => task);
 write(path.join(output, 'plan.json'), { ...specification, repetitions, workflow: workflowMode, cliVersion,
+  evaluationIntegrity: {patch: 'frozen-git-tree/1', acceptance: 'named-node-tests/1'},
   execution: 'workspace-write with automatic approval; preserve local Windows/proxy configuration', tasks: taskReceipts,
   dependencyLockHash: digest(dependencyLock), preparation, preflight });
 if (values['preflight-only']) { console.log(JSON.stringify({artifactDirectory: output, preparation, preflight}, null, 2)); process.exit(0); }
@@ -103,7 +108,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
     const artifactId = `${multiTask ? `${task.id}-` : ''}pair-${repetition}-${arm}`;
     const directory = path.join(output, artifactId);
     const setupStarted = performance.now();
-    const {root, commands, before} = prepareProject(directory, task);
+    const {root, commands, before, changeBaseline} = prepareProject(directory, task);
     const protectedFiles = [...files.filter(file => !task.editable.includes(file)), 'terse.config.json', 'package-lock.json'];
     const protectedHashes = Object.fromEntries(protectedFiles.map(file => [file, digest(fs.readFileSync(path.join(root, file)))]));
     const run = begin(root, task.text);
@@ -136,7 +141,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
       newDuplications = findings.length;
       write(path.join(directory, 'duplications.json'), findings);
     } catch (error) { duplicationError = error.message; }
-    const {changed, outsideScope, patch} = collectChanges(root, task.editable);
+    const {changed, outsideScope, patch} = collectChanges(root, task.editable, changeBaseline);
     fs.writeFileSync(path.join(directory, 'implementation.patch'), patch);
     let workflow = arm === 'control' ? null : false;
     let terseStatus = null, terseRules = [];
@@ -162,7 +167,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
       protocolValid: agent.exitCode === 0 && !agent.timedOut && !agent.blockedByPolicy && agent.events.completed && agent.events.commandCount > 0 && !controlUsedTerse && tampered.length === 0 && outsideScope.length === 0 && !duplicationError && (arm === 'control' || workflow),
       correct: Object.values(checks).every(check => check.passed) && tampered.length === 0,
       newDuplications, duplicationError, changed,
-      evidence: { patchHash: digest(patch), eventHash: digest(fs.readFileSync(path.join(directory, 'agent.jsonl'))) } };
+      evidence: { changeBaseline, patchHash: digest(patch), eventHash: digest(fs.readFileSync(path.join(directory, 'agent.jsonl'))) } };
     results.push(result);
     write(path.join(directory, 'result.json'), result);
     write(path.join(output, 'progress.json'), results);
@@ -171,6 +176,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
 }
 }
 const summary = { schemaVersion: multiTask ? 2 : 1, kind: 'open-source-agent-comparison', project: specification,
+  evaluationIntegrity: {patch: 'frozen-git-tree/1', acceptance: 'named-node-tests/1'},
   repetitions, workflow: workflowMode, cliVersion, runtime: { node: process.version, platform: process.platform, arch: process.arch },
   terseRevision: git('-C', repository, 'rev-parse', 'HEAD').trim(),
   ...(multiTask ? {tasks: taskReceipts, preparation} : {taskHash: taskDefinitions[0].taskHash, acceptanceHash: taskDefinitions[0].acceptanceHash, typeAcceptanceHash: taskDefinitions[0].typeAcceptanceHash}),
