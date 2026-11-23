@@ -2,11 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { Detector, MemoryStore, weak, type IClone, type IMapFrame } from '@jscpd/core';
-import { Tokenizer, tokenize } from '@jscpd/tokenizer';
-import { digest, loadRun, readJson, snapshot, writeJson } from './project.js';
+import { createTokensMaps, Tokenizer, tokenize } from '@jscpd/tokenizer';
+import { digest, loadRun, readJson, snapshotForRun, writeJson } from './project.js';
 import type { DuplicationAttribution, Snapshot, SymbolInfo } from './types.js';
 import { importResolver, type ImportReference } from './imports.js';
 import { implementation, type Implementation } from './similarity.js';
+import { isPython, sourceFormat } from './languages.js';
+import { pythonSyntax } from './python.js';
 
 export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snapshot['files'] = {}, collectImplementations = false) {
   const symbols: SymbolInfo[] = [];
@@ -16,6 +18,13 @@ export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snap
   const errors: string[] = [];
   const resolver = importResolver(state, errors, root, fallbackFiles);
   for (const [file, source] of Object.entries(state.files)) {
+    if (isPython(file)) {
+      const syntax = pythonSyntax(file, source);
+      if (syntax.error) errors.push(syntax.error);
+      declarations.push(...syntax.declarations);
+      symbols.push(...syntax.declarations.map(declaration => declaration.location));
+      continue;
+    }
     const ast = ts.createSourceFile(file, source.content, ts.ScriptTarget.Latest, true);
     const resolve = resolver(file, ast);
     const diagnostics = (ast as ts.SourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics;
@@ -84,7 +93,7 @@ export const candidateId = (symbol: { path: string; symbol: string; line: number
 
 export function context(root: string, run: string, query: string, limit: number) {
   const { dir, baseline } = loadRun(root, run);
-  const state = snapshot(root);
+  const state = snapshotForRun(root, baseline);
   const index = indexSources(state, root);
   const terms = words(query);
   const candidates = index.symbols.map(symbol => {
@@ -100,15 +109,18 @@ export function context(root: string, run: string, query: string, limit: number)
     snippetTruncated: text.split(/\r?\n/).length > 60 || text.length > 6000,
     imports: index.imports.filter(i => i.from === symbol.path),
     importedBy: index.imports.filter(i => i.target === symbol.path),
-    relatedTests: Object.keys(state.files).filter(p => /(?:test|spec)[/.]|\.(?:test|spec)\./i.test(p) && state.files[p].content.includes(symbol.symbol.split('.').at(-1)!)),
+    relatedTests: Object.keys(state.files).filter(p => (isPython(symbol.path)
+      ? isPython(p) && /(?:^|\/)(?:(?:tests?|specs?)\/|test_[^/]+\.py$|[^/]+_test\.py$)/i.test(p)
+      : /(?:test|spec)[/.]|\.(?:test|spec)\./i.test(p)) && state.files[p].content.includes(symbol.symbol.split('.').at(-1)!)),
   }));
   const fileMatches = Object.entries(state.files).filter(([p, s]) => terms.some(t => `${p}\n${s.content}`.toLowerCase().includes(t))).slice(0, limit).map(([p, s]) => ({ path: p, sourceHash: s.hash }));
-  if (snapshot(root).hash !== state.hash) index.errors.push('Project changed during context; run context again on a stable workspace.');
+  if (snapshotForRun(root, baseline).hash !== state.hash) index.errors.push('Project changed during context; run context again on a stable workspace.');
   const result = { command: 'context', run, query, snapshotHash: state.hash, scannedFiles: Object.keys(state.files).length,
     candidates, fileMatches, unresolvedImports: index.imports.filter(i => !i.target), errors: index.errors,
     limitations: ['Lexical ranking and syntactic symbols only; no semantic equivalence or complete call graph.',
       'Imports use the nearest tsconfig.json/jsconfig.json and snapshot files only; dynamic expressions and targets outside source coverage remain unresolved.',
       'Config inheritance is limited to snapshotted tsconfig*.json/jsconfig.json; project references and bundler-specific aliases are not followed.',
+      'Python indexing covers functions and classes. Python imports are not resolved, and related tests are inferred from filenames and text.',
       'Chinese queries match Chinese source comments/names; add English behavior or symbol names when needed.'],
   };
   const evidencePath = path.join(dir, 'context.json');
@@ -120,12 +132,6 @@ export function context(root: string, run: string, query: string, limit: number)
   return result;
 }
 
-function formatOf(file: string): string {
-  if (/\.tsx$/i.test(file)) return 'tsx';
-  if (/\.jsx$/i.test(file)) return 'jsx';
-  return /\.[cm]?ts$/i.test(file) ? 'typescript' : 'javascript';
-}
-
 export interface Clone {
   fingerprint: string;
   tokens: string[];
@@ -134,19 +140,23 @@ export interface Clone {
 
 const tokenKey = (token: ReturnType<typeof tokenize>[number]) => JSON.stringify([token.format, token.type, token.value]);
 const sourceTokens = (state: Snapshot) => Object.entries(state.files).map(([file, source]) => ({
-  file, tokens: tokenize(source.content, formatOf(file)).filter(weak),
+  file, tokens: isPython(file) ? pythonSyntax(file, source).tokens : tokenize(source.content, sourceFormat(file)!).filter(weak),
 }));
 
 export async function clones(state: Snapshot): Promise<Clone[]> {
   const store = new MemoryStore<IMapFrame>();
-  const detector = new Detector(new Tokenizer(), store, [], {
+  const tokensByFile = new Map(sourceTokens(state).map(s => [s.file, s.tokens]));
+  const syntaxTokenizer = new Tokenizer();
+  const detector = new Detector({generateMaps(file, code, format, options) {
+    return format === 'python' ? createTokensMaps(file, code, tokensByFile.get(file)!, options)
+      : syntaxTokenizer.generateMaps(file, code, format, options);
+  }}, store, [], {
     minTokens: state.config.minTokens, minLines: state.config.minLines, mode: weak,
   });
   const found: IClone[] = [];
   try {
-    for (const [file, source] of Object.entries(state.files)) found.push(...await detector.detect(file, source.content, formatOf(file)));
+    for (const [file, source] of Object.entries(state.files)) found.push(...await detector.detect(file, source.content, sourceFormat(file)!));
   } finally { store.close(); }
-  const tokensByFile = new Map(sourceTokens(state).map(s => [s.file, s.tokens]));
   return found.flatMap(clone => {
     // Preserve lexical context: re-tokenizing a sliced expression can change token types.
     const parts = [clone.duplicationA, clone.duplicationB];

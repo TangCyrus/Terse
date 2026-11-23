@@ -5,7 +5,7 @@
   "description": "Task-scoped reuse discovery and incremental duplication checks for coding agents",
   "type": "module",
   "bin": { "terse": "dist/cli.js" },
-  "files": ["dist", "skills", "README.md", "DESIGN.md", "docs/CLI.md", "docs/AGENT-INTEGRATION.md", "docs/REMOVAL-DECLARATIONS.md", "docs/PRIVATE-CLEANUP.md", "docs/SIMPLIFICATION.md", "docs/SIMILARITY.md", "docs/cli-output.schema.json", "docs/decision.schema.json"],
+  "files": ["dist", "skills", "README.md", "DESIGN.md", "docs/CLI.md", "docs/AGENT-INTEGRATION.md", "docs/REMOVAL-DECLARATIONS.md", "docs/PRIVATE-CLEANUP.md", "docs/SIMPLIFICATION.md", "docs/SIMILARITY.md", "docs/PYTHON.md", "docs/cli-output.schema.json", "docs/decision.schema.json"],
   "engines": { "node": ">=24" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -14,11 +14,12 @@
     "demo": "npm run build && node scripts/demo.mjs",
     "demo:agent": "npm run build && node scripts/demo-agent.mjs",
     "demo:simplify": "npm run build && node scripts/demo-simplify.mjs",
+    "demo:python": "npm run build && node scripts/demo-python.mjs",
     "evaluate": "npm run build && node scripts/evaluate.mjs",
     "benchmark:agent": "npm run build && node scripts/benchmark-agent.mjs",
     "benchmark:reuse": "npm run build && node scripts/benchmark-reuse.mjs",
     "benchmark:skill": "npm run build && node scripts/benchmark-skill.mjs"
   },
-  "dependencies": { "@jscpd/core": "4.2.5", "@jscpd/tokenizer": "4.2.6", "typescript": "5.9.3" },
+  "dependencies": { "@jscpd/core": "4.2.5", "@jscpd/tokenizer": "4.2.6", "@lezer/python": "1.1.19", "typescript": "5.9.3" },
   "devDependencies": { "@types/node": "24.0.0" }
 }

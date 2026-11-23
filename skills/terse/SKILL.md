@@ -1,6 +1,6 @@
 ---
 name: terse
-description: Use Terse for JavaScript/TypeScript features, fixes, deletions, refactors and code simplification in an initialized project. Retrieve existing code, consolidate duplicate implementations, record decisions and verify behavior. Documentation-only questions do not need this workflow.
+description: Use Terse for JavaScript, TypeScript and Python features, fixes, deletions, refactors and code simplification in an initialized project. Retrieve existing code, consolidate duplicate implementations, record decisions and verify behavior. Documentation-only questions do not need this workflow.
 ---
 
 # Terse
@@ -62,7 +62,7 @@ Deliver the actual source change; zero findings alone is not evidence of simplif
 For a simplification request, inspect existing duplication too: ordinary check
 suppresses baseline clones. Identify the implementation to retain and the body or
 path to remove, preserving necessary public contracts and independent responsibilities.
-For two same-file ordinary functions with identical parameters and body source,
+For two same-file ordinary JavaScript or TypeScript functions with identical parameters and body source,
 preview `simplify --run <id> --candidate <duplicate-id> --into <retained-id> --json`
 through the project launcher. Review the exact edit, record both candidates using
 decide with modify/refactor, then repeat simplify with `--apply --summary`. This writes the
@@ -70,6 +70,7 @@ delegation and executes the full check; do not repeat the unchanged suite immedi
 Only applied:true plus simplificationVerified:true confirms this scoped reduction.
 Unsupported cases require an agent-authored refactor with the normal full check;
 do not weaken the guards or force similar responsibilities together.
+For Python, review imports and callers manually when retiring a declaration or file.
 
 Report what implementation disappeared, what now owns the behavior, actual source
 changes and validation. For new requirements, distinguish necessary additions from
