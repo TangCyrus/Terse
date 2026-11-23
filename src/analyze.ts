@@ -4,11 +4,17 @@ import ts from 'typescript';
 import { Detector, MemoryStore, weak, type IClone, type IMapFrame } from '@jscpd/core';
 import { createTokensMaps, Tokenizer, tokenize } from '@jscpd/tokenizer';
 import { digest, loadRun, readJson, snapshotForRun, writeJson } from './project.js';
-import type { DuplicationAttribution, Snapshot, SymbolInfo } from './types.js';
+import type { DuplicationAttribution, Snapshot, Source, SymbolInfo } from './types.js';
 import { importResolver, type ImportReference } from './imports.js';
 import { implementation, type Implementation } from './similarity.js';
-import { isPython, sourceFormat } from './languages.js';
+import { isGo, isJsTs, isPython, sourceFormat } from './languages.js';
 import { pythonSyntax } from './python.js';
+import { goSyntax } from './go.js';
+
+function alternateSyntax(file: string, source: Source) {
+  if (isPython(file)) return pythonSyntax(file, source);
+  if (isGo(file)) return goSyntax(file, source);
+}
 
 export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snapshot['files'] = {}, collectImplementations = false) {
   const symbols: SymbolInfo[] = [];
@@ -18,8 +24,8 @@ export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snap
   const errors: string[] = [];
   const resolver = importResolver(state, errors, root, fallbackFiles);
   for (const [file, source] of Object.entries(state.files)) {
-    if (isPython(file)) {
-      const syntax = pythonSyntax(file, source);
+    const syntax = alternateSyntax(file, source);
+    if (syntax) {
       if (syntax.error) errors.push(syntax.error);
       declarations.push(...syntax.declarations);
       symbols.push(...syntax.declarations.map(declaration => declaration.location));
@@ -81,6 +87,12 @@ export function indexSources(state: Snapshot, root?: string, fallbackFiles: Snap
   return { symbols, imports, errors, implementations, declarations };
 }
 
+function relatedTestPath(file: string, source: string): boolean {
+  if (isGo(source)) return file.endsWith('_test.go');
+  if (isPython(source)) return isPython(file) && /(?:^|\/)(?:(?:tests?|specs?)\/|test_[^/]+\.py$|[^/]+_test\.py$)/i.test(file);
+  return !isGo(file) && /(?:test|spec)[/.]|\.(?:test|spec)\./i.test(file);
+}
+
 function words(query: string): string[] {
   const split = query.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
   const parts = split.match(/[a-z_$][a-z0-9_$]*|[\p{Script=Han}]+/gu) ?? [];
@@ -109,9 +121,7 @@ export function context(root: string, run: string, query: string, limit: number)
     snippetTruncated: text.split(/\r?\n/).length > 60 || text.length > 6000,
     imports: index.imports.filter(i => i.from === symbol.path),
     importedBy: index.imports.filter(i => i.target === symbol.path),
-    relatedTests: Object.keys(state.files).filter(p => (isPython(symbol.path)
-      ? isPython(p) && /(?:^|\/)(?:(?:tests?|specs?)\/|test_[^/]+\.py$|[^/]+_test\.py$)/i.test(p)
-      : /(?:test|spec)[/.]|\.(?:test|spec)\./i.test(p)) && state.files[p].content.includes(symbol.symbol.split('.').at(-1)!)),
+    relatedTests: Object.keys(state.files).filter(p => relatedTestPath(p, symbol.path) && state.files[p].content.includes(symbol.symbol.split('.').at(-1)!)),
   }));
   const fileMatches = Object.entries(state.files).filter(([p, s]) => terms.some(t => `${p}\n${s.content}`.toLowerCase().includes(t))).slice(0, limit).map(([p, s]) => ({ path: p, sourceHash: s.hash }));
   if (snapshotForRun(root, baseline).hash !== state.hash) index.errors.push('Project changed during context; run context again on a stable workspace.');
@@ -120,7 +130,7 @@ export function context(root: string, run: string, query: string, limit: number)
     limitations: ['Lexical ranking and syntactic symbols only; no semantic equivalence or complete call graph.',
       'Imports use the nearest tsconfig.json/jsconfig.json and snapshot files only; dynamic expressions and targets outside source coverage remain unresolved.',
       'Config inheritance is limited to snapshotted tsconfig*.json/jsconfig.json; project references and bundler-specific aliases are not followed.',
-      'Python indexing covers functions and classes. Python imports are not resolved, and related tests are inferred from filenames and text.',
+      'Python and Go related tests are inferred from filenames and text. Import resolution currently covers JavaScript and TypeScript.',
       'Chinese queries match Chinese source comments/names; add English behavior or symbol names when needed.'],
   };
   const evidencePath = path.join(dir, 'context.json');
@@ -140,7 +150,7 @@ export interface Clone {
 
 const tokenKey = (token: ReturnType<typeof tokenize>[number]) => JSON.stringify([token.format, token.type, token.value]);
 const sourceTokens = (state: Snapshot) => Object.entries(state.files).map(([file, source]) => ({
-  file, tokens: isPython(file) ? pythonSyntax(file, source).tokens : tokenize(source.content, sourceFormat(file)!).filter(weak),
+  file, tokens: alternateSyntax(file, source)?.tokens ?? tokenize(source.content, sourceFormat(file)!).filter(weak),
 }));
 
 export async function clones(state: Snapshot): Promise<Clone[]> {
@@ -148,8 +158,8 @@ export async function clones(state: Snapshot): Promise<Clone[]> {
   const tokensByFile = new Map(sourceTokens(state).map(s => [s.file, s.tokens]));
   const syntaxTokenizer = new Tokenizer();
   const detector = new Detector({generateMaps(file, code, format, options) {
-    return format === 'python' ? createTokensMaps(file, code, tokensByFile.get(file)!, options)
-      : syntaxTokenizer.generateMaps(file, code, format, options);
+    return isJsTs(file) ? syntaxTokenizer.generateMaps(file, code, format, options)
+      : createTokensMaps(file, code, tokensByFile.get(file)!, options);
   }}, store, [], {
     minTokens: state.config.minTokens, minLines: state.config.minLines, mode: weak,
   });

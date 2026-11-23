@@ -1,6 +1,7 @@
 export const VERSION = '0.1.0';
 export const LEGACY_ANALYZER = 'terse/0.1.0 typescript/5.9.3 jscpd-core/4.2.5 tokenizer/4.2.6';
-export const ANALYZER = `${LEGACY_ANALYZER} lezer-python/1.1.19 python-tokens/1`;
+export const PYTHON_ANALYZER = `${LEGACY_ANALYZER} lezer-python/1.1.19 python-tokens/1`;
+export const ANALYZER = `${PYTHON_ANALYZER} tree-sitter-go/0.25.0 web-tree-sitter/0.27.2 go-tokens/1`;
 export type Status = 'pass' | 'needs-review' | 'fail' | 'incomplete';
 export interface VerificationCommand { command: string; args: string[]; timeoutMs: number }
 export interface Config {

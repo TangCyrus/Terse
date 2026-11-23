@@ -1,53 +1,15 @@
-import type { IToken } from '@jscpd/core';
 import { parser } from '@lezer/python';
-import type { Source, SymbolInfo } from './types.js';
+import { syntaxReader } from './syntax.js';
 
 type SyntaxNode = ReturnType<typeof parser.parse>['topNode'];
-interface PythonSyntax {
-  declarations: { location: SymbolInfo; start: number; end: number }[];
-  tokens: IToken[];
-  error?: string;
-}
-
-const cache = new WeakMap<Source, {file: string; syntax: PythonSyntax}>();
 const literals = new Set(['String', 'FormatString']);
 
-export function pythonSyntax(file: string, source: Source): PythonSyntax {
-  const existing = cache.get(source);
-  if (existing?.file === file) return existing.syntax;
-  const syntax = parsePython(file, source.content);
-  cache.set(source, {file, syntax});
-  return syntax;
-}
-
-function parsePython(file: string, code: string): PythonSyntax {
+export const pythonSyntax = syntaxReader('python', 'Python', ({code, tokens, declare, emit}) => {
   const tree = parser.parse(code);
-  const lineStarts = [0, ...Array.from(code.matchAll(/\r\n?|\n/g), match => match.index + match[0].length)];
-  const position = (offset: number) => {
-    let line = 0, end = lineStarts.length;
-    while (line + 1 < end) {
-      const middle = (line + end) >>> 1;
-      if (lineStarts[middle] <= offset) line = middle;
-      else end = middle;
-    }
-    return { line: line + 1, column: offset - lineStarts[line] + 1 };
-  };
-  const declarations: PythonSyntax['declarations'] = [];
-  const tokens: IToken[] = [];
   let errorAt: number | undefined;
-  tree.iterate({ enter(node) { if (node.type.isError) errorAt ??= node.from; } });
-  if (errorAt !== undefined) {
-    const {line, column} = position(errorAt);
-    return {declarations, tokens, error: `${file}:${line}:${column}: Python syntax could not be parsed`};
-  }
-
-  const emit = (type: string, from: number, to: number) => {
-    const index = tokens.length;
-    tokens.push({type: `${type}:`, value: code.slice(from, to), length: to - from, format: 'python',
-      range: [from, to], loc: {start: {...position(from), position: index}, end: {...position(to), position: index}}});
-  };
-  // The tree omits some punctuation, such as commas and return arrows. Preserve
-  // it in lexical order. Ignore layout trivia and explicit line continuations.
+  tree.iterate({enter(node) { if (node.type.isError) errorAt ??= node.from; }});
+  if (errorAt !== undefined) return errorAt;
+  // The tree omits some punctuation, such as commas and return arrows.
   const gap = (from: number, to: number) => {
     for (const match of code.slice(from, to).matchAll(/\\\r?\n|[^\s\\]+|\\/g)) {
       if (/^\\\r?\n$/.test(match[0])) continue;
@@ -64,10 +26,7 @@ function parsePython(file: string, code: string): PythonSyntax {
       if (name && body) {
         scope = `${scope ? `${scope}.` : ''}${code.slice(name.from, name.to)}`;
         const start = node.parent?.name === 'DecoratedStatement' ? node.parent.from : node.from;
-        const text = code.slice(start, node.to).trimEnd();
-        const end = start + text.length;
-        declarations.push({start, end, location: {path: file, symbol: scope, line: position(start).line,
-          endLine: position(end).line, signature: code.slice(node.from, body.from).trim(), text}});
+        declare(scope, start, node.to, node.from, body.from);
       }
     }
     if (literals.has(kind) || !node.firstChild) {
@@ -91,5 +50,4 @@ function parsePython(file: string, code: string): PythonSyntax {
     }
   };
   visit(tree.topNode, '');
-  return {declarations, tokens};
-}
+});

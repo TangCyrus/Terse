@@ -1,6 +1,6 @@
 ---
 name: terse
-description: Use Terse for JavaScript, TypeScript and Python features, fixes, deletions, refactors and code simplification in an initialized project. Retrieve existing code, consolidate duplicate implementations, record decisions and verify behavior. Documentation-only questions do not need this workflow.
+description: Use Terse for JavaScript, TypeScript, Python and Go features, fixes, deletions, refactors and code simplification in an initialized project. Retrieve existing code, consolidate duplicate implementations, record decisions and verify behavior. Documentation-only questions do not need this workflow.
 ---
 
 # Terse
@@ -70,7 +70,7 @@ delegation and executes the full check; do not repeat the unchanged suite immedi
 Only applied:true plus simplificationVerified:true confirms this scoped reduction.
 Unsupported cases require an agent-authored refactor with the normal full check;
 do not weaken the guards or force similar responsibilities together.
-For Python, review imports and callers manually when retiring a declaration or file.
+For Python and Go, review imports and callers manually when retiring a declaration or file.
 
 Report what implementation disappeared, what now owns the behavior, actual source
 changes and validation. For new requirements, distinguish necessary additions from

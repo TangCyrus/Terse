@@ -6,7 +6,7 @@ import {candidateId, indexSources} from './analyze.js';
 import {check} from './check.js';
 import {decide} from './decision.js';
 import {digest, loadRun, snapshotForRun, writeJson} from './project.js';
-import {isPython} from './languages.js';
+import {isJsTs} from './languages.js';
 
 function reject(code: string, message: string): never {
   throw Object.assign(new Error(message), {code});
@@ -38,7 +38,7 @@ export async function simplify(root: string, run: string, candidate: string, int
   });
   const [target, canonical] = selected;
   if (candidate === into || target.path !== canonical.path) reject('SIMPLIFY_SCOPE', 'Choose two different functions in the same source file.');
-  if (isPython(target.path)) reject('SIMPLIFY_UNSUPPORTED', 'Automatic delegation is available for JavaScript and TypeScript functions.');
+  if (!isJsTs(target.path)) reject('SIMPLIFY_UNSUPPORTED', 'Automatic delegation is available for JavaScript and TypeScript functions.');
   const current = snapshotForRun(root, baseline);
   if (JSON.stringify(current.config) !== JSON.stringify(baseline.snapshot.config)) reject('SIMPLIFY_POLICY', 'Project policy changed; review it before beginning a new task.');
   if (current.skipped.some(item => !['excluded', 'unsupported-or-declaration'].includes(item.reason))) reject('SIMPLIFY_COVERAGE', 'Resolve source coverage gaps before automatic simplification.');

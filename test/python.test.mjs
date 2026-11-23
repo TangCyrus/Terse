@@ -129,7 +129,7 @@ test('pre-Python baselines keep their original file coverage when reopened', t =
   write('app.ts', 'export function render() { return "receipt"; }\n');
   const task = invoke(root, ['begin', '--task', 'Legacy JS/TS work']);
   const file = path.join(path.dirname(task.decisionPath), 'baseline.json');
-  const legacy = snapshot(root, false);
+  const legacy = snapshot(root, LEGACY_ANALYZER);
   fs.writeFileSync(file, JSON.stringify({...JSON.parse(fs.readFileSync(file, 'utf8')), analyzer: LEGACY_ANALYZER, snapshot: legacy}));
   const retrieval = invoke(root, ['context', '--run', task.run, '--query', 'render format_receipt']);
   assert.equal(retrieval.snapshotHash, legacy.hash);
