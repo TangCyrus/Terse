@@ -61,7 +61,9 @@ test('correction evidence requires an observed warning followed by a full later 
   assert.equal(noOpportunity.observedCorrection,false);
   const unchanged = commandEvent('same-source','node cli.js check --run r',JSON.stringify({...warned,snapshotHash:'end'}));
   assert.equal(correctionEvidence(summarize([unchanged,last]),{...options,seeded:false}).observedCorrection,false);
-  const logs = [commandEvent('read','Get-Content report.json',JSON.stringify(warned)),commandEvent('git','git diff --check','')];
+  const logs = [commandEvent('read','Get-Content report.json',JSON.stringify(warned)),commandEvent('git','git diff --check',''),
+    commandEvent('node-read', 'node -e "readCachedReport()"', JSON.stringify(clean)),
+    commandEvent('node-reader', 'node read-report.mjs check --run r', JSON.stringify(clean))];
   assert.deepEqual(summarize(logs).reports,[]);
   assert.equal(summarize(logs).unknownCalls,0);
   const combined = summarize([commandEvent('combined','node cli.js check --run r; node cli.js check --run r',JSON.stringify(warned)+'\n'+JSON.stringify(clean))]);
@@ -79,6 +81,19 @@ test('correction evidence requires an observed warning followed by a full later 
 test('agent pairs require identical inherited starting work as well as baseline and tests', () => {
   const base={taskId:'repair',repetition:1,baselineHash:'base',acceptanceHash:'tests',protocolValid:true,correct:true,newDuplications:0,agentMs:1};
   assert.equal(pairedSummary([{...base,arm:'control',startingHash:'left'},{...base,arm:'terse',startingHash:'right'}])[0].comparable,false);
+});
+
+test('check activity rejects replayed identities and recognizes shell-wrapped CLI calls', () => {
+  const report = JSON.stringify({schemaVersion: 1, command: 'check', outputKind: 'result', checkId: 'one-check'});
+  const direct = String.raw`"C:\Program Files\pwsh.exe" -Command "node \"D:\My Project\dist\cli.js\" check --run r --json"`;
+  const trace = [commandEvent('actual', direct, report),
+    commandEvent('read', 'node   -e "console.log(\'node cli.js check --run r\')"', report),
+    commandEvent('repeat', 'node $terseCli check --run r --json', report),
+    {type: 'turn.completed'}].map(event => JSON.stringify(event)).join('\n');
+  const {checks} = summarizeEvents(trace, 'D:/My Project/dist/cli.js');
+  assert.deepEqual(checks.reports.map(report => report.itemId), ['actual']);
+  assert.equal(checks.unknownCalls, 1);
+  assert.equal(checks.complete, false);
 });
 
 test('natural draft and review events retain phase identities, usage and incomplete stages', () => {

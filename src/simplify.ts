@@ -37,7 +37,7 @@ export async function simplify(root: string, run: string, candidate: string, int
   });
   const [target, canonical] = selected;
   if (candidate === into || target.path !== canonical.path) reject('SIMPLIFY_SCOPE', 'Choose two different functions in the same source file.');
-  const current = snapshot(root);
+  const current = snapshot(root, baseline.snapshot.files);
   if (JSON.stringify(current.config) !== JSON.stringify(baseline.snapshot.config)) reject('SIMPLIFY_POLICY', 'Project policy changed; review it before beginning a new task.');
   if (current.skipped.some(item => !['excluded', 'unsupported-or-declaration'].includes(item.reason))) reject('SIMPLIFY_COVERAGE', 'Resolve source coverage gaps before automatic simplification.');
   const index = indexSources(current, root, baseline.snapshot.files);
@@ -116,7 +116,7 @@ export async function simplify(root: string, run: string, candidate: string, int
     if (fs.lstatSync(file).isSymbolicLink()) reject('SIMPLIFY_PATH', 'Refusing a symbolic source path.');
   }
   const original = fs.readFileSync(file);
-  if (snapshot(root).hash !== current.hash || digest(new TextDecoder('utf-8', {fatal: true}).decode(original)) !== source.hash) reject('SIMPLIFY_STALE', 'Workspace changed during planning; no source was written.');
+  if (snapshot(root, baseline.snapshot.files).hash !== current.hash || digest(new TextDecoder('utf-8', {fatal: true}).decode(original)) !== source.hash) reject('SIMPLIFY_STALE', 'Workspace changed during planning; no source was written.');
   // Snapshot hashes use decoded source (without a UTF-8 BOM). Preserve the raw
   // encoding marker, and compare raw bytes again before replacing the file.
   const bom = Buffer.from([0xef, 0xbb, 0xbf]);
@@ -129,14 +129,14 @@ export async function simplify(root: string, run: string, candidate: string, int
     const mode = fs.statSync(file).mode;
     fs.writeFileSync(temporary, encoded, {flag: 'wx', mode});
     fs.chmodSync(temporary, mode);
-    if (snapshot(root).hash !== current.hash || !fs.readFileSync(file).equals(original)) reject('SIMPLIFY_STALE', 'Workspace changed before applying; no source was written.');
+    if (snapshot(root, baseline.snapshot.files).hash !== current.hash || !fs.readFileSync(file).equals(original)) reject('SIMPLIFY_STALE', 'Workspace changed before applying; no source was written.');
     fs.renameSync(temporary, file);
   } finally {
     if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
   }
   writeJson(dir, 'simplification.json', {run, applied: true, simplificationVerified: false, plan, limitations});
   const report = await check(root, run);
-  const final = snapshot(root), errors = [...report.errors];
+  const final = snapshot(root, baseline.snapshot.files), errors = [...report.errors];
   if (final.hash !== report.snapshotHash || final.files[target.path]?.hash !== plan.afterHash) errors.push('Workspace changed or the simplification was replaced; reduction is not verified.');
   const status = errors.length ? 'incomplete' as const : report.status;
   const simplificationVerified = status === 'pass';

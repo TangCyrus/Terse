@@ -10,7 +10,7 @@ const sourcePattern = /\.(?:[cm]?[jt]s|[jt]sx)$/i;
 const defaultExcluded = new Set(['.git', '.terse', 'node_modules', 'dist', 'build', 'coverage', 'vendor', '.next']);
 const runIdPattern = /^\d{13}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const hashPattern = /^[0-9a-f]{64}$/;
-const skipReasons = new Set(['excluded', 'unsupported-or-declaration', 'symlink', 'not-a-file', 'over-1MiB', 'non-utf8', 'binary']);
+const skipReasons = new Set(['excluded', 'unsupported-or-declaration', 'symlink', 'not-a-file', 'over-1MiB', 'non-utf8', 'binary', 'not-listed-by-git', 'unreadable-path']);
 const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
 const relativePath = (value: string) => !/[\\\0]/.test(value) && !path.posix.isAbsolute(value) && !path.win32.isAbsolute(value)
   && !/^[a-z]:/i.test(value) && value.split('/').every(part => part !== '' && part !== '.' && part !== '..');
@@ -77,16 +77,41 @@ export function configOf(root: string): Config {
   return parseConfig(fs.existsSync(file) ? readJson(file) : {});
 }
 
-export function snapshot(root: string): Snapshot {
+function inspectPath(root: string, relative: string): { file: string; stat: fs.Stats } | { reason?: string } {
+  if (!relativePath(relative)) return { reason: 'unreadable-path' };
+  const parts = relative.split('/');
+  let file = root;
+  for (const [index, part] of parts.entries()) {
+    file = path.join(file, part);
+    let stat: fs.Stats;
+    try { stat = fs.lstatSync(file); }
+    catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'ENOENT' ? {} : { reason: 'unreadable-path' };
+    }
+    if (stat.isSymbolicLink()) return { reason: 'symlink' };
+    if (index === parts.length - 1 && stat.isFile()) return { file, stat };
+    if (index === parts.length - 1 || !stat.isDirectory()) return { reason: 'not-a-file' };
+  }
+  return { reason: 'unreadable-path' };
+}
+
+export function snapshot(root: string, previousFiles: Snapshot['files'] = {}): Snapshot {
   const config = configOf(root);
-  const names = [...new Set(execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+  const names = new Set(execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
     cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
-  }).split('\0').filter(Boolean))].sort();
+  }).split('\0').filter(Boolean).map(slash));
   const files: Snapshot['files'] = {};
   const metadata: Snapshot['metadata'] = {};
   const skipped: Snapshot['skipped'] = [];
-  for (const name of names) {
-    const relative = slash(name);
+  for (const relative of [...new Set([...names, ...Object.keys(previousFiles)])].sort()) {
+    // Probe only previously scanned paths. A path omitted by Git can still be
+    // present, and must not enter analysis or be inferred to have been deleted.
+    if (!names.has(relative)) {
+      const entry = inspectPath(root, relative);
+      const reason = 'stat' in entry ? 'not-listed-by-git' : entry.reason;
+      if (reason) skipped.push({ path: relative, reason });
+      continue;
+    }
     const parts = relative.split('/');
     if (parts.includes('.terse')) continue;
     if (parts.some(p => defaultExcluded.has(p)) || config.exclude.some(p => relative === p.replace(/\/$/, '') || relative.startsWith(`${p.replace(/\/$/, '')}/`))) {
@@ -96,17 +121,12 @@ export function snapshot(root: string): Snapshot {
     if (!isMetadata && (!sourcePattern.test(relative) || /\.d\.[cm]?ts$|\.min\.[cm]?js$/i.test(relative))) {
       skipped.push({ path: relative, reason: 'unsupported-or-declaration' }); continue;
     }
-    // Do not traverse symlinks, including a directory replaced after git indexed it.
-    let current = root;
-    let unsafe = false;
-    for (const part of parts) {
-      current = path.join(current, part);
-      if (!fs.existsSync(current)) { unsafe = true; break; }
-      if (fs.lstatSync(current).isSymbolicLink()) { skipped.push({ path: relative, reason: 'symlink' }); unsafe = true; break; }
+    const entry = inspectPath(root, relative);
+    if (!('stat' in entry)) {
+      if (entry.reason) skipped.push({ path: relative, reason: entry.reason });
+      continue;
     }
-    if (unsafe) continue;
-    const stat = fs.statSync(current);
-    if (!stat.isFile()) { skipped.push({ path: relative, reason: 'not-a-file' }); continue; }
+    const { file: current, stat } = entry;
     if (stat.size > 1024 * 1024) { skipped.push({ path: relative, reason: 'over-1MiB' }); continue; }
     const bytes = fs.readFileSync(current);
     let content: string;
@@ -117,6 +137,11 @@ export function snapshot(root: string): Snapshot {
     else files[relative] = { content, hash: digest(content) };
   }
   return { files, metadata, hash: snapshotHash({ files, metadata, config, skipped }), skipped, config };
+}
+
+export function deletedSourcePaths(before: Snapshot, after: Snapshot): string[] {
+  const skipped = new Set(after.skipped.map(item => item.path));
+  return Object.keys(before.files).filter(file => !Object.hasOwn(after.files, file) && !skipped.has(file));
 }
 
 export function runDir(root: string, run: string, create = false): string {

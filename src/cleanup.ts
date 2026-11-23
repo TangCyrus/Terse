@@ -2,6 +2,7 @@ import ts from 'typescript';
 import { isBuiltin } from 'node:module';
 import type { indexSources } from './analyze.js';
 import type { Decision, Finding, Snapshot } from './types.js';
+import { deletedSourcePaths } from './project.js';
 
 type Index = ReturnType<typeof indexSources>;
 
@@ -10,8 +11,7 @@ type Index = ReturnType<typeof indexSources>;
 // Exact AST spans collapse nested helpers into their removed parent, including
 // declarations that share a line. Coverage loss is not proof of removal.
 export function undeclaredRemovals(before: Snapshot, after: Snapshot, oldIndex: Index, current: Index, declared: Decision['remove']): Decision['remove'] {
-  const uncovered = new Set(after.skipped.map(item => item.path));
-  const targets: Decision['remove'] = Object.keys(before.files).filter(file => !Object.hasOwn(after.files, file) && !uncovered.has(file)).map(path => ({ path }));
+  const targets: Decision['remove'] = deletedSourcePaths(before, after).map(path => ({ path }));
   const currentNames = new Set(current.symbols.map(item => JSON.stringify([item.path, item.symbol])));
   const missing = oldIndex.declarations.filter(({ location }) => Object.hasOwn(after.files, location.path)
     && !currentNames.has(JSON.stringify([location.path, location.symbol])));
