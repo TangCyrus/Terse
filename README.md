@@ -1,16 +1,16 @@
 # Terse
 
-Terse 帮助 coding agent 查找并复用 JavaScript、TypeScript 和 Python 的现有实现，检查新增重复，并验证实际源代码补丁。
+Terse 帮助 coding agent 查找并复用 JavaScript、TypeScript、Python 和 Go 的现有实现，检查新增重复，并验证实际源代码补丁。
 
 代码精简任务现在有可执行入口：`simplify` 可将同文件、签名和函数体一致的普通函数收敛到一个实现，保留原公开入口；`--apply` 实际写入并执行全部项目验证，成功后给出真实代码减少量。`npm run demo:simplify` 验证“先移除已有重复体，再在原实现增加需求”的过程。范围、结果与限制见 [执行代码精简](docs/SIMPLIFICATION.md)。
 
-当前版本支持 JavaScript、TypeScript、JSX、TSX，以及 `.mjs`、`.cjs`、`.mts`、`.cts`。Python 首版支持 `.py` 文件、函数和类检索与增量重复检测，可运行 `npm run demo:python` 复验。自动源码精简适用于满足条件的 JS/TS 函数。[Python 使用说明](docs/PYTHON.md)
+当前版本支持 JavaScript、TypeScript、JSX、TSX，以及 `.mjs`、`.cjs`、`.mts`、`.cts`。Python 和 Go 支持源码识别、符号检索和增量重复检测，可运行 `npm run demo:python` 和 `npm run demo:go` 复验。自动源码精简适用于满足条件的 JS/TS 函数。[Python 使用说明](docs/PYTHON.md) · [Go 使用说明](docs/GO.md)
 
 参与开发请阅读 [开发文档](DEVELOPMENT.md)，其中包含 M1–M6 的合并进度、当前接口、验证方式和后续分模块交付计划。
 
 删除或迁移基线文件、已索引声明时，check 会核对 `decision.remove`，漏填返回 fail 和可补全的 `undeclaredRemovals`；原地修改仍允许空列表。文件保留时的私有方法提取须填写精确符号，补全后继续处理残留引用与复核项。详见 [删除声明约束](docs/REMOVAL-DECLARATIONS.md)。
 
-已有项目可运行 `node <Terse>/dist/cli.js init --cwd <项目>`，安装项目级 Agent Skill 与指令。随后在该项目开启 agent 会话，普通 JS/TS/Python 开发需求即可按项目约定触发检索、决策和完整检查。已有配置保留，缺少真实验证命令时会提示补齐。安装与能力边界见 [Agent 接入](docs/AGENT-INTEGRATION.md)，`npm run demo:agent` 可验证完整接入及重复提示后的修正流程。
+已有项目可运行 `node <Terse>/dist/cli.js init --cwd <项目>`，安装项目级 Agent Skill 与指令。随后在该项目开启 agent 会话，普通 JS/TS/Python/Go 开发需求即可按项目约定触发检索、决策和完整检查。已有配置保留，缺少真实验证命令时会提示补齐。安装与能力边界见 [Agent 接入](docs/AGENT-INTEGRATION.md)，`npm run demo:agent` 可验证完整接入及重复提示后的修正流程。
 
 `npm run benchmark:skill` 用独立新会话验证安装后的实际接入：任务只给普通开发需求，分别测量修改前读取/检索/决策、最终完整检查和独立行为验收。本轮修改、删除、重构各两次，六个真实会话均自主完成流程，行为、复用与清理审查达标。方法与局限见 [Skill 真实会话评测](docs/SKILL-AGENT-BENCHMARK.md)；这是当前宿主的小样本接入证据，不与确定性 demo 或旧对照数据混算，也不推断相对收益。
 
@@ -258,7 +258,7 @@ M3 对当前检测到的每个重复片段，核对其完整 token 序列在基�
 - `baselineOccurrences` / `currentOccurrences`：完整 token 序列在两份源码快照中的出现次数，包含同文件及重叠出现，不等同于函数数量。
 - `files`：检测器提供的位置涉及哪些文件，以及相对基线属于 `added`、`modified` 或 `unchanged`。这不是作者归因，也不保证某个具体位置就是新增来源。
 
-报告通过 `attributionAlgorithm: "token-occurrences/1"` 标识此归因算法。读取旧 run 时会按其分析器所支持的语言，用保存的源码重新分析。Python 首版使用同一计数算法，新 run 的分析器标识记录 Python 解析器版本。
+报告通过 `attributionAlgorithm: "token-occurrences/1"` 标识此归因算法。读取旧 run 时会按其分析器所支持的语言，用保存的源码重新分析。Python 和 Go 使用同一计数算法，新 run 的分析器标识记录解析器版本。
 
 这是基于内容与数量的归因，不是完整编辑历史：删除一个副本再在别处添加相同内容，与移动无法可靠区分；净出现次数不增加时不会报告新增。检测范围仍受 jscpd 阈值及 tokenizer 格式影响，也不做变量改名或语义等价判断。每个不同片段扫描前后 token 流，当前没有大型仓库性能承诺或持久化索引。
 

@@ -2,8 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { isPython, sourceFormat } from './languages.js';
-import { ANALYZER, LEGACY_ANALYZER, type Baseline, type Config, type Snapshot } from './types.js';
+import { sourceFormat } from './languages.js';
+import { ANALYZER, LEGACY_ANALYZER, PYTHON_ANALYZER, type Baseline, type Config, type Snapshot } from './types.js';
 
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const slash = (value: string) => value.replaceAll('\\', '/');
@@ -77,7 +77,7 @@ export function configOf(root: string): Config {
   return parseConfig(fs.existsSync(file) ? readJson(file) : {});
 }
 
-export function snapshot(root: string, includePython = true): Snapshot {
+export function snapshot(root: string, analyzer = ANALYZER): Snapshot {
   const config = configOf(root);
   const names = [...new Set(execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
     cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
@@ -93,7 +93,8 @@ export function snapshot(root: string, includePython = true): Snapshot {
       skipped.push({ path: relative, reason: 'excluded' }); continue;
     }
     const isMetadata = /(?:^|\/)(?:package(?:-lock)?\.json|tsconfig[^/]*\.json|jsconfig\.json|yarn\.lock|pnpm-lock\.yaml)$/.test(relative);
-    if (!isMetadata && (!sourceFormat(relative) || (!includePython && isPython(relative)))) {
+    const format = sourceFormat(relative);
+    if (!isMetadata && (!format || format === 'go' && analyzer !== ANALYZER || format === 'python' && analyzer === LEGACY_ANALYZER)) {
       skipped.push({ path: relative, reason: 'unsupported-or-declaration' }); continue;
     }
     // Do not traverse symlinks, including a directory replaced after git indexed it.
@@ -120,7 +121,7 @@ export function snapshot(root: string, includePython = true): Snapshot {
 }
 
 export function snapshotForRun(root: string, baseline: Baseline): Snapshot {
-  return snapshot(root, baseline.analyzer !== LEGACY_ANALYZER);
+  return snapshot(root, baseline.analyzer);
 }
 
 export function runDir(root: string, run: string, create = false): string {
@@ -176,7 +177,9 @@ export function loadRun(root: string, run: string): { dir: string; baseline: Bas
   for (const [field, expected] of Object.entries({ schema: 1, run, root })) {
     if (raw[field] !== expected) fail('BASELINE_INCOMPATIBLE', field, 'does not match this run, repository or supported version');
   }
-  if (raw.analyzer !== ANALYZER && raw.analyzer !== LEGACY_ANALYZER) fail('BASELINE_INCOMPATIBLE', 'analyzer', 'unsupported analyzer version');
+  if (raw.analyzer !== ANALYZER && raw.analyzer !== PYTHON_ANALYZER && raw.analyzer !== LEGACY_ANALYZER) {
+    fail('BASELINE_INCOMPATIBLE', 'analyzer', 'unsupported analyzer version');
+  }
   require(typeof raw.task === 'string' && raw.task.trim(), 'task', 'expected a non-empty string');
   require(typeof raw.createdAt === 'string' && Number.isFinite(Date.parse(raw.createdAt)), 'createdAt', 'expected an ISO timestamp');
   require(new Date(raw.createdAt).toISOString() === raw.createdAt, 'createdAt', 'expected an ISO timestamp');

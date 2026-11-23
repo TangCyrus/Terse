@@ -38,6 +38,8 @@
 
 Python 首版在 M1 扩展 `.py` 文件覆盖，在 M2 接入独立 Python 语法树，在 M3 复用检测器、阈值和前后计数。语言格式映射集中在 `src/languages.ts`。`pythonSyntax` 给索引与 token 归因共享同一次解析，限定名称、语句范围和块边界来自语法树。`snapshotForRun` 兼容原分析器标识并保留旧 run 的扫描范围。Python 示例以同一验收验证复制和复用，回归还覆盖混合仓库、解析错误、历史基线和缩进差异。[Python 使用说明](docs/PYTHON.md)
 
+Go 首版在相同入口加入 `.go`、函数、接收者方法和包级声明。Go 与 Python 的语法读器共享缓存、源码位置及 token 输出，并复用增量归因。语法树解释留在各自的语言模块。Go 重复检测保留语句边界和字面量，Go 示例与 Python 共用受控对照执行器。[Go 使用说明](docs/GO.md)
+
 ### M1 项目状态与任务基线
 
 代码归属：[src/project.ts](src/project.ts)。共享类型位于 [src/types.ts](src/types.ts)。
