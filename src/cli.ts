@@ -22,7 +22,7 @@ terse simplify --run <id> --candidate <id> --into <id> [--apply] [--summary] [--
 Use begin --query to create a baseline and retrieve candidates in one call.
 init installs the project Agent Skill and instructions, preserving existing configuration.
 simplify previews exact duplicate body delegation; --apply writes the edit and runs every configured check.
-Choose two same-file ordinary functions. Both public entries remain; existing duplicate bodies can be reduced.
+Choose two same-file ordinary JavaScript or TypeScript functions. Both public entries remain.
 --verify may repeat for a new config; each value is {"command":"node","args":["--test","test/*.test.mjs"]}.
 Without configured verification, init returns needs-review; configure real checks before begin.
 Read candidates, then use decide to save a validated decision before implementing.

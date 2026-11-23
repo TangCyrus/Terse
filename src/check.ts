@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { clones, indexSources, newClones } from './analyze.js';
-import { loadRun, readJson, snapshot, writeJson } from './project.js';
-import { ANALYZER, type Decision, type Finding, type Status, type VerificationResult } from './types.js';
+import { loadRun, readJson, snapshotForRun, writeJson } from './project.js';
+import type { Decision, Finding, Status, VerificationResult } from './types.js';
 import { cleanupFindings, undeclaredRemovals } from './cleanup.js';
 import { validateDecision } from './decision.js';
 import { similarImplementations, SIMILARITY_ALGORITHM } from './similarity.js';
@@ -11,7 +11,7 @@ import { similarImplementations, SIMILARITY_ALGORITHM } from './similarity.js';
 export async function check(root: string, run: string, skipVerification = false) {
   const { dir, baseline } = loadRun(root, run);
   const before = baseline.snapshot;
-  const after = snapshot(root);
+  const after = snapshotForRun(root, baseline);
   const findings: Finding[] = [];
   const errors: string[] = [];
   const verification: VerificationResult[] = [];
@@ -84,15 +84,16 @@ export async function check(root: string, run: string, skipVerification = false)
       if (item.status === 'failed') add('VERIFICATION_FAILED', `Verification exited ${item.exitCode}: ${command.command} ${command.args.join(' ')}`, [], 'fail');
     }
   }
-  if (snapshot(root).hash !== after.hash) errors.push('Project changed during check; results are stale. Run check again on a stable workspace.');
+  if (snapshotForRun(root, baseline).hash !== after.hash) errors.push('Project changed during check; results are stale. Run check again on a stable workspace.');
   const status: Status = errors.length ? 'incomplete' : findings.some(f => f.severity === 'fail') ? 'fail' : findings.length ? 'needs-review' : 'pass';
-  const report = { command: 'check', run, task: baseline.task, status, analyzer: ANALYZER, checkedAt: new Date().toISOString(),
+  const report = { command: 'check', run, task: baseline.task, status, analyzer: baseline.analyzer, checkedAt: new Date().toISOString(),
     baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', similarityAlgorithm: SIMILARITY_ALGORITHM, scannedFiles: Object.keys(after.files).length,
     baselineFiles: Object.keys(before.files).length, changes, baselineClones, currentClones,
     newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length,
     possibleDuplications: findings.filter(f => f.rule === 'POSSIBLE_DUPLICATION').length, undeclaredRemovals: missingRemovals, findings, errors, decisionIssues, verification, skipped: after.skipped,
     limitations: ['Token clone detection ignores whitespace/comments; it does not prove semantic equivalence.',
       'Implementation anchor similarity is a conservative review heuristic, not semantic equivalence. Short functions, rewrites without shared literals or operations, and indirect delegation may not be covered.',
+      'Python supports exact token duplication with syntax boundaries. Implementation similarity, import resolution and automatic delegation currently apply only to JavaScript and TypeScript.',
       'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
       'File and ordinary symbol removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports without declared external ownership need review. Unresolved non-builtin require calls remain uncertain. No complete call graph or external consumer analysis.',
       'ECMAScript #method cleanup is checked within a uniquely matched named top-level class in the same source. Nested private names shadow only their own class body; direct eval, decorators and ambiguous ownership retain review. This does not prove arbitrary public or TypeScript-private member cleanup.',

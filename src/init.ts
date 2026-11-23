@@ -9,7 +9,7 @@ const start = '<!-- terse:begin -->', end = '<!-- terse:end -->';
 const instruction = `${start}
 ## Terse development workflow
 
-For JavaScript/TypeScript feature, bug-fix, deletion and refactoring requests, read
+For JavaScript, TypeScript and Python feature, bug-fix, deletion and refactoring requests, read
 [the Terse skill](.agents/skills/terse/SKILL.md) before editing source, even when the
 request does not mention Terse. Use it to retrieve existing code, record the actual
 reuse decision, and run the full check after implementing the requested behavior.

@@ -2,6 +2,7 @@ import ts from 'typescript';
 import { isBuiltin } from 'node:module';
 import type { indexSources } from './analyze.js';
 import type { Decision, Finding, Snapshot } from './types.js';
+import { isPython } from './languages.js';
 
 type Index = ReturnType<typeof indexSources>;
 
@@ -26,7 +27,7 @@ export function undeclaredRemovals(before: Snapshot, after: Snapshot, oldIndex: 
 // Bind local declarations and export aliases without reading libraries or live files.
 function bindings(state: Snapshot) {
   const prefix = '/__terse__/';
-  const sources = new Map(Object.entries(state.files).map(([file, source]) => [prefix + file,
+  const sources = new Map(Object.entries(state.files).filter(([file]) => !isPython(file)).map(([file, source]) => [prefix + file,
     ts.createSourceFile(prefix + file, source.content, ts.ScriptTarget.Latest, true)]));
   const program = ts.createProgram([...sources.keys()], { noLib: true, noResolve: true, allowJs: true, checkJs: true, module: ts.ModuleKind.ESNext }, {
     getSourceFile: file => sources.get(file), getDefaultLibFileName: () => '', writeFile: () => {},
@@ -112,6 +113,12 @@ export function cleanupFindings(before: Snapshot, after: Snapshot, oldIndex: Ind
     if (!existed) { add('REMOVAL_TARGET_UNKNOWN', 'review', 'Removal target was not present in the scanned baseline.', [target]); continue; }
     if (after.skipped.some(s => s.path === target.path)) {
       add('REMOVAL_NOT_VERIFIED', 'review', 'The removal target is outside current source coverage; absence from the index does not prove deletion.', [target]); continue;
+    }
+    if (isPython(target.path)) {
+      const remains = target.symbol ? current.symbols.some(s => s.path === target.path && s.symbol === target.symbol) : Object.hasOwn(after.files, target.path);
+      if (remains) add('REMOVAL_REMAINS', 'fail', 'An implementation declared for removal is still present.', [target]);
+      else add('REMOVAL_REFERENCE_UNCERTAIN', 'review', 'Python references require manual review after removal.', [target]);
+      continue;
     }
     const source = newBindings.source(target.path);
     const privateFindings = target.symbol && source ? privateMemberFindings(oldBindings.source(target.path)!, source, target) : undefined;

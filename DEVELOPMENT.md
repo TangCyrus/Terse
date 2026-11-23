@@ -36,6 +36,8 @@
 
 ## 当前模块划分
 
+Python 首版在 M1 扩展 `.py` 文件覆盖，在 M2 接入独立 Python 语法树，在 M3 复用检测器、阈值和前后计数。语言格式映射集中在 `src/languages.ts`。`pythonSyntax` 给索引与 token 归因共享同一次解析，限定名称、语句范围和块边界来自语法树。`snapshotForRun` 兼容原分析器标识并保留旧 run 的扫描范围。Python 示例以同一验收验证复制和复用，回归还覆盖混合仓库、解析错误、历史基线和缩进差异。[Python 使用说明](docs/PYTHON.md)
+
 ### M1 项目状态与任务基线
 
 代码归属：[src/project.ts](src/project.ts)。共享类型位于 [src/types.ts](src/types.ts)。
