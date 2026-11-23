@@ -3,6 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {execFileSync} from 'node:child_process';
 import {pqueueCases, pqueueCommands, installPqueueAcceptance, pqueueFixture} from '../scripts/lib/pqueue-skill.mjs';
 import {prepareOpenSourceProject} from '../scripts/lib/open-source-project.mjs';
 import {hashFiles, scopeHash, skillObserver, skillWorkflow} from '../scripts/lib/skill-evidence.mjs';
@@ -90,7 +91,7 @@ test('verification rejects a zero-test success and wrong test counts while retai
   assert.equal(empty.exitCode, 0);assert.equal(empty.passed, false);assert.match(empty.logHash, /^[a-f0-9]{64}$/);
 });
 
-test('a README edit after a passing check needs a new final scope checkpoint', t => {
+test('reading cached check output after a README edit cannot replace a fresh check', t => {
   const p = prepared(t);invoke(p.project, ['init']);
   const initialHash = snapshot(p.project).hash, initialScopeHash = scopeHash(p.project, p.editable);
   const observer = skillObserver(p.project, {}, {editable: p.editable});
@@ -99,15 +100,36 @@ test('a README edit after a passing check needs a new final scope checkpoint', t
   const candidate = begun.context.candidates.find(item => item.symbol === 'waiting');
   observer.observe(event('decision', invoke(p.project, ['decide', '--run', begun.run, '--strategy', 'modify', '--candidate', candidate.candidateId, '--rationale', 'Extend the existing function.'])));
   fs.writeFileSync(path.join(p.project, 'source/index.ts'), 'export function waiting(value = 1) {return value;}\n');observer.observe(event('implementation', {}));
-  observer.observe({type: 'item.started', item: {id: 'check', type: 'command_execution', command: 'node cli.js'}});
-  observer.observe(event('check', invoke(p.project, begun.verificationGuide.argvTemplate)));
+  const instruction = `node .agents/skills/terse/scripts/run.mjs check --run ${begun.run} --summary --json`;
+  const observe = (id, command, execute) => {
+    observer.observe({type: 'item.started', item: {id, type: 'command_execution', command}});
+    observer.observe({type: 'item.completed', item: {id, type: 'command_execution', command, aggregated_output: execute()}});
+  };
+  const check = () => JSON.stringify(invoke(p.project, begun.verificationGuide.argvTemplate));
+  let cached;
+  observe('check', instruction, () => cached = check());
   const options = {initialHash, initialScopeHash, finalHash: snapshot(p.project).hash, finalScopeHash: scopeHash(p.project, p.editable),
     editable: p.editable, verification: p.config.verification, traceComplete: true};
   assert.equal(skillWorkflow(observer.observations, options).completed, true);
   fs.appendFileSync(path.join(p.project, 'readme.md'), 'New parameter\n');observer.observe(event('docs', {}));
   options.finalScopeHash = scopeHash(p.project, p.editable);
   assert.equal(skillWorkflow(observer.observations, options).fullFinalCheck, false);
-  observer.observe({type: 'item.started', item: {id: 'recheck', type: 'command_execution', command: 'node cli.js'}});
-  observer.observe(event('recheck', invoke(p.project, begun.verificationGuide.argvTemplate)));
+  const reportPath = path.join(p.project, '.terse/runs', begun.run, 'report.json');
+  fs.writeFileSync(path.join(p.project, '.terse/cached.json'), cached);
+  const reportBefore = fs.readFileSync(reportPath);
+  const readArgs = ['-e', 'process.stdout.write(require("node:fs").readFileSync(".terse/cached.json"))'];
+  observe('read-cached', `node ${readArgs.join(' ')}`, () => execFileSync(process.execPath, readArgs, {cwd: p.project, encoding: 'utf8'}));
+  assert.equal(observer.observations.at(-1).checkAttempts, 0);
+  assert.equal(skillWorkflow(observer.observations, options).fullFinalCheck, false);
+  assert.deepEqual(fs.readFileSync(reportPath), reportBefore);
+  observe('same-command-text', instruction, () => cached);
+  assert.equal(observer.observations.at(-1).freshCheckId, null);
+  assert.equal(skillWorkflow(observer.observations, options).fullFinalCheck, false);
+  observe('mismatched-output', instruction, () => {check(); return cached;});
+  assert.notEqual(JSON.parse(fs.readFileSync(reportPath, 'utf8')).checkId, JSON.parse(cached).checkId);
+  assert.equal(observer.observations.at(-1).freshCheckId, null);
+  assert.equal(skillWorkflow(observer.observations, options).fullFinalCheck, false);
+  observe('recheck', instruction, check);
+  assert.equal(observer.observations.at(-1).freshCheckId, JSON.parse(fs.readFileSync(reportPath, 'utf8')).checkId);
   assert.equal(skillWorkflow(observer.observations, options).completed, true);
 });

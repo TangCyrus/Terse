@@ -29,6 +29,8 @@
 
 check 在基线及当前索引分析成功后，对消失且没有跳过覆盖记录的文件，以及仍在扫描范围内、路径和名称已消失的声明，核对 `decision.remove`。无论 strategy 为 reuse、modify、refactor 还是 new，漏声明均产生 **`REMOVAL_DECLARATION_MISSING` / fail / 退出码 1**。JSON、summary 和落盘报告都包含 `undeclaredRemovals` 数组，元素可直接作为缺失目标参考，不需要解析自然语言消息。
 
+若 Git 枚举遗漏仍在磁盘的基线文件，例如新规则忽略了未跟踪源码，check 会逐条核对这些基线路径。报告以 `not-listed-by-git` 标记覆盖缺口，已声明的目标还会产生 `REMOVAL_NOT_VERIFIED`。此类路径不进入 `changes.deleted` 或 `undeclaredRemovals`。清理完成后重跑同一个 run 即可确认实际删除。
+
 该约束复用 `indexSources` 的同一次 AST 遍历及已有 M4 清理逻辑。推导目标也会进入引用检查，让未声明删除同时暴露已知残留调用和不确定引用；不会自动改写 decision，也不自动认可或删除源码。所有配置的验证继续执行，声明失败不能跳过测试或类型检查。
 
 ## 同一基线上的修正

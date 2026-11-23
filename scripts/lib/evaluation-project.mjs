@@ -38,7 +38,7 @@ export async function analyzeEvaluation(project, before, removals) {
   const result = {after: null, duplications: null, newDuplications: null, similarities: null, possibleDuplications: null,
     similarityAlgorithm: SIMILARITY_ALGORITHM, duplicationError: null, cleanup: []};
   try {
-    result.after = snapshot(project);
+    result.after = snapshot(project, before.files);
     const index = indexSources(result.after, project, before.files, true);
     const oldIndex = indexSources(before, undefined, {}, true);
     assert.deepEqual(index.errors, []);

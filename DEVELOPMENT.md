@@ -150,6 +150,8 @@ Skill 冷启动评测入口为 [benchmark-skill.mjs](scripts/benchmark-skill.mjs
 
 protectedFileEvidence(root, expectedHashes, acceptanceFiles) 用运行前记录构造验收身份，实际文件只用于篡改核对；验收文件缺失、改名或被目录替换时返回 tampered，保留协议无效的样本及原验收哈希，避免中止后续会话。历史输入归档与 observed 发布文件逐字节校验，当前 oracle 的演进不改变旧观测。
 
+`snapshot(root, previousFiles)` 在检查和评测对比时核对从 Git 枚举中消失的基线路径，只探查这些路径且不跟随符号链接。仍在磁盘但不受 Git 枚举覆盖的源文件记录为 `not-listed-by-git`，进入覆盖复核。`deletedSourcePaths` 统一报告中的删除清单与漏声明检测。check 每次写入带唯一 `checkId` 的报告。新的 Skill 观察用 `freshCheckId` 绑定同一次命令开始到完成之间写入的报告，并核对报告与返回结果。历史观察缺少这一字段时保留原有重放逻辑。
+
 M6 评测完整性修复（以 main `84e827b` 为起点）：`captureChangeBaseline(root)` 在 agent 启动及接手 WIP 安装之前捕获实际文件的 Git tree，包含起点原有的暂存、未暂存和未跟踪内容，不依赖 HEAD。`collectChanges(root, editable, changeBaseline)` 强制传入这个固定 tree，以私有临时 index 构造终态，再比较两个 tree；不读当前 index 作为基准，也不对真实 index 执行 intent-to-add。暂存、删除、改名、二进制和新增越界文件都进入 changed/patch，outsideScope 单独判定；Git 路径采用 NUL 协议和 literal pathspec，保留 Unicode 与特殊字符。受 Git 属性控制的文本规范化仍遵循该项目的 Git 语义。`evidence.changeBaseline` 保存初始 tree 标识。
 
 独立 Node 行为验收统一复用 `verifyCommand`。宿主在准备阶段用 [test-evidence.mjs](scripts/lib/test-evidence.mjs) 的 `freezeTestCases(project, args)` 从受保护夹具登记文件、名称及调用位置，不导入候选源码；支持显式文件列表和顶层字面量 node:test 调用。动态生成或嵌套套件需要另行定义清单契约，不退回数量判定。宿主 [test-reporter.mjs](scripts/lib/test-reporter.mjs) 输出结构化事件；候选 stdout 仅作为事件数据，不能凭打印通过文本取得信用。只有预登记用例全部恰好执行并通过、每个文件及总汇正常完成、无失败/跳过/TODO/取消且进程成功，验收才 passed；缺失或截断输出也不通过。结果保留 testEvidence 与原始日志哈希，构建/类型命令及 AVA 上游检查保留原规则。这是 Node 行为验收的执行证据，不是对恶意代码的安全沙箱，也不代替补丁职责审查或产品自定义验证的契约。

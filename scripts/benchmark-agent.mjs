@@ -134,7 +134,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
     const checks = Object.fromEntries(Object.entries(commands).map(([name, args]) => [name, verify(root, name, args, directory)]));
     let newDuplications = null, duplicationError = null;
     try {
-      const after = snapshot(root);
+      const after = snapshot(root, before.files);
       const index = indexSources(after, root, before.files);
       if (index.errors.length) throw new Error(index.errors.join('; '));
       const findings = newClones(before, after, await clones(after));
@@ -154,7 +154,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) {
         terseStatus = report.status; terseRules = report.findings.map(finding => finding.rule);
         workflow = history.some(entry => entry.atBaseline && entry.snapshotHash === before.hash && entry.errors.length === 0)
           && decision.rationale?.trim().length > 0 && decision.considered?.length > 0
-          && report.snapshotHash === snapshot(root).hash
+          && report.snapshotHash === snapshot(root, before.files).hash
           && task.remove.every(removal => decision.remove.some(actual => actual.path === removal.path && actual.symbol === removal.symbol));
       } catch { /* Missing or stale workflow evidence remains false. */ }
     }

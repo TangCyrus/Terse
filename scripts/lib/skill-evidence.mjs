@@ -38,6 +38,8 @@ export function captureRunStates(project) {
 
 export function skillObserver(project, protectedHashes, {editable = ['src/']} = {}) {
   const observations = [];
+  const starts = new Map();
+  const seenChecks = new Set();
   const skill = normal(fs.readFileSync(path.join(project, '.agents/skills/terse/SKILL.md'), 'utf8'));
   return {observations, observe(event) {
     const item = event.item;
@@ -46,14 +48,34 @@ export function skillObserver(project, protectedHashes, {editable = ['src/']} = 
     const runStates = captureRunStates(project);
     const commandOutput = event.type === 'item.completed' && item.type === 'command_execution' ? item.aggregated_output ?? '' : '';
     const responses = jsonObjects(commandOutput).filter(value => value.schemaVersion === 1 && ['begin', 'context', 'decide', 'check'].includes(value.command))
-      .map(value => ({command: value.command, run: value.run ?? null, status: value.status, outputKind: value.outputKind, exitCode: value.exitCode,
-        baselineHash: value.baselineHash ?? null, snapshotHash: value.snapshotHash ?? null,
-        verification: (value.verification ?? []).map(item => ({status: item.status, command: item.command})),
-        errors: value.errors?.length ?? 0,
-        ...(value.command === 'check' && Array.isArray(value.undeclaredRemovals) && Array.isArray(value.findings) ? {
-          undeclaredRemovals: value.undeclaredRemovals.map(({path, symbol}) => ({path, ...(symbol === undefined ? {} : {symbol})})),
-          findings: value.findings.map(({rule, severity}) => ({rule, severity})),
-        } : {})}));
+      .map(value => ({...reportEvidence(value), outputKind: value.outputKind, exitCode: value.exitCode}));
+    const commandHash = item.command ? hash(item.command) : null;
+    const calls = item.type === 'command_execution' ? checkInvocationCount(item.command ?? '') : 0;
+    const currentReport = run => {
+      try { return reportEvidence(readJson(path.join(project, '.terse/runs', run, 'report.json'))); }
+      catch { return null; }
+    };
+    let freshCheckId = null;
+    if (calls && event.type === 'item.started') {
+      starts.set(item.id, {commandHash, reports: new Map(runStates.filter(run => !run.invalid).map(({run}) => [run, currentReport(run)?.checkId]))});
+    }
+    if (event.type === 'item.completed' && item.type === 'command_execution') {
+      const start = starts.get(item.id);
+      starts.delete(item.id);
+      const checks = responses.filter(response => response.command === 'check');
+      // Only the final report survives on disk. Multiple calls in a single
+      // command cannot all be confirmed by that report.
+      if (calls === 1 && start?.commandHash === commandHash && checks.length === 1) {
+        const {outputKind, exitCode, ...response} = checks[0];
+        if (outputKind === 'result' && response.checkId && start.reports.has(response.run)
+          && start.reports.get(response.run) !== response.checkId && !seenChecks.has(response.checkId)
+          && runStates.some(run => !run.invalid && run.run === response.run)
+          && JSON.stringify(currentReport(response.run)) === JSON.stringify(response)) {
+          freshCheckId = response.checkId;
+          seenChecks.add(freshCheckId);
+        }
+      }
+    }
     const tampered = Object.entries(protectedHashes).filter(([file, expected]) => {
       try { return !fs.lstatSync(path.join(project, file)).isFile() || hash(fs.readFileSync(path.join(project, file))) !== expected; }
       catch { return true; }
@@ -61,10 +83,22 @@ export function skillObserver(project, protectedHashes, {editable = ['src/']} = 
     const sourceEdits = (item.changes ?? []).map(change => ({path: path.relative(project, path.resolve(project, change.path)).replaceAll('\\', '/'), kind: change.kind}));
     observations.push({sequence: observations.length, event: event.type, itemId: item.id, itemType: item.type,
       sourceHash: state.hash, scopeHash: scopeHash(project, editable), runStates, responses, tampered, sourceEdits,
-      checkAttempts: event.type === 'item.completed' ? Math.max(checkInvocationCount(item.command ?? ''), responses.filter(item => item.command === 'check').length) : 0,
+      freshCheckId, checkAttempts: event.type === 'item.completed' ? calls : 0,
       skillRead: normal(commandOutput).includes(skill),
       ...(item.command ? {commandHash: hash(item.command)} : {})});
   }};
+}
+
+function reportEvidence(value) {
+  return {command: value.command, run: value.run ?? null, status: value.status,
+    ...(typeof value.checkId === 'string' ? {checkId: value.checkId} : {}),
+    baselineHash: value.baselineHash ?? null, snapshotHash: value.snapshotHash ?? null,
+    verification: (value.verification ?? []).map(item => ({status: item.status, command: item.command})),
+    errors: value.errors?.length ?? 0,
+    ...(value.command === 'check' && Array.isArray(value.undeclaredRemovals) && Array.isArray(value.findings) ? {
+      undeclaredRemovals: value.undeclaredRemovals.map(({path, symbol}) => ({path, ...(symbol === undefined ? {} : {symbol})})),
+      findings: value.findings.map(({rule, severity}) => ({rule, severity})),
+    } : {})};
 }
 
 // This grades observed ordering conservatively. Same-command writes may not
@@ -98,9 +132,11 @@ export function skillWorkflow(observations, {initialHash, finalHash, verificatio
 }
 
 function observedChecks(observations, finalScopeHash) {
+  const recordedFreshness = observations.some(item => Object.hasOwn(item, 'freshCheckId'));
   return observations.flatMap(item => {
-    const responses = item.responses.filter(response => response.command === 'check');
-    const attempts = Math.max(item.checkAttempts ?? 0, responses.length);
+    const responses = item.responses.filter(response => response.command === 'check'
+      && (!recordedFreshness || item.freshCheckId && response.checkId === item.freshCheckId));
+    const attempts = recordedFreshness ? item.checkAttempts : Math.max(item.checkAttempts ?? 0, responses.length);
     // Missing responses make a multi-call command ambiguous. A later separately
     // observed full check can recover; an old pass cannot hide this attempt.
     if (!attempts) return [];

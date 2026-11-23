@@ -25,6 +25,8 @@ function workspace(t) {
 }
 const command = (id, output, text = 'node .agents/skills/terse/scripts/run.mjs') => ({type: 'item.completed', item: {
   id, type: 'command_execution', command: text, aggregated_output: typeof output === 'string' ? output : JSON.stringify(output), exit_code: 0}});
+const start = (observer, id, text) => observer.observe({type: 'item.started', item: {id, type: 'command_execution', command: text}});
+const checkCommand = run => `node .agents/skills/terse/scripts/run.mjs check --run ${run} --summary --json`;
 
 function observedWorkflow(t) {
   const parent = workspace(t), scenario = skillCases[0];
@@ -39,7 +41,9 @@ function observedWorkflow(t) {
   observer.observe(command('decide', decision));
   cases.find(item => item.id === scenario.id).variants.find(item => item.id === 'reuse').edit(sources);
   observer.observe({type: 'item.completed', item: {id: 'edit', type: 'file_change', changes: [{path: 'src/orders.ts', kind: 'update'}, {path: 'src/routes.ts', kind: 'update'}]}});
-  const checked = invoke(project, begun.verificationGuide.argvTemplate);observer.observe(command('check', checked));
+  const instruction = checkCommand(begun.run);
+  start(observer, 'check', instruction);
+  const checked = invoke(project, begun.verificationGuide.argvTemplate);observer.observe(command('check', checked, instruction));
   const options = {initialHash, finalHash: snapshot(project).hash, verification: config.verification, traceComplete: true};
   return {observer, options, project, begun, decision, checked};
 }
@@ -65,7 +69,7 @@ test('skill observer binds installed file reads, pre-edit decisions and full fin
   const {observer, options} = observedWorkflow(t);
   const workflow = skillWorkflow(observer.observations, options);
   assert.equal(workflow.completed, true);assert.equal(workflow.evidence.decisionSequence, 2);
-  assert.equal(workflow.evidence.firstEditSequence, 3);assert.equal(workflow.evidence.finalCheckSequence, 4);
+  assert.equal(workflow.evidence.firstEditSequence, 3);assert.equal(workflow.evidence.finalCheckSequence, 5);
   assert(observer.observations[3].sourceEdits.every(item => item.path.startsWith('src/')));
 });
 
@@ -75,10 +79,10 @@ test('workflow grading cannot credit self-reports, late decisions, repeated base
     trace => trace.forEach(item => item.skillRead = false),
     trace => trace.slice(0, 3).forEach(item => item.runStates.forEach(run => run.decided = false)),
     trace => trace[1].responses.forEach(item => item.snapshotHash = 'edited-before-begin'),
-    trace => trace[4].responses.forEach(item => item.snapshotHash = 'stale-check'),
-    trace => trace[4].responses.forEach(item => item.verification = []),
-    trace => trace[4].responses.forEach(item => item.verification[0].status = 'failed'),
-    trace => trace[4].runStates.push({run: 'another-baseline'}),
+    trace => trace[5].responses.forEach(item => item.snapshotHash = 'stale-check'),
+    trace => trace[5].responses.forEach(item => item.verification = []),
+    trace => trace[5].responses.forEach(item => item.verification[0].status = 'failed'),
+    trace => trace[5].runStates.push({run: 'another-baseline'}),
     trace => trace[2].tampered.push('terse.config.json'),
     // A decision and edit in one observed command lacks an unchanged checkpoint.
     trace => {trace[2].sourceHash = options.finalHash;},
@@ -116,10 +120,12 @@ test('a final failed, missing or foreign check withholds credit until a later fu
   ];
   for (const attempt of attempts) {
     const live = skillObserver(project, {});live.observations.push(...structuredClone(original));
+    start(live, 'last-attempt', attempt.command);
     live.observe(command('last-attempt', attempt.output, attempt.command));
     assert.equal(skillWorkflow(live.observations, options).fullFinalCheck, false);
     assert.equal(skillWorkflow(live.observations, options).completed, false);
-    live.observe(command('recovered', checked, instruction));
+    start(live, 'recovered', instruction);
+    live.observe(command('recovered', invoke(project, begun.verificationGuide.argvTemplate), instruction));
     assert.equal(skillWorkflow(live.observations, options).completed, true);
   }
   const help = skillObserver(project, {});help.observations.push(...structuredClone(original));

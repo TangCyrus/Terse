@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { clones, indexSources, newClones } from './analyze.js';
-import { loadRun, readJson, snapshot, writeJson } from './project.js';
+import { deletedSourcePaths, loadRun, readJson, snapshot, writeJson } from './project.js';
 import { ANALYZER, type Decision, type Finding, type Status, type VerificationResult } from './types.js';
 import { cleanupFindings, undeclaredRemovals } from './cleanup.js';
 import { validateDecision } from './decision.js';
@@ -11,7 +12,7 @@ import { similarImplementations, SIMILARITY_ALGORITHM } from './similarity.js';
 export async function check(root: string, run: string, skipVerification = false) {
   const { dir, baseline } = loadRun(root, run);
   const before = baseline.snapshot;
-  const after = snapshot(root);
+  const after = snapshot(root, before.files);
   const findings: Finding[] = [];
   const errors: string[] = [];
   const verification: VerificationResult[] = [];
@@ -19,7 +20,7 @@ export async function check(root: string, run: string, skipVerification = false)
   const changes = {
     added: Object.keys(after.files).filter(p => !Object.hasOwn(before.files, p)),
     modified: Object.keys(after.files).filter(p => before.files[p] && before.files[p].hash !== after.files[p].hash),
-    deleted: Object.keys(before.files).filter(p => !Object.hasOwn(after.files, p)),
+    deleted: deletedSourcePaths(before, after),
   };
   if (JSON.stringify(before.config) !== JSON.stringify(after.config)) errors.push('terse.config.json changed during this run; start a new run after reviewing the policy change');
   const oldIndex = indexSources(before, undefined, {}, true);
@@ -84,9 +85,9 @@ export async function check(root: string, run: string, skipVerification = false)
       if (item.status === 'failed') add('VERIFICATION_FAILED', `Verification exited ${item.exitCode}: ${command.command} ${command.args.join(' ')}`, [], 'fail');
     }
   }
-  if (snapshot(root).hash !== after.hash) errors.push('Project changed during check; results are stale. Run check again on a stable workspace.');
+  if (snapshot(root, before.files).hash !== after.hash) errors.push('Project changed during check; results are stale. Run check again on a stable workspace.');
   const status: Status = errors.length ? 'incomplete' : findings.some(f => f.severity === 'fail') ? 'fail' : findings.length ? 'needs-review' : 'pass';
-  const report = { command: 'check', run, task: baseline.task, status, analyzer: ANALYZER, checkedAt: new Date().toISOString(),
+  const report = { command: 'check', run, checkId: randomUUID(), task: baseline.task, status, analyzer: ANALYZER, checkedAt: new Date().toISOString(),
     baselineHash: before.hash, snapshotHash: after.hash, attributionAlgorithm: 'token-occurrences/1', similarityAlgorithm: SIMILARITY_ALGORITHM, scannedFiles: Object.keys(after.files).length,
     baselineFiles: Object.keys(before.files).length, changes, baselineClones, currentClones,
     newDuplications: findings.filter(f => f.rule === 'NEW_DUPLICATION').length,
@@ -96,7 +97,7 @@ export async function check(root: string, run: string, skipVerification = false)
       'Exact token occurrence counts suppress historical fragments and moves; equal-count relocation cannot be distinguished from deleting and copying the same tokens.',
       'File and ordinary symbol removal checks use M2 module resolution, direct named exports and unbound same-file calls; unresolved imports without declared external ownership need review. Unresolved non-builtin require calls remain uncertain. No complete call graph or external consumer analysis.',
       'ECMAScript #method cleanup is checked within a uniquely matched named top-level class in the same source. Nested private names shadow only their own class body; direct eval, decorators and ambiguous ownership retain review. This does not prove arbitrary public or TypeScript-private member cleanup.',
-      'Removal declarations cover disappeared scanned files and indexed path/name identities, collapsing removed nested declarations into their parent. Same-path same-name replacements, individual overload signatures and unindexed syntax are not proven removals; coverage loss is not deletion.',
+      'Removal declarations cover disappeared scanned files and indexed path/name identities, collapsing removed nested declarations into their parent. Baseline files omitted by Git but still on disk are coverage gaps. Same-path same-name replacements, individual overload signatures and unindexed syntax are not proven removals.',
       'This report applies only to the recorded snapshot. Local evidence is not a tamper-proof CI attestation.'],
   };
   writeJson(dir, 'report.json', report);

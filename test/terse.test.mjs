@@ -553,6 +553,41 @@ test('removal outside source coverage and member removal cannot silently pass', 
   assert(result.findings.some(f => f.rule === 'REMOVAL_REFERENCE_UNCERTAIN'));
 });
 
+test('an ignored baseline file remains unverified until physically removed', async t => {
+  const file = 'src/旧实现.js';
+  for (const declared of [true, false]) await t.test(declared ? 'declared removal' : 'no removal declaration', async t => {
+    const p = project(t, { 'src/calculate.js': body, [file]: 'export function obsolete() { return 1; }' });
+    const run = ready(p.root, { remove: declared ? [{ path: file }] : [] });
+    p.write('.gitignore', `/${file}\n/unrelated/\n`);
+    p.write('unrelated/hidden.js', 'This is deliberately not JavaScript');
+    const hidden = await check(p.root, run);
+    assert.equal(hidden.status, 'needs-review');
+    assert.deepEqual(hidden.skipped.filter(item => item.reason === 'not-listed-by-git'), [{path: file, reason: 'not-listed-by-git'}]);
+    assert(!hidden.changes.deleted.includes(file));
+    assert.deepEqual(hidden.undeclaredRemovals, []);
+    assert(hidden.findings.some(finding => finding.rule === 'COVERAGE_GAP'));
+    assert.equal(hidden.findings.some(finding => finding.rule === 'REMOVAL_NOT_VERIFIED'), declared);
+    assert.equal(hidden.verification[0].status, 'passed');
+    fs.unlinkSync(path.join(p.root, file));
+    const removed = await check(p.root, run);
+    assert.deepEqual(removed.changes.deleted, [file]);
+    assert.equal(removed.status, declared ? 'pass' : 'fail');
+    assert.deepEqual(removed.undeclaredRemovals, declared ? [] : [{path: file}]);
+  });
+});
+
+test('a baseline file becoming ignored during verification makes the report stale', async t => {
+  const file = 'src/legacy.js';
+  const p = project(t, { 'src/calculate.js': body, [file]: 'export function obsolete() {}' }, {verification: [{command: 'node',
+    args: ['-e', `require('node:fs').writeFileSync('.git/info/exclude', '/${file}\\n')`]}]});
+  const run = ready(p.root);
+  const report = await check(p.root, run);
+  assert.equal(report.verification[0].status, 'passed');
+  assert.equal(report.status, 'incomplete');
+  assert(report.errors.some(error => error.includes('Project changed during check')));
+  assert(fs.existsSync(path.join(p.root, file)));
+});
+
 test('forwarding replacements and custom require calls are reviewed rather than declared broken', async t => {
   const p = project(t, { 'src/calculate.js': body, 'src/legacy.js': 'export function obsolete() { return 1; }',
     'src/new.js': 'export function replacement() { return 2; }',

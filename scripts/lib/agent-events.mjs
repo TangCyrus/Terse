@@ -107,31 +107,35 @@ function decisionActivity(events, terseCli, completed) {
 }
 
 export function checkInvocationCount(command) {
-  command = command.replace(/['"]/g, '');
-  if (!/\bnode(?:\.exe)?\b/.test(command)) return 0;
-  const calls = [...command.matchAll(/\bcheck\s+--/g)];
+  command = command.replace(/\\*["']/g, '').replaceAll('\\', '/');
+  const calls = [...command.matchAll(/(?:^|[;|&\r\n]|\s-(?:Command|lc|c)\b)\s*node(?:\.exe)?\s+(?:(?![\s-])[^;|&\r\n]*?(?:\bcli\.js|\.agents\/skills\/terse\/scripts\/run\.mjs)|\$[\w:]+)\s+check\s+(?=--)/gi)];
   return calls.filter((call, index) => {
-    const part = command.slice(call.index, calls[index + 1]?.index);
-    return /--run\b/.test(part) && !/--(?:help|version)\b/.test(part);
+    const part = command.slice(call.index + call[0].length, calls[index + 1]?.index).split(/[;|&\r\n]/, 1)[0];
+    return /(?:^|\s)--run(?:\s|=)/.test(part) && !/(?:^|\s)--(?:help|version)(?:\s|$)/.test(part);
   }).length;
 }
 
 function checkActivity(events, completed) {
   const reports = [];
+  const seen = new Set();
   let unknownCalls = 0;
   for (const event of events) {
     const item = event.item;
     if (event.type !== 'item.completed' || item?.type !== 'command_execution') continue;
-    const command = (item.command ?? '').replace(/['"]/g, '');
-    if (!/\bnode(?:\.exe)?\b/.test(command)) continue;
+    const expected = checkInvocationCount(item.command ?? '');
+    if (!expected) continue;
     const responses = jsonObjects(item.aggregated_output ?? '').filter(value => value.schemaVersion === 1
       && value.command === 'check' && value.outputKind === 'result');
-    const expected = checkInvocationCount(command);
-    unknownCalls += Math.max(0, expected - responses.length);
-    for (const [responseIndex, response] of responses.entries()) reports.push({itemId: item.id, responseIndex,
-      baselineHash: response.baselineHash ?? null, snapshotHash: response.snapshotHash ?? null, status: response.status,
-      verification: (response.verification ?? []).map(item => item.status), errors: (response.errors ?? []).length,
-      findings: (response.findings ?? []).map(({rule, severity, locations, similarity}) => ({rule, severity, locations, ...(similarity ? {similarity} : {})}))});
+    if (responses.length > expected) { unknownCalls += expected; continue; }
+    unknownCalls += expected - responses.length;
+    for (const [responseIndex, response] of responses.entries()) {
+      if (response.checkId && seen.has(response.checkId)) { unknownCalls++; continue; }
+      if (response.checkId) seen.add(response.checkId);
+      reports.push({itemId: item.id, responseIndex,
+        baselineHash: response.baselineHash ?? null, snapshotHash: response.snapshotHash ?? null, status: response.status,
+        verification: (response.verification ?? []).map(item => item.status), errors: (response.errors ?? []).length,
+        findings: (response.findings ?? []).map(({rule, severity, locations, similarity}) => ({rule, severity, locations, ...(similarity ? {similarity} : {})}))});
+    }
   }
   return {complete: completed && unknownCalls === 0, unknownCalls, reports};
 }
