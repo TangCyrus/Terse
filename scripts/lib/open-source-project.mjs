@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {rootOf, snapshot} from '../../dist/project.js';
 import {indexSources} from '../../dist/analyze.js';
-import {showConfiguration, verifyConfiguration, collectChanges} from './benchmark-project.mjs';
+import {showConfiguration, verifyConfiguration, captureChangeBaseline, collectChanges} from './benchmark-project.mjs';
+import {freezeTestCases} from './test-evidence.mjs';
 
 // Shared by explicit-prompt comparisons and installed-Skill sessions. Setup is
 // completed before either workflow begins; no task baseline is created here.
@@ -28,7 +29,9 @@ export function prepareOpenSourceProject({source, directory, files, dependencyLo
   fs.writeFileSync(path.join(project, 'terse.config.json'), JSON.stringify(config, null, 2) + '\n');
   execFileSync('git', ['add', '.'], {cwd: project, stdio: 'pipe'});
   const root = rootOf(project), before = snapshot(root);
+  const changeBaseline = captureChangeBaseline(root);
+  const acceptanceCases = commands.acceptance ? freezeTestCases(root, commands.acceptance) : undefined;
   assert.deepEqual(indexSources(before, root).errors, [], 'Prepared project must be analyzable before starting agents');
-  assert.deepEqual(collectChanges(root, task.editable), {changed: [], outsideScope: [], patch: ''});
-  return {root, project: root, commands, config, before};
+  assert.deepEqual(collectChanges(root, task.editable, changeBaseline), {changed: [], outsideScope: [], patch: ''});
+  return {root, project: root, commands, config, before, changeBaseline, acceptanceCases};
 }

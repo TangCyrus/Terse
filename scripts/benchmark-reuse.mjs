@@ -11,7 +11,8 @@ import {repository} from './lib/workspace.mjs';
 import {prepareEvaluation, analyzeEvaluation} from './lib/evaluation-project.mjs';
 import {runAgent} from './lib/agent-runner.mjs';
 import {pairedSummary, correctionEvidence, summarizePhases} from './lib/agent-events.mjs';
-import {collectChanges, protectedFileEvidence} from './lib/benchmark-project.mjs';
+import {captureChangeBaseline, collectChanges, verifyCommand, protectedFileEvidence} from './lib/benchmark-project.mjs';
+import {freezeTestCases} from './lib/test-evidence.mjs';
 import {begin, snapshot} from '../dist/project.js';
 import {context, indexSources} from '../dist/analyze.js';
 import {decisionGuide, validateDecision} from '../dist/decision.js';
@@ -40,10 +41,11 @@ const cliVersion = execFileSync(values.codex, ['--version'], {encoding: 'utf8', 
 const sourceFiles = [...list(path.join(repository, 'examples/orders')).map(file => `examples/orders/${file}`),
   ...list(path.join(repository, 'examples/evaluation')).map(file => `examples/evaluation/${file}`),
   'scripts/evaluation-cases.mjs', 'scripts/lib/evaluation-project.mjs',
+  'scripts/lib/benchmark-project.mjs', 'scripts/lib/test-evidence.mjs', 'scripts/lib/test-reporter.mjs',
   ...(values.suite === 'challenge' ? [...list(path.join(repository, 'examples/challenge')).map(file => `examples/challenge/${file}`),
     'scripts/challenge-cases.mjs', 'scripts/benchmark-reuse.mjs', 'scripts/lib/agent-events.mjs'] : []),
   ...(values.suite === 'natural-complex' ? [...list(path.join(repository, 'examples/natural')).map(file => `examples/natural/${file}`),
-    'scripts/natural-cases.mjs', 'scripts/benchmark-reuse.mjs', 'scripts/lib/agent-events.mjs', 'scripts/lib/benchmark-project.mjs'] : [])];
+    'scripts/natural-cases.mjs', 'scripts/benchmark-reuse.mjs', 'scripts/lib/agent-events.mjs'] : [])];
 const fixtureHashes = hashFiles(repository, sourceFiles);
 const tasks = cases.map(({id, task, remove, candidate, acceptance, mode, targetRules, staged}) => ({id, task, remove: remove ?? [], candidate: candidate ?? null,
   ...(mode ? {mode, targetRules} : {}),
@@ -52,21 +54,21 @@ const tasks = cases.map(({id, task, remove, candidate, acceptance, mode, targetR
   query: task, acceptanceHash: digest(fs.readFileSync(path.join(repository, acceptance ?? `examples/evaluation/${id}.test.mjs`)))}));
 // Allow new source modules equally in both arms; forbidding copies by filename would bias reuse.
 const editable = ['src/'];
+const acceptanceByProject = new Map();
 function prepare(task, label) {
   const scenario = cases.find(item => item.id === task.id);
   const {project, config, sources} = prepareEvaluation(output, path.join(label, 'project'), scenario);
   execFileSync('git', ['add', '.'], {cwd: project, stdio: 'pipe'});
   const before = snapshot(project);
+  const changeBaseline = captureChangeBaseline(project);
+  acceptanceByProject.set(project, freezeTestCases(project, config.verification[0].args));
   assert.deepEqual(indexSources(before, project).errors, []);
-  assert.deepEqual(collectChanges(project, editable).changed, []);
-  return {project, config, before, sources, scenario};
+  assert.deepEqual(collectChanges(project, editable, changeBaseline).changed, []);
+  return {project, config, before, sources, scenario, changeBaseline};
 }
 function verify(project, config, directory) {
-  const result = spawnSync(process.execPath, config.verification[0].args, {cwd: project, env, encoding: 'utf8', timeout: 30_000});
-  const log = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  fs.writeFileSync(path.join(directory, 'acceptance.log'), log);
-  return {passed: !result.error && result.status === 0 && /tests 3\b/.test(log), exitCode: result.status,
-    error: result.error?.message ?? null, logHash: digest(log)};
+  return verifyCommand(project, 'acceptance', config.verification[0].args, directory,
+    {env, expectedCases: acceptanceByProject.get(project), timeoutMs: 30_000});
 }
 // Runtime acceptance alone intentionally cannot detect the retained legacy body.
 const preflight = tasks.map(task => {
@@ -82,6 +84,7 @@ const preflight = tasks.map(task => {
   return {taskId: task.id, verification};
 });
 const plan = {schemaVersion: 1, kind: 'controlled-agent-comparison', suite: values.suite, terseRevision, project: specification, repetitions, cliVersion,
+  evaluationIntegrity: {patch: 'frozen-git-tree/1', acceptance: 'named-node-tests/1'},
   tasks, fixtureHashes, preflight, criteria: 'Behavior correctness, patch-reviewed reuse/cleanup and independent-responsibility preservation. Token counts and elapsed time alone are not success criteria.'};
 write(path.join(output, 'plan.json'), plan);
 if (values['preflight-only']) { console.log(JSON.stringify({output, preflight}, null, 2)); process.exit(0); }
@@ -89,7 +92,7 @@ const results = [];
 for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repetition <= repetitions; repetition++) {
   for (const arm of (taskIndex + repetition) % 2 ? ['control', 'terse'] : ['terse', 'control']) {
     const artifactId = `${task.id}-pair-${repetition}-${arm}`;
-    const {project, config, before, sources, scenario} = prepare(task, artifactId);
+    const {project, config, before, sources, scenario, changeBaseline} = prepare(task, artifactId);
     const directory = path.dirname(project);
     const protectedHashes = hashFiles(project, list(project).filter(file => !file.startsWith('src/')));
     const run = begin(project, task.task);
@@ -105,7 +108,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
         similarities: analysis.similarities, cleanup: analysis.cleanup};
       if (scenario.seed) assert(task.targetRules.some(rule => analysis.similarities.some(item => item.rule === rule)
         || analysis.cleanup.some(item => item.rule === rule)), 'Seed must expose its preregistered problem before any model call');
-      const patch = collectChanges(project, editable).patch;
+      const patch = collectChanges(project, editable, changeBaseline).patch;
       if (scenario.staged) assert(initial.snapshotHash === before.hash && patch === '', 'Natural development must start from clean baseline source');
       fs.writeFileSync(path.join(directory, 'initial.patch'), patch);
       write(path.join(directory, 'initial-analysis.json'), initial);
@@ -130,7 +133,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
         : 'Do not invoke Terse or read .terse records. ';
       const first = await invokeAgent(common + drafting + guidance + `Verify with ${command}.\n`, draftDirectory);
       const analysis = await analyzeEvaluation(project, before, task.remove);
-      const draftChanges = collectChanges(project, editable);
+      const draftChanges = collectChanges(project, editable, changeBaseline);
       fs.writeFileSync(path.join(directory, 'draft.patch'), draftChanges.patch);
       const acceptance = verify(project, config, draftDirectory);
       const integrity = protectedFileEvidence(project, protectedHashes, config.verification[0].args.slice(1));
@@ -162,7 +165,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
     if (duplications !== null) write(path.join(directory, 'duplications.json'), duplications);
     if (similarities !== null) write(path.join(directory, 'similarities.json'), similarities);
     // Collect only after grading; this includes new helpers and deleted modules in the patch.
-    const changes = collectChanges(project, editable);
+    const changes = collectChanges(project, editable, changeBaseline);
     fs.writeFileSync(path.join(directory, 'implementation.patch'), changes.patch);
     let workflow = arm === 'control' ? null : false, candidateHit = null, terseStatus = null, terseRules = [];
     const dir = path.dirname(run.decisionPath);
@@ -200,7 +203,7 @@ for (const [taskIndex, task] of tasks.entries()) for (let repetition = 1; repeti
       possibleDuplications, similarityAlgorithm, duplicationError, cleanup,
       agentMs: agent.agentMs, evaluationMs: Math.round(performance.now() - checkStart), agentExitCode: agent.exitCode, timedOut: agent.timedOut,
       blockedByPolicy: agent.blockedByPolicy, events: agent.events,
-      evidence: {patchHash: digest(changes.patch), eventHash: digest(fs.readFileSync(path.join(directory, 'agent.jsonl'))),
+      evidence: {changeBaseline, patchHash: digest(changes.patch), eventHash: digest(fs.readFileSync(path.join(directory, 'agent.jsonl'))),
         ...(initial ? {initialPatchHash: digest(fs.readFileSync(path.join(directory, 'initial.patch'))),
           initialAnalysisHash: digest(fs.readFileSync(path.join(directory, 'initial-analysis.json')))} : {})}};
     if (draft) Object.assign(result.evidence, {draftEventHash: draft.eventHash,

@@ -1,23 +1,24 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {testArguments, testEvidence} from './test-evidence.mjs';
 
 export const inScope = (file, editable) => editable.some(entry => entry.endsWith('/') ? file.startsWith(entry) : file === entry);
 
-export function verifyCommand(project, label, args, directory, {env = process.env, expectedCounts, expectedTests, timeoutMs = 120_000} = {}) {
+export function verifyCommand(project, label, args, directory, {env = process.env, expectedCounts, expectedCases, timeoutMs = 120_000} = {}) {
   const start = performance.now();
-  const result = spawnSync(process.execPath, args, {cwd: project, env, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024});
+  const result = spawnSync(process.execPath, testArguments(args, expectedCases), {cwd: project, env, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024});
   const log = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
   fs.writeFileSync(path.join(directory, `${label}.log`), log);
   const counts = expectedCounts ? upstreamCounts(log) : undefined;
-  const testCounts = expectedTests === undefined ? undefined : Object.fromEntries(['tests', 'pass', 'fail', 'cancelled'].map(name => [name,
-    Number(new RegExp(`(?:^|\\n)[^\\n]*?\\b${name} (\\d+)\\b`).exec(log)?.[1] ?? NaN)]));
+  const evidence = expectedCases ? testEvidence(result.stdout ?? '', expectedCases) : undefined;
   return {exitCode: result.status, error: result.error?.message ?? null,
     passed: result.status === 0 && !result.error && !result.signal && (!counts || JSON.stringify(counts) === JSON.stringify(expectedCounts))
-      && (!testCounts || testCounts.tests === expectedTests && testCounts.pass === expectedTests && testCounts.fail === 0 && testCounts.cancelled === 0),
-    elapsedMs: Math.round(performance.now() - start), logHash: createHash('sha256').update(log).digest('hex'), ...(counts ? {counts} : {}), ...(testCounts ? {testCounts} : {})};
+      && (!evidence || evidence.passed),
+    elapsedMs: Math.round(performance.now() - start), logHash: createHash('sha256').update(log).digest('hex'), ...(counts ? {counts} : {}), ...(evidence ? {testEvidence: evidence} : {})};
 }
 
 export function showConfiguration(root) {
@@ -38,18 +39,41 @@ export function verifyConfiguration(expected, actual, expectedRoot, actualRoot) 
     flattenConfiguration(expected, expectedRoot).exclude, 'Flattening must preserve source exclusions');
 }
 
-export function collectChanges(root, editable) {
-  const git = (...args) => execFileSync('git', ['-C', root, ...args], {encoding: 'utf8'});
-  const lines = text => text.trim().split(/\r?\n/).filter(Boolean);
-  const changed = lines(git('diff', '--name-only'));
-  const untracked = lines(git('ls-files', '--others', '--exclude-standard'));
-  const permitted = file => inScope(file, editable);
-  const added = untracked.filter(permitted);
-  // Capture accepted newly created helpers too; ordinary git diff omits untracked files.
-  if (added.length) git('add', '--intent-to-add', '--', ...added);
-  return { changed: [...changed, ...added].sort(),
-    outsideScope: [...changed, ...untracked].filter(file => !permitted(file)),
-    patch: git('diff', '--binary') };
+const gitAt = (root, args, options = {}) => execFileSync('git', ['-C', root, ...args], {encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 32 * 1024 * 1024, ...options});
+const paths = output => output.split('\0').filter(Boolean);
+
+// Snapshot the actual files using a private index: neither HEAD nor the mutable
+// agent index is a task baseline. This also supports repositories without commits.
+function workingTree(root, baseline) {
+  const tracked = paths(gitAt(root, ['ls-files', '--cached', '-z']));
+  const original = baseline ? paths(gitAt(root, ['ls-tree', '-r', '--name-only', '-z', baseline])) : [];
+  const untracked = paths(gitAt(root, ['ls-files', '--others', '--exclude-standard', '-z']));
+  const originalPaths = new Set(original);
+  const files = [...new Set([...original, ...tracked, ...untracked])].filter(file => originalPaths.has(file) || fs.existsSync(path.join(root, file)));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'terse-patch-index-'));
+  const env = {...process.env, GIT_INDEX_FILE: path.join(directory, 'index'), GIT_LITERAL_PATHSPECS: '1'};
+  try {
+    gitAt(root, baseline ? ['read-tree', baseline] : ['read-tree', '--empty'], {env});
+    if (files.length) gitAt(root, ['add', '--all', '--force', '--pathspec-from-file=-', '--pathspec-file-nul'], {env, input: files.join('\0') + '\0'});
+    return gitAt(root, ['write-tree'], {env}).trim();
+  } finally {
+    const resolved = fs.realpathSync(directory);
+    assert.equal(path.dirname(resolved), fs.realpathSync(os.tmpdir()));
+    assert(path.basename(resolved).startsWith('terse-patch-index-'));
+    fs.rmSync(resolved, {recursive: true, force: true});
+  }
+}
+
+export function captureChangeBaseline(root) {
+  return workingTree(root);
+}
+
+export function collectChanges(root, editable, baseline) {
+  assert(typeof baseline === 'string' && /^[a-f0-9]{40,64}$/.test(baseline), 'A frozen task baseline is required');
+  const current = workingTree(root, baseline);
+  const diff = ['diff', '--no-ext-diff', '--no-textconv', '--no-renames', baseline, current];
+  const changed = paths(gitAt(root, [...diff, '--name-only', '-z'])).sort();
+  return {changed, outsideScope: changed.filter(file => !inScope(file, editable)), patch: gitAt(root, [...diff, '--binary'])};
 }
 
 export function upstreamCounts(output) {

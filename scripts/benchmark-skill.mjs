@@ -7,7 +7,8 @@ import {skillCases} from './skill-cases.mjs';
 import {cases as authoredCases} from './evaluation-cases.mjs';
 import {repository, invoke} from './lib/workspace.mjs';
 import {prepareEvaluation, analyzeEvaluation} from './lib/evaluation-project.mjs';
-import {collectChanges, protectedFileEvidence, inScope} from './lib/benchmark-project.mjs';
+import {captureChangeBaseline, collectChanges, verifyCommand, protectedFileEvidence, inScope} from './lib/benchmark-project.mjs';
+import {freezeTestCases} from './lib/test-evidence.mjs';
 import {runAgent} from './lib/agent-runner.mjs';
 import {hash, hashFiles, list, write, scopeHash, skillObserver, skillWorkflow, captureRunStates, removalWorkflow} from './lib/skill-evidence.mjs';
 import {snapshot} from '../dist/project.js';
@@ -35,28 +36,29 @@ const fixtureFiles = [...new Set([
   'scripts/export-skill-benchmark.mjs', 'scripts/lib/skill-evidence.mjs', 'scripts/lib/agent-runner.mjs', 'scripts/lib/agent-events.mjs',
   'scripts/lib/workspace.mjs', 'scripts/lib/benchmark-project.mjs', 'scripts/lib/evaluation-project.mjs', 'test/skill-agent.test.mjs',
   'scripts/lib/open-source-project.mjs', 'scripts/lib/pqueue-skill.mjs',
+  'scripts/lib/test-evidence.mjs', 'scripts/lib/test-reporter.mjs',
   ...(external ? [...pqueue.pqueueFixtureFiles, 'test/pqueue-skill.test.mjs', 'test/removal-workflow.test.mjs'] : []),
 ])].sort();
 const fixtureHashes = hashFiles(repository, fixtureFiles);
 const tasks = cases.map(({id, prompt, remove, acceptance, editable}) => ({id, prompt, promptHash: hash(prompt), remove, editable: editable ?? ['src/'],
   acceptanceHash: hash(fs.readFileSync(path.join(repository, external ? `benchmarks/p-queue/${acceptance}` : acceptance)))}));
 
+const acceptanceByProject = new Map();
 function prepare(scenario, label) {
   const prepared = external ? external.prepare(path.join(output, label), scenario) : prepareEvaluation(output, `${label}/project`, scenario);
   const initialized = invoke(prepared.project, ['init']);
   assert.equal(initialized.verificationConfigured, true);
   assert(!fs.existsSync(path.join(prepared.project, '.terse/runs')), 'The host must not begin a task or inject candidates');
   execFileSync('git', ['add', '.'], {cwd: prepared.project, stdio: 'pipe'});
-  assert.equal(collectChanges(prepared.project, scenario.editable ?? ['src/']).patch, '');
-  return {...prepared, before: snapshot(prepared.project), initialized};
+  const changeBaseline = captureChangeBaseline(prepared.project);
+  if (!external) acceptanceByProject.set(prepared.project, freezeTestCases(prepared.project, prepared.config.verification[0].args));
+  assert.equal(collectChanges(prepared.project, scenario.editable ?? ['src/'], changeBaseline).patch, '');
+  return {...prepared, before: snapshot(prepared.project), initialized, changeBaseline};
 }
 function verify(project, config, directory, filename) {
   if (external) return external.verify(project, config, directory, filename.replace(/\.log$/, ''));
-  const result = spawnSync(process.execPath, config.verification[0].args, {cwd: project, env, encoding: 'utf8', timeout: 30_000});
-  const log = `${result.stdout ?? ''}${result.stderr ?? ''}`;
-  fs.writeFileSync(path.join(directory, filename), log, {flag: 'wx'});
-  return {passed: !result.error && result.status === 0 && /tests 3\b/.test(log), exitCode: result.status,
-    error: result.error?.message ?? null, logHash: hash(log)};
+  return verifyCommand(project, filename.replace(/\.log$/, ''), config.verification[0].args, directory,
+    {env, expectedCases: acceptanceByProject.get(project), timeoutMs: 30_000});
 }
 const preflight = cases.map(scenario => {
   const {project, config, sources} = prepare(scenario, `preflight-${scenario.id}`);
@@ -80,6 +82,7 @@ const preflight = cases.map(scenario => {
   return {taskId: scenario.id, supportedBaseline: true, initial, referencePass: true};
 });
 const plan = {schemaVersion: 1, kind: 'agent-skill-integration', terseRevision: revision, specification, repetitions, cliVersion,
+  evaluationIntegrity: {patch: 'frozen-git-tree/1', acceptance: 'named-node-tests/1'},
   suite: values.suite, ...(upstream ? {upstream, removalTracking: 'removal-declarations/1'} : {}),
   tasks, fixtureHashes, preflight, criteria: 'Cold fresh sessions receive only ordinary development requirements. The host installs the released skill but does not begin, retrieve, decide, edit source, remind or repair. Workflow ordering and full final verification need observed evidence; behavior and source review are separate.'};
 write(path.join(output, 'plan.json'), plan);
@@ -88,7 +91,7 @@ if (values['preflight-only']) {console.log(JSON.stringify({output, preflight}, n
 const results = [];
 for (let repetition = 1; repetition <= repetitions; repetition++) for (const scenario of cases) {
   const artifactId = `${scenario.id}-session-${repetition}`;
-  const {project, config, before, initialized} = prepare(scenario, artifactId);
+  const {project, config, before, initialized, changeBaseline} = prepare(scenario, artifactId);
   const directory = path.dirname(project);
   write(path.join(directory, 'initialization.json'), initialized);
   const editable = scenario.editable ?? ['src/'];
@@ -102,7 +105,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) for (const sce
   const analysis = await analyzeEvaluation(project, before, scenario.remove);
   const acceptance = verify(project, config, directory, 'acceptance.log');
   const integrity = protectedFileEvidence(project, protectedHashes, external ? protectedFiles.filter(file => file.startsWith('acceptance/')) : config.verification[0].args.slice(1));
-  const changes = collectChanges(project, editable);
+  const changes = collectChanges(project, editable, changeBaseline);
   fs.writeFileSync(path.join(directory, 'implementation.patch'), changes.patch, {flag: 'wx'});
   const {after, ...structural} = analysis;
   const finalScopeHash = scopeHash(project, editable);
@@ -125,7 +128,7 @@ for (let repetition = 1; repetition <= repetitions; repetition++) for (const sce
     events: agent.events, agentExitCode: agent.exitCode, timedOut: agent.timedOut, blockedByPolicy: agent.blockedByPolicy,
     observationErrors: agent.observationErrors, agentMs: agent.agentMs,
     ...(external ? {finalRunStates, removalWorkflow: removalWorkflow(observer.observations, {...workflowOptions, finalRunStates})} : {}),
-    evidence: {patchHash: hash(changes.patch), eventHash: hash(fs.readFileSync(path.join(directory, 'agent.jsonl'))),
+    evidence: {changeBaseline, patchHash: hash(changes.patch), eventHash: hash(fs.readFileSync(path.join(directory, 'agent.jsonl'))),
       promptHash: hash(fs.readFileSync(path.join(directory, 'prompt.txt'))), observationsHash: hash(fs.readFileSync(path.join(directory, 'observations.json'))),
       analysisHash: hash(fs.readFileSync(path.join(directory, 'analysis.json'))), initializationHash: hash(fs.readFileSync(path.join(directory, 'initialization.json')))}};
   results.push(result);write(path.join(directory, 'result.json'), result);
